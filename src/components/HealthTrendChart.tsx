@@ -321,21 +321,26 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
     periodicSnapshot.recoveryScore,
   ]);
 
+  // 即時計算並更新當前健康維度快照（累計即時平均與最新指數）
+  const liveDimensions = useMemo(() => {
+    return calculateDimensions();
+  }, [calculateDimensions]);
+
   // Overall Health Status Badge Logic
   let statusBadgeText = '全日良好 OPTIMAL';
   let statusBadgeClass = 'bg-cyan-950/80 border-cyan-500/80 text-cyan-300';
-  if (periodicSnapshot.healthScore < 60) {
+  if (liveDimensions.healthScore < 60) {
     statusBadgeText = '全日過勞 CRITICAL';
     statusBadgeClass = 'bg-rose-950/80 border-rose-500/80 text-rose-300 animate-pulse';
-  } else if (periodicSnapshot.healthScore < 80) {
+  } else if (liveDimensions.healthScore < 80) {
     statusBadgeText = '全日疲勞 FATIGUED';
     statusBadgeClass = 'bg-amber-950/80 border-amber-500/80 text-amber-300';
   }
 
-  // 簡短狀態文案 (5分鐘統計週期)
-  const stressStatusText = periodicSnapshot.stressScore <= 25 ? '平靜無擾' : periodicSnapshot.stressScore <= 50 ? '輕微緊繃' : '高壓警戒';
-  const fatigueStatusText = periodicSnapshot.fatigueScore <= 25 ? '體態輕盈' : periodicSnapshot.fatigueScore <= 50 ? '輕度疲憊' : '過勞警戒';
-  const recoveryStatusText = periodicSnapshot.recoveryScore >= 50 ? '充沛回血' : periodicSnapshot.recoveryScore >= 20 ? '穩定蓄能' : '需補水休息';
+  // 簡短狀態文案
+  const stressStatusText = liveDimensions.stressScore <= 25 ? '平靜無擾' : liveDimensions.stressScore <= 50 ? '輕微緊繃' : '高壓警戒';
+  const fatigueStatusText = liveDimensions.fatigueScore <= 25 ? '體態輕盈' : liveDimensions.fatigueScore <= 50 ? '輕度疲憊' : '過勞警戒';
+  const recoveryStatusText = liveDimensions.recoveryScore >= 50 ? '充沛回血' : liveDimensions.recoveryScore >= 20 ? '穩定蓄能' : '需補水休息';
 
   return (
     <div className="bg-[#06080e] border border-slate-800 rounded-md p-3 sm:p-3.5 flex flex-col h-full backdrop-blur-md shadow-xl font-mono cctv-brackets">
@@ -349,98 +354,49 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* 滾動式自適應刻度切換器 */}
-          <div className="flex items-center bg-black/70 p-0.5 rounded border border-slate-800 text-[9px]">
-            <button
-              onClick={() => setUserSelectedResolution('auto')}
-              className={`px-1.5 py-0.5 rounded transition cursor-pointer font-bold ${
-                userSelectedResolution === 'auto'
-                  ? 'bg-cyan-500 text-slate-950'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="依數據時間自動自適應（<30m用5分、<3h用半小時、>=3h用小時）"
-            >
-              自動
-            </button>
-            <button
-              onClick={() => setUserSelectedResolution('5m')}
-              className={`px-1.5 py-0.5 rounded transition cursor-pointer ${
-                userSelectedResolution === '5m'
-                  ? 'bg-cyan-500 text-slate-950 font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              5m
-            </button>
-            <button
-              onClick={() => setUserSelectedResolution('30m')}
-              className={`px-1.5 py-0.5 rounded transition cursor-pointer ${
-                userSelectedResolution === '30m'
-                  ? 'bg-cyan-500 text-slate-950 font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              30m
-            </button>
-            <button
-              onClick={() => setUserSelectedResolution('1h')}
-              className={`px-1.5 py-0.5 rounded transition cursor-pointer ${
-                userSelectedResolution === '1h'
-                  ? 'bg-cyan-500 text-slate-950 font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              1h
-            </button>
-          </div>
-
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${statusBadgeClass}`}>
             {statusBadgeText}
           </span>
         </div>
       </div>
 
-      {/* ─── 四張卡片：五分鐘定時聚合快照（每 5 分鐘固定更新） ─── */}
+      {/* ─── 四張卡片：全日即時累計數據與最新體徵指數 ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 mb-2 sm:mb-2.5 shrink-0">
-        {/* 左側：健康分數 (5分鐘統計平均 HERO CARD) */}
+        {/* 左側：健康分數 HERO CARD */}
         <div className="sm:col-span-4 rounded-md bg-[#050b16] border border-cyan-500/60 px-3 py-2 sm:py-2.5 flex flex-col justify-between shadow-[0_0_15px_rgba(6,182,212,0.12)] relative overflow-hidden">
           <div className="flex items-center justify-between text-cyan-300 font-bold text-[10px] tracking-wider uppercase">
             <span className="flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5 text-cyan-400" />
               <span>健康分數</span>
             </span>
-            <span className="text-[8px] text-cyan-400/80 font-normal px-1 py-0.2 rounded border border-cyan-500/30 bg-cyan-950/40">
-              5分更新
-            </span>
           </div>
 
           <div className="my-1">
             <div className="text-2xl sm:text-3xl font-black text-cyan-300 font-mono tracking-tight drop-shadow-[0_0_8px_rgba(6,182,212,0.4)] flex items-baseline">
-              <span>{periodicSnapshot.healthScore}</span>
+              <span>{liveDimensions.healthScore}</span>
               <span className="text-xs text-slate-500 font-normal ml-1">/100</span>
             </div>
             <div className="text-[10px] text-slate-400 font-sans">
-              {periodicSnapshot.healthScore >= 80 ? '體徵平穩良好' : periodicSnapshot.healthScore >= 60 ? '輕度疲勞消耗' : '過勞臨界警示'}
+              {liveDimensions.healthScore >= 80 ? '體徵平穩良好' : liveDimensions.healthScore >= 60 ? '輕度疲勞消耗' : '過勞臨界警示'}
             </div>
           </div>
         </div>
 
-        {/* 右側：三大維度卡片 (每 5 分鐘固定快照：壓力、疲勞、修復) */}
+        {/* 右側：三大維度卡片 (壓力、疲勞、修復) */}
         <div className="sm:col-span-8 grid grid-cols-3 gap-2">
           
-          {/* 維度 1：🧠 壓力指數 (5分週期) */}
+          {/* 維度 1：🧠 壓力指數 */}
           <div className="bg-[#040814] border border-indigo-500/30 px-2.5 py-2 sm:py-2.5 rounded-md flex flex-col justify-between">
             <div className="flex items-center justify-between text-[10px] font-bold text-indigo-300 uppercase">
               <span className="flex items-center gap-1">
                 <Brain className="w-3 h-3 text-indigo-400 shrink-0" />
                 <span className="truncate">壓力指數</span>
               </span>
-              <span className="text-[8px] text-indigo-400/70 font-normal">5分週期</span>
             </div>
 
             <div className="my-0.5">
               <div className="text-lg sm:text-xl font-black text-indigo-200 font-mono flex items-baseline">
-                <span>{periodicSnapshot.stressScore}</span>
+                <span>{liveDimensions.stressScore}</span>
                 <span className="text-[10px] text-slate-500 font-normal ml-1">/100</span>
               </div>
             </div>
@@ -450,19 +406,18 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
             </div>
           </div>
 
-          {/* 維度 2：🚨 疲勞指數 (5分週期) */}
+          {/* 維度 2：🚨 疲勞指數 */}
           <div className="bg-[#120509] border border-rose-500/30 px-2.5 py-2 sm:py-2.5 rounded-md flex flex-col justify-between">
             <div className="flex items-center justify-between text-[10px] font-bold text-rose-300 uppercase">
               <span className="flex items-center gap-1">
                 <ShieldAlert className="w-3 h-3 text-rose-400 shrink-0" />
                 <span className="truncate">疲勞指數</span>
               </span>
-              <span className="text-[8px] text-rose-400/70 font-normal">5分週期</span>
             </div>
 
             <div className="my-0.5">
               <div className="text-lg sm:text-xl font-black text-rose-300 font-mono flex items-baseline">
-                <span>{periodicSnapshot.fatigueScore}</span>
+                <span>{liveDimensions.fatigueScore}</span>
                 <span className="text-[10px] text-slate-500 font-normal ml-1">/100</span>
               </div>
             </div>
@@ -472,19 +427,18 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
             </div>
           </div>
 
-          {/* 維度 3：⚡ 修復活力 (5分週期) */}
+          {/* 維度 3：⚡ 修復活力 */}
           <div className="bg-[#04100c] border border-emerald-500/30 px-2.5 py-2 sm:py-2.5 rounded-md flex flex-col justify-between">
             <div className="flex items-center justify-between text-[10px] font-bold text-emerald-300 uppercase">
               <span className="flex items-center gap-1">
                 <Zap className="w-3 h-3 text-emerald-400 shrink-0" />
                 <span className="truncate">修復活力</span>
               </span>
-              <span className="text-[8px] text-emerald-400/70 font-normal">5分週期</span>
             </div>
 
             <div className="my-0.5">
               <div className="text-lg sm:text-xl font-black text-emerald-300 font-mono flex items-baseline">
-                <span>{periodicSnapshot.recoveryScore}</span>
+                <span>{liveDimensions.recoveryScore}</span>
                 <span className="text-[10px] text-slate-500 font-normal ml-1">/100</span>
               </div>
             </div>

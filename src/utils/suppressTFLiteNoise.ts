@@ -12,7 +12,13 @@ export function initTFLiteLogSuppression() {
       arg.includes('Created TensorFlow Lite') ||
       arg.includes('XNNPACK delegate') ||
       arg.includes('TensorFlow Lite') ||
+      arg.includes('inference_feedback_manager.cc') ||
+      arg.includes('landmark_projection_calculator.cc') ||
+      arg.includes('feedback tensors') ||
+      arg.includes('NORM_RECT without IMAGE_DIMENSIONS') ||
+      arg.includes('WebSocket closed without opened') ||
       lower.includes('xnnpack') ||
+      lower.includes('websocket closed') ||
       arg.startsWith('INFO:') ||
       arg.includes('INFO: Created TensorFlow Lite')
     );

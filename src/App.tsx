@@ -24,6 +24,7 @@ import { CandidGalleryModal } from './components/CandidGalleryModal';
 import { evaluateRealtimeEmotion } from './utils/emotionEvaluator';
 import { soundSynth } from './utils/audioSynth';
 import { getFaceLandmarker, drawFacialLandmarks } from './utils/faceLandmarker';
+import { getGestureRecognizer, isPeaceSignLandmarks } from './utils/gestureRecognizer';
 import { FloatingHUD } from './components/FloatingHUD';
 import { CameraFeed } from './components/CameraFeed';
 import { SedentaryLockModal } from './components/SedentaryLockModal';
@@ -51,6 +52,24 @@ import {
 
 const getTodayDateKey = () => new Date().toLocaleDateString('en-CA');
 
+export const getBaselineCharismaScore = (): FaceCharismaScore => ({
+  score: 95,
+  title: '氣場充沛 (精神煥發)',
+  rank: 'SSS',
+  comment: '面色紅潤光澤，雙眼聚焦神采奕奕，面部放鬆自然！社畜戰力處於全天頂峰狀態。',
+  metrics: {
+    radiance: 92,
+    sparkle: 94,
+    smilePower: 90,
+    symmetry: 96,
+    charisma: 95,
+  },
+  timestamp: Date.now(),
+  highlightTag: '頂峰狀態',
+  source: 'SYSTEM_BASELINE',
+  savedDate: getTodayDateKey(),
+});
+
 interface DailySessionState {
   date: string;
   sessionStartTime?: number;
@@ -73,8 +92,24 @@ const loadTodaySessionState = (): DailySessionState | null => {
     const raw = localStorage.getItem('overwatch_daily_state');
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (parsed && parsed.date === getTodayDateKey()) {
-      return parsed;
+    const today = getTodayDateKey();
+    if (parsed && parsed.date === today) {
+      const todayTrendHistory = Array.isArray(parsed.trendHistory)
+        ? parsed.trendHistory.filter((pt: HealthTrendPoint) => {
+            if (!pt.timestamp) return true;
+            return new Date(pt.timestamp).toLocaleDateString('en-CA') === today;
+          })
+        : [];
+
+      return {
+        ...parsed,
+        trendHistory: todayTrendHistory.length > 0 ? todayTrendHistory : parsed.trendHistory,
+      };
+    } else {
+      // Purge old date state from previous days
+      localStorage.removeItem('overwatch_daily_state');
+      localStorage.removeItem('overwatch_last_face_score');
+      localStorage.removeItem('overwatch_trend_snapshot');
     }
   } catch (err) {
     console.warn('Failed to load daily session state:', err);
@@ -153,6 +188,8 @@ export default function App() {
   // Modals & Screensavers
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isReceiptOpen, setIsReceiptOpen] = useState<boolean>(false);
+  const [frozenReceiptStats, setFrozenReceiptStats] = useState<DailySummaryStats | null>(null);
+  const [frozenReceiptEvents, setFrozenReceiptEvents] = useState<HealthEvent[] | null>(null);
   const [isSedentaryLocked, setIsSedentaryLocked] = useState<boolean>(false);
   const [sedentaryRemainingSeconds, setSedentaryRemainingSeconds] = useState<number>(15);
   const [isStretchScreensaverOpen, setIsStretchScreensaverOpen] = useState<boolean>(false);
@@ -249,16 +286,21 @@ export default function App() {
     isFrequentBlinking: false,
   });
 
-  // AI Face Charisma & Beauty Score State (Persisted in localStorage)
-  const [faceScoreData, setFaceScoreData] = useState<FaceCharismaScore | null>(() => {
+  // AI Face Charisma & Beauty Score State (Persisted in localStorage for today only)
+  const [faceScoreData, setFaceScoreData] = useState<FaceCharismaScore>(() => {
     try {
       const saved = localStorage.getItem('overwatch_last_face_score');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.savedDate === getTodayDateKey()) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return getBaselineCharismaScore();
   });
   const [isScanningFace, setIsScanningFace] = useState<boolean>(false);
+  const hasAutoScannedRef = useRef<boolean>(false);
 
   // Latest candid snapshot captured randomly from webcam stream
   const candidSnapshotRef = useRef<{
@@ -274,16 +316,20 @@ export default function App() {
     };
   } | null>(null);
 
-  // Candid Snapshots Gallery State
+  // Candid Snapshots Gallery State (Filter to keep only today's snapshots)
   const [candidGallery, setCandidGallery] = useState<CandidSnapshotItem[]>(() => {
     try {
       const saved = localStorage.getItem('overwatch_candid_gallery');
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed: CandidSnapshotItem[] = JSON.parse(saved);
+      const today = getTodayDateKey();
+      return parsed.filter((item) => new Date(item.timestamp).toLocaleDateString('en-CA') === today);
     } catch {
       return [];
     }
   });
   const [isCandidGalleryOpen, setIsCandidGalleryOpen] = useState<boolean>(false);
+  const [isShutterFlashing, setIsShutterFlashing] = useState<boolean>(false);
 
   useEffect(() => {
     try {
@@ -370,7 +416,10 @@ export default function App() {
     blinkClosureStartTime: 0,
     lastBlinkPeakTime: 0,
     blinkCooldown: 0,
-    lastHourlyBeautyScanTime: performance.now(),
+    peaceCooldown: 0,
+    peaceConsecutiveDetections: 0,
+    lastGestureCheckTime: 0,
+    isRecognizingGesture: false,
     lastFaceScoreEvalTime: 0,
     lastRandomSnapshotTime: 0,
     nextRandomSnapshotIntervalSecs: 600 + Math.floor(Math.random() * 900), // Random 10~25 min
@@ -965,6 +1014,41 @@ export default function App() {
     );
   }, [modifyScore, triggerToast, dispatchHazardAlert, takeCandidWebcamSnapshot]);
 
+  // Hidden Easter Egg: Peace Sign ✌️ Candid Snapshot Handler
+  const handlePeaceSnapshot = useCallback(() => {
+    soundSynth.playCameraShutter();
+
+    // Trigger visual camera shutter flash animation on CCTV viewport
+    setIsShutterFlashing(true);
+    setTimeout(() => setIsShutterFlashing(false), 250);
+
+    // Capture candid snapshot directly from camera stream
+    const snap = takeCandidWebcamSnapshot('✌️ 工位野生比耶瞬間', 'candid');
+    if (snap) {
+      const nowStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+      candidSnapshotRef.current = {
+        image: snap.image,
+        time: nowStr,
+        timestamp: Date.now(),
+        faceCenter: snap.faceCenter,
+        eyePositions: snap.eyePositions,
+      };
+      addCandidSnapshot(snap.image, '✌️ 元氣滿滿：工位比耶瞬間', 'peace');
+    }
+
+    modifyScore(+10, '✌️ 解鎖隱藏彩蛋：工位元氣比耶！精神值大幅回血 (+10點)', '✌️');
+    logEvent('✌️ 解鎖隱藏機制：捕捉到工位元氣比耶瞬間！照片已存入工位相簿', 10, 'reward', '✌️');
+
+    triggerToast({
+      title: '✌️ 抓到比耶！元氣滿滿',
+      desc: '成功解鎖隱藏彩蛋！工位野生比耶照已收納至工位相簿',
+      badge: '+10 BP',
+      badgeColor: 'bg-emerald-400 text-slate-950 font-bold',
+      image: snap?.image,
+      type: 'general',
+    });
+  }, [takeCandidWebcamSnapshot, addCandidSnapshot, modifyScore, logEvent, triggerToast]);
+
   const handleScanFaceCharisma = useCallback(
     async (isAuto: boolean = false, triggerTakeoverModal: boolean = false) => {
       // If modal takeover requested, trigger modal IMMEDIATELY for instant user response
@@ -1047,7 +1131,8 @@ export default function App() {
         const result = await evaluateFaceScoreWithGemini(inputs);
         setFaceScoreData(result);
         try {
-          localStorage.setItem('overwatch_last_face_score', JSON.stringify(result));
+          const scoreToSave = { ...result, savedDate: getTodayDateKey() };
+          localStorage.setItem('overwatch_last_face_score', JSON.stringify(scoreToSave));
         } catch (err) {
           console.warn('Failed to save last face score to localStorage:', err);
         }
@@ -1302,6 +1387,15 @@ export default function App() {
         if (!isCancelled) {
           setIsModelLoaded(true);
           startCamera();
+
+          // Smoothly warm up GestureRecognizer in the background after main camera starts
+          setTimeout(() => {
+            if (!isCancelled) {
+              getGestureRecognizer().catch((err) => {
+                console.warn('GestureRecognizer background load notice:', err);
+              });
+            }
+          }, 1200);
         }
       } catch (err: unknown) {
         console.error('FaceLandmarker load failed:', err);
@@ -1557,29 +1651,16 @@ export default function App() {
                 blendshapes.find((b) => b.categoryName === 'browDownLeft')?.score || 0;
               const browDownR =
                 blendshapes.find((b) => b.categoryName === 'browDownRight')?.score || 0;
-              const minBrowDown = Math.min(browDownL, browDownR);
-              const maxBrowDown = Math.max(browDownL, browDownR);
               const avgBrowDown = (browDownL + browDownR) / 2;
+              const maxBrowDown = Math.max(browDownL, browDownR);
 
-              // True human frowning is bilateral (both inner brows pull down together).
-              // Side face head turns cause severe asymmetry and perspective distortion!
-              const browSymmetry = maxBrowDown > 0.015 ? minBrowDown / maxBrowDown : 1;
-              const yawDampener = Math.max(0.05, 1 - Math.min(1, yawDev * 4.5));
-              const symmetryDampener = maxBrowDown > 0.03 ? Math.max(0.15, Math.min(1, browSymmetry * 1.6)) : 1;
-              const sideProfileSuppression = (isLookingSideways || browSymmetry < 0.35)
-                ? Math.min(0.25, symmetryDampener * yawDampener)
-                : yawDampener;
-
-              // Geometric Inner Eyebrow Compression (#107 vs #336)
+              // Geometric Inner Eyebrow Compression (#107 vs #336 normalized to eye span #33 vs #263)
               const rightInnerBrow = landmarks[107] || landmarks[66];
               const leftInnerBrow = landmarks[336] || landmarks[296];
               const rightEyeCorner = landmarks[33];
               const leftEyeCorner = landmarks[263];
               let geomFurrow = 0;
               if (
-                !isLookingSideways &&
-                !isLookingDown &&
-                smileVal < 0.08 &&
                 rightInnerBrow &&
                 leftInnerBrow &&
                 rightEyeCorner &&
@@ -1588,47 +1669,39 @@ export default function App() {
                 const eyeSpan = Math.max(0.01, Math.hypot(leftEyeCorner.x - rightEyeCorner.x, leftEyeCorner.y - rightEyeCorner.y));
                 const browSpan = Math.hypot(leftInnerBrow.x - rightInnerBrow.x, leftInnerBrow.y - rightInnerBrow.y);
                 const ratio = browSpan / eyeSpan;
-                if (ratio < 0.45) {
-                  geomFurrow = Math.min(0.06, (0.45 - ratio) * 0.9);
+                // Typical relaxed eyebrow ratio is ~0.42 - 0.55. Furrowing brow pulls it below 0.38
+                if (ratio < 0.38) {
+                  geomFurrow = Math.min(0.12, (0.38 - ratio) * 0.8);
                 }
               }
 
-              // Base brow score: calibrated so that genuine front-facing frown reaches 0.06~0.12
-              // while neutral face stays around 0.00~0.02
-              let baseBrowScore = (avgBrowDown * 1.35 + geomFurrow) * sideProfileSuppression * pitchDampener * gazeDownDampener;
+              // Corroborating nose sneer & mouth frown micro-tensions
+              const corrugatorComponent = avgBrowDown * 0.75 + maxBrowDown * 0.25 + geomFurrow;
+              const microStressBoost = Math.max(noseSneerVal * 0.4, mouthFrownVal * 0.3, mouthPressVal * 0.2);
 
-              // Multi-Expression Synergy & Inhibitory Cross-Validation:
-              // A. Smile & Laughter Inhibition (smiling/grinning crinkles brows but is NOT stress)
-              if (smileVal > 0.06 || lipCornerElevation > 0.010) {
-                const smileImpact = Math.max((smileVal - 0.06) * 6, (lipCornerElevation - 0.010) * 35);
-                baseBrowScore *= Math.max(0.05, 1 - Math.min(0.95, smileImpact));
+              // Combined raw brow score: neutral face ~0.00 - 0.02; mild tension ~0.03 - 0.06; genuine frown ~0.07 - 0.20+
+              let baseBrowScore = corrugatorComponent + microStressBoost;
+
+              // Inhibit smile/laughter false positives
+              if (smileVal > 0.08 || lipCornerElevation > 0.015) {
+                const smileDamp = Math.max((smileVal - 0.08) * 3.5, (lipCornerElevation - 0.015) * 20);
+                baseBrowScore *= Math.max(0.1, 1 - Math.min(0.9, smileDamp));
               }
 
-              // B. Speech / Talking / Open Mouth Inhibition (conversational prosody)
-              if (jawVal > 0.18) {
-                const jawImpact = (jawVal - 0.18) * 3.0;
-                baseBrowScore *= Math.max(0.15, 1 - Math.min(0.85, jawImpact));
+              // Inhibit extreme jaw opening / yawn / speech
+              if (jawVal > 0.25) {
+                baseBrowScore *= Math.max(0.2, 1 - (jawVal - 0.25) * 2.0);
               }
 
-              // C. Orientation Inhibition (Looking down at desk or keyboard)
-              if (isLookingDown || eyeLookDownVal > 0.15) {
-                const downSuppression = Math.max(0.10, 1 - Math.min(0.85, pitchDownDev * 6.0 + eyeLookDownVal * 1.6));
-                baseBrowScore *= downSuppression;
+              // Side-angle mild dampener (only if turned heavily sideways)
+              if (isLookingSideways && yawDev > 0.15) {
+                baseBrowScore *= Math.max(0.35, 1 - (yawDev - 0.15) * 2.5);
               }
 
-              // D. Micro-Expression Stress Synergy (Corroborating tension in lower face & nose)
-              const lowerFaceTension = Math.max(
-                mouthFrownVal * 1.5,
-                mouthPressVal * 1.2,
-                mouthShrugLower * 1.3,
-                noseSneerVal * 1.5
-              );
-              const strainMultiplier = 1.0 + Math.min(0.40, lowerFaceTension * 1.2);
-
-              const rawBrowPressure = baseBrowScore * strainMultiplier;
+              const rawBrowPressure = Math.max(0, baseBrowScore);
               const prevBrow = detectionRef.current.latestBrowPressure ?? rawBrowPressure;
-              // Smooth with responsive tracking (0.70 new, 0.30 prev)
-              const browPressure = Number((prevBrow * 0.30 + rawBrowPressure * 0.70).toFixed(2));
+              // Smooth with responsive tracking (0.75 new, 0.25 prev)
+              const browPressure = Number((prevBrow * 0.25 + rawBrowPressure * 0.75).toFixed(3));
               detectionRef.current.latestBrowPressure = browPressure;
               const frownVal = browPressure;
 
@@ -1724,16 +1797,6 @@ export default function App() {
                 detectionRef.current.blinkCooldown = 6; // 6s buffer
               }
 
-              // Periodic Automatic AI Face Charisma Score & Hydration Reminder (every 30 mins = 1,800,000ms)
-              if (
-                detectionRef.current.lastHourlyBeautyScanTime === 0 ||
-                now - detectionRef.current.lastHourlyBeautyScanTime > 1800000
-              ) {
-                detectionRef.current.lastHourlyBeautyScanTime = now;
-                // Run 30-min beauty evaluation screensaver takeover!
-                handleScanFaceCharisma(true, true);
-              }
-
               // Update desk / away trackers
               detectionRef.current.consecutiveDeskSecs += delta;
 
@@ -1776,8 +1839,8 @@ export default function App() {
                 detectionRef.current.hasTriggeredThisYawn = false;
               }
 
-              // Frown Trigger Check (Require genuine Brow Pressure >= 0.08 sustained for 1.8s, 5s buffer, facing forward)
-              const isFrowningNow = frownVal >= 0.08 && !isLookingDown && eyeLookDownVal < 0.35 && !isLookingSideways;
+              // Frown Trigger Check (Require genuine Brow Pressure >= 0.08 sustained for 5.0s, 6s buffer, facing forward)
+              const isFrowningNow = frownVal >= 0.08 && !isLookingSideways;
               if (isFrowningNow) {
                 if (!detectionRef.current.frownStartTime) {
                   detectionRef.current.frownStartTime = performance.now();
@@ -1785,14 +1848,14 @@ export default function App() {
                 const elapsedFrown =
                   (performance.now() - detectionRef.current.frownStartTime) / 1000;
                 if (
-                  elapsedFrown >= 1.8 &&
+                  elapsedFrown >= 5.0 &&
                   !detectionRef.current.hasTriggeredThisFrown &&
                   detectionRef.current.frownCooldown <= 0 &&
                   !activeHazardRef.current
                 ) {
                   handleFrownPenalty();
                   detectionRef.current.hasTriggeredThisFrown = true;
-                  detectionRef.current.frownCooldown = 5; // 5s buffer
+                  detectionRef.current.frownCooldown = 6; // 6s buffer
                 }
               } else {
                 detectionRef.current.frownStartTime = null;
@@ -1834,6 +1897,9 @@ export default function App() {
               }
               if (detectionRef.current.proximityCooldown > 0) {
                 detectionRef.current.proximityCooldown -= delta;
+              }
+              if (detectionRef.current.peaceCooldown > 0) {
+                detectionRef.current.peaceCooldown -= delta;
               }
 
               // Record rolling 30-minute telemetry sample (sampled every 1 second)
@@ -1942,6 +2008,67 @@ export default function App() {
           } catch {
             // landmarker detect error
           }
+
+          // Gesture Recognition for Peace Sign ✌️ Easter Egg (sampled every ~200ms)
+          if (
+            !detectionRef.current.isRecognizingGesture &&
+            now - detectionRef.current.lastGestureCheckTime >= 200 &&
+            detectionRef.current.peaceCooldown <= 0
+          ) {
+            detectionRef.current.lastGestureCheckTime = now;
+            detectionRef.current.isRecognizingGesture = true;
+
+            getGestureRecognizer()
+              .then((recognizer) => {
+                if (!recognizer || !videoRef.current || videoRef.current.readyState < 2) return;
+                try {
+                  const gestureResult = recognizer.recognize(videoRef.current);
+                  let isPeace = false;
+
+                  // 1. Check MediaPipe pre-trained gesture categories for 'Victory' (✌️ Peace Sign)
+                  if (gestureResult.gestures && gestureResult.gestures.length > 0) {
+                    for (const handGestures of gestureResult.gestures) {
+                      for (const g of handGestures) {
+                        if (g.categoryName === 'Victory' && g.score > 0.48) {
+                          isPeace = true;
+                          break;
+                        }
+                      }
+                      if (isPeace) break;
+                    }
+                  }
+
+                  // 2. Check geometric landmark heuristic fallback (Index & Middle fingers extended in V-shape)
+                  if (!isPeace && gestureResult.landmarks && gestureResult.landmarks.length > 0) {
+                    for (const handLandmarks of gestureResult.landmarks) {
+                      if (isPeaceSignLandmarks(handLandmarks)) {
+                        isPeace = true;
+                        break;
+                      }
+                    }
+                  }
+
+                  if (isPeace) {
+                    detectionRef.current.peaceConsecutiveDetections =
+                      (detectionRef.current.peaceConsecutiveDetections || 0) + 1;
+                    // Trigger when held for at least 2 checks (~350-400ms) to ensure deliberate gesture
+                    if (detectionRef.current.peaceConsecutiveDetections >= 2) {
+                      detectionRef.current.peaceCooldown = 5.0; // 5 seconds cooldown
+                      detectionRef.current.peaceConsecutiveDetections = 0;
+                      handlePeaceSnapshot();
+                    }
+                  } else {
+                    detectionRef.current.peaceConsecutiveDetections = 0;
+                  }
+                } catch {
+                  // Silently handle any frame drops
+                }
+              })
+              .catch(() => {})
+              .finally(() => {
+                detectionRef.current.isRecognizingGesture = false;
+              });
+          }
         }
       }
 
@@ -1957,13 +2084,74 @@ export default function App() {
     handleFrownPenalty,
     handleProximityBlur,
     handleSlackReward,
+    handlePeaceSnapshot,
   ]);
+
+  // Track active date for automatic midnight rollover reset
+  const currentDayDateRef = useRef<string>(getTodayDateKey());
 
   /* ====================================================================
      Background Interval: Sedentary, Eye Strain & Overtime Tick
      ==================================================================== */
   useEffect(() => {
     const timer = setInterval(() => {
+      // 0. Midnight Rollover Check (Automatic Daily Reset on New Day)
+      const currentDayKey = getTodayDateKey();
+      if (currentDayDateRef.current !== currentDayKey) {
+        console.log('🌅 [MIDNIGHT_ROLLOVER] New day detected:', currentDayKey, '(previous:', currentDayDateRef.current, '). Resetting daily statistics.');
+        currentDayDateRef.current = currentDayKey;
+
+        // Reset daily metrics for the new day
+        setHealthScore(100);
+        const now = new Date();
+        const roundedMinutes = Math.floor(now.getMinutes() / 5) * 5;
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(roundedMinutes).padStart(2, '0');
+        setTrendHistory([
+          {
+            time: `${hh}:${mm}`,
+            timestamp: Date.now(),
+            score: 100,
+            fatigueIndex: 1,
+            eventDelta: 0,
+            eventName: '新一日系統自動啟動',
+            eventType: 'info',
+          },
+        ]);
+        setStatsSummary({
+          yawnsCaught: 0,
+          frownsCaught: 0,
+          sedentaryLocksCount: 0,
+          slackMinutesEarned: 0,
+          overtimeMinutes: 0,
+        });
+        setEvents([
+          {
+            id: `init_${Date.now()}`,
+            timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+            type: 'system',
+            message: `🌅 跨日自動刷新：已為您載入 ${currentDayKey} 全新一日健康存摺`,
+            delta: 0,
+            icon: '🌅',
+          },
+        ]);
+        setIsClockedOut(false);
+        setSessionStartTime(Date.now());
+        setLastHydrationTime(Date.now());
+        setOvertimeMinutes(0);
+        setIsOvertime(false);
+        const baselineCharisma = getBaselineCharismaScore();
+        setFaceScoreData(baselineCharisma);
+        hasAutoScannedRef.current = false;
+        try {
+          localStorage.setItem('overwatch_last_face_score', JSON.stringify(baselineCharisma));
+        } catch {}
+        detectionRef.current.overtimeTicker = 0;
+
+        // Filter candid gallery to keep only today's snapshots
+        setCandidGallery((prev) => prev.filter((item) => new Date(item.timestamp).toLocaleDateString('en-CA') === currentDayKey));
+      }
+
       // 1. Sedentary Limit Check
       const deskLimitSecs = settings.sedentaryLimitMinutes * 60;
       if (
@@ -2078,7 +2266,6 @@ export default function App() {
   ]);
 
   // Auto-trigger BIO_CHARISMA initial face evaluation once onboarding is complete and face is first detected
-  const hasAutoScannedRef = useRef<boolean>(false);
   useEffect(() => {
     if (
       !isOnboardingOpen &&
@@ -2204,8 +2391,7 @@ export default function App() {
 
   const handleDismissEyeStrain = useCallback(() => {
     setIsEyeStrainActive(false);
-    logEvent('已手動解除眼肌放鬆模糊', 0, 'info', '👀');
-  }, [logEvent]);
+  }, []);
 
   const handleStretchComplete = useCallback(() => {
     setIsStretchScreensaverOpen(false);
@@ -2253,6 +2439,13 @@ export default function App() {
     setIsReceiptOpen(false);
   }, []);
 
+  const handleClockInAgain = useCallback(() => {
+    setIsClockedOut(false);
+    setFrozenReceiptStats(null);
+    setFrozenReceiptEvents(null);
+    logEvent('💼 已切換回「繼續上班」模式，恢復即時體徵追蹤', 0, 'info', '💼');
+  }, [logEvent]);
+
   const handleSaveSettings = useCallback(
     (newSettings: GuardianSettings) => {
       setSettings(newSettings);
@@ -2263,7 +2456,7 @@ export default function App() {
       }
       setIsSettingsOpen(false);
       logEvent(
-        `守護參數已更新：基礎年齡 ${newSettings.baseAge}歲 / 下班時間 ${newSettings.offWorkTime}`,
+        `守護參數已更新：基礎年齡 ${newSettings.baseAge}歲 / 下班時間 ${newSettings.offWorkTime} / 補水提醒間隔 ${newSettings.hydrationIntervalMinutes || 60}分鐘`,
         0,
         'info',
         '⚙️'
@@ -2271,6 +2464,75 @@ export default function App() {
     },
     [logEvent]
   );
+
+  const handleResetTodayData = useCallback(() => {
+    const todayKey = getTodayDateKey();
+    localStorage.removeItem('overwatch_daily_state');
+    localStorage.removeItem('overwatch_candid_gallery');
+    localStorage.removeItem('overwatch_last_face_score');
+    localStorage.removeItem('overwatch_trend_snapshot');
+
+    setHealthScore(100);
+    const now = new Date();
+    const roundedMinutes = Math.floor(now.getMinutes() / 5) * 5;
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(roundedMinutes).padStart(2, '0');
+    setTrendHistory([
+      {
+        time: `${hh}:${mm}`,
+        timestamp: Date.now(),
+        score: 100,
+        fatigueIndex: 1,
+        eventDelta: 0,
+        eventName: '今日數據重置啟動',
+        eventType: 'info',
+      },
+    ]);
+    setStatsSummary({
+      yawnsCaught: 0,
+      frownsCaught: 0,
+      sedentaryLocksCount: 0,
+      slackMinutesEarned: 0,
+      overtimeMinutes: 0,
+    });
+    setEvents([
+      {
+        id: `reset_${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+        type: 'system',
+        message: `🧹 已為您一鍵重置今日健康存摺與所有累計紀錄 (${todayKey})`,
+        delta: 0,
+        icon: '🧹',
+      },
+    ]);
+    setIsClockedOut(false);
+    setFrozenReceiptStats(null);
+    setFrozenReceiptEvents(null);
+    setSessionStartTime(Date.now());
+    setLastHydrationTime(Date.now());
+    setOvertimeMinutes(0);
+    setIsOvertime(false);
+    const baselineCharisma = getBaselineCharismaScore();
+    setFaceScoreData(baselineCharisma);
+    hasAutoScannedRef.current = false;
+    try {
+      localStorage.setItem('overwatch_last_face_score', JSON.stringify(baselineCharisma));
+    } catch {}
+    setCandidGallery([]);
+    if (detectionRef.current) {
+      detectionRef.current.overtimeTicker = 0;
+      detectionRef.current.consecutiveDeskSecs = 0;
+      detectionRef.current.yawnConsecutiveCount = 0;
+    }
+
+    triggerToast({
+      title: '🧹 今日數據已成功歸零重置！',
+      desc: '已清空歷史紀錄與累積體徵，恢復 100 分滿血健康存摺起點！',
+      badge: 'RESET',
+      badgeColor: 'bg-emerald-500 text-slate-950',
+      type: 'blink',
+    });
+  }, [triggerToast]);
 
   const handleCompleteOnboarding = useCallback(
     (newSettings: GuardianSettings) => {
@@ -2392,16 +2654,6 @@ export default function App() {
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
-
-          {/* Clock-Out Summary Card Button */}
-          <button
-            onClick={() => setIsReceiptOpen(true)}
-            className="flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-2 sm:px-2.5 py-1 rounded text-[10px] sm:text-[11px] transition transform active:scale-95 border border-cyan-400/80 shadow-[0_0_8px_rgba(6,182,212,0.25)]"
-          >
-            <Clock className="w-3 h-3 shrink-0" />
-            <span className="hidden sm:inline">[RECEIPT]</span>
-            <span className="sm:hidden">結算</span>
-          </button>
         </div>
       </header>
 
@@ -2432,6 +2684,7 @@ export default function App() {
               onTriggerFaceScan={() => handleScanFaceCharisma(false)}
               onOpenCandidGallery={() => setIsCandidGalleryOpen(true)}
               candidCount={candidGallery.length}
+              isShutterFlashing={isShutterFlashing}
             />
           </div>
 
@@ -2445,15 +2698,20 @@ export default function App() {
               overtimeMinutes={overtimeMinutes}
               currentEmotion={telemetry.emotion}
               isClockedOut={isClockedOut}
-              onClockInAgain={() => setIsClockedOut(false)}
+              onClockInAgain={handleClockInAgain}
               onClockOut={() => {
-                setIsClockedOut(true);
-                setIsOvertime(false);
+                if (!isClockedOut) {
+                  const currentStats = getSummaryStats();
+                  setFrozenReceiptStats(currentStats);
+                  setFrozenReceiptEvents([...events]);
+                  setIsClockedOut(true);
+                  setIsOvertime(false);
+                  try {
+                    soundSynth.playRewardJingle();
+                  } catch {}
+                  logEvent('🏁 打卡下班完成！今日戰鬥結束，已生成結算收據', 0, 'info', '🏁');
+                }
                 setIsReceiptOpen(true);
-                try {
-                  soundSynth.playRewardJingle();
-                } catch {}
-                logEvent('🏁 打卡下班完成！今日戰鬥結束，已生成結算收據', 0, 'info', '🏁');
               }}
               onOpenCandidGallery={() => setIsCandidGalleryOpen(true)}
               candidCount={candidGallery.length}
@@ -2535,13 +2793,16 @@ export default function App() {
         onClose={handleCloseSettings}
         settings={settings}
         onSave={handleSaveSettings}
+        onResetTodayData={handleResetTodayData}
       />
 
       <DailyReceiptModal
         isOpen={isReceiptOpen}
         onClose={handleCloseReceipt}
-        stats={getSummaryStats()}
-        events={events}
+        stats={frozenReceiptStats || getSummaryStats()}
+        events={frozenReceiptEvents || events}
+        isClockedOut={isClockedOut}
+        onClockInAgain={handleClockInAgain}
       />
 
       <CandidGalleryModal

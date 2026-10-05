@@ -133,8 +133,8 @@ export function evaluateRealtimeEmotion(
   }
 
   // 6. 【緊繃皺眉】 (Frown / Stressed): 眉頭深鎖、眉心向內聚攏
-  if (frownVal > 0.26) {
-    const intensity = Math.min(100, Math.round(frownVal * 140));
+  if (frownVal >= 0.08) {
+    const intensity = Math.min(100, Math.round(50 + frownVal * 300));
     return {
       type: 'frown',
       label: '緊繃皺眉',

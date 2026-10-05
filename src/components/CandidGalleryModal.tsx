@@ -91,7 +91,7 @@ export const CandidGalleryModal: React.FC<CandidGalleryModalProps> = ({
                 </span>
               </div>
               <div className="text-[9px] sm:text-[10px] text-slate-500 truncate hidden xs:block sm:block">
-                WASM AI 智慧即時抓拍 • 工位野生表情存證檔案庫
+                工位真實日常珍藏 • 野生表情趣味相簿
               </div>
             </div>
           </div>
@@ -139,9 +139,11 @@ export const CandidGalleryModal: React.FC<CandidGalleryModalProps> = ({
               <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600 mb-3">
                 <ImageIcon className="w-6 h-6" />
               </div>
-              <p className="text-xs font-bold text-slate-400 mb-1">今日尚無抓拍存證照片</p>
-              <p className="text-[10px] text-slate-600 max-w-sm">
-                當你打哈欠、眉頭緊鎖、打瞌睡或進行 AI 顏值掃描時，系統會自動拍攝野生表情並在此留存。
+              <p className="text-xs font-bold text-slate-300 mb-1.5">
+                ✨ 今天狀態超棒，相簿目前還空空的！
+              </p>
+              <p className="text-[11px] text-slate-400 max-w-sm leading-relaxed">
+                保持好心情與活力！當你工作時不小心打了個大哈欠、緊皺眉頭放空，或是對著鏡頭比出 ✌️ 手勢，相簿都會悄悄為你捕捉這些真實可愛的日常瞬間。
               </p>
             </div>
           ) : (
@@ -164,6 +166,11 @@ export const CandidGalleryModal: React.FC<CandidGalleryModalProps> = ({
                     <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[8px] font-bold text-cyan-300 border border-slate-700 backdrop-blur-xs">
                       {item.time}
                     </div>
+                    {item.type === 'peace' && (
+                      <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-emerald-950/90 text-[8px] font-bold text-emerald-300 border border-emerald-500/50 backdrop-blur-xs shadow-sm">
+                        ✌️ 隱藏彩蛋
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <span className="text-[10px] text-white font-bold px-2 py-1 rounded bg-black/80 border border-cyan-400/50 shadow-md">
                         點擊放大點閱

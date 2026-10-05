@@ -98,6 +98,7 @@ export interface FaceCharismaScore {
   timestamp: number;
   highlightTag: string;
   source?: string;
+  savedDate?: string;
 }
 
 export interface TelemetryData {
@@ -139,7 +140,7 @@ export interface CandidSnapshotItem {
   id: string;
   image: string;
   tag: string;
-  type: 'yawn' | 'frown' | 'blink' | 'candid' | 'scan';
+  type: 'yawn' | 'frown' | 'blink' | 'candid' | 'scan' | 'peace';
   time: string;
   timestamp: number;
   faceCenter?: { x: number; y: number };

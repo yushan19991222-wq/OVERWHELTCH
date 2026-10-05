@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Volume2, VolumeX, Clock, Calendar, Armchair, Droplets, Bell, BellOff, MessageSquare, AppWindow, X } from 'lucide-react';
+import { Settings, Volume2, VolumeX, Clock, Calendar, Armchair, Droplets, Bell, BellOff, MessageSquare, AppWindow, RotateCcw, AlertTriangle, X } from 'lucide-react';
 import { GuardianSettings } from '../types';
 import { requestNotificationPermission, isNotificationSupported } from '../utils/crossTabAlert';
 
@@ -8,6 +8,7 @@ interface SettingsModalProps {
   onClose: () => void;
   settings: GuardianSettings;
   onSave: (newSettings: GuardianSettings) => void;
+  onResetTodayData?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -15,6 +16,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   settings,
   onSave,
+  onResetTodayData,
 }) => {
   const [baseAge, setBaseAge] = useState(settings.baseAge);
   const [offWorkTime, setOffWorkTime] = useState(settings.offWorkTime);
@@ -31,6 +33,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState(
     settings.voiceAlertsEnabled ?? true
   );
+  const [showConfirmReset, setShowConfirmReset] = useState(false);
 
   // Close modal on ESC key
   useEffect(() => {
@@ -229,6 +232,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {voiceAlertsEnabled ? <MessageSquare className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>
           </div>
+
+          {/* Reset Today's Data Option (Red Alert Icon Button) */}
+          {onResetTodayData && (
+            <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+              <div>
+                <div className="font-bold text-slate-200">RESET_DATA: TODAY_SESSION</div>
+                <div className="text-[10px] text-slate-500">清空並重置今日的累積數據與歷史紀錄</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowConfirmReset(true)}
+                className="p-2 rounded-md bg-rose-950/70 hover:bg-rose-900 border border-rose-500/60 hover:border-rose-400 text-rose-400 hover:text-rose-200 transition cursor-pointer flex items-center justify-center shrink-0 shadow-sm"
+                title="一鍵重置今日數據"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Pinned Footer */}
@@ -247,6 +268,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             SAVE_CONFIG
           </button>
         </div>
+
+        {/* Reset Confirmation Overlay Modal */}
+        {showConfirmReset && (
+          <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="bg-[#0e0709] border border-rose-500/70 rounded-md p-5 max-w-xs w-full shadow-[0_0_30px_rgba(244,63,94,0.3)] flex flex-col gap-3 font-mono cctv-brackets">
+              <div className="flex items-center gap-2 text-rose-400 font-bold text-xs uppercase tracking-wider">
+                <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 animate-pulse" />
+                <span>[SYS_WARNING: CONFIRM_RESET]</span>
+              </div>
+              <div className="text-xs text-slate-300 leading-relaxed font-sans">
+                確定要清空並重置今日的所有健康存摺分數、體徵數據與歷史紀錄嗎？重置後系統將恢復 100 分滿血初始狀態。
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-rose-900/60">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmReset(false)}
+                  className="px-3 py-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs border border-slate-700 transition cursor-pointer"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowConfirmReset(false);
+                    if (onResetTodayData) onResetTodayData();
+                    onClose();
+                  }}
+                  className="px-3.5 py-1.5 rounded bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-[0_0_10px_rgba(244,63,94,0.4)] cursor-pointer"
+                >
+                  確定重置
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { Download, Share2, Check, Sparkles, Trophy, X, Terminal, Heart } from 'lucide-react';
+import { Download, Share2, Check, Sparkles, Trophy, X, Terminal, Heart, Play, Briefcase } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { DailySummaryStats, HealthEvent } from '../types';
 import { soundSynth } from '../utils/audioSynth';
@@ -9,6 +9,8 @@ interface DailyReceiptModalProps {
   onClose: () => void;
   stats: DailySummaryStats;
   events: HealthEvent[];
+  isClockedOut?: boolean;
+  onClockInAgain?: () => void;
 }
 
 export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
@@ -16,6 +18,8 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
   onClose,
   stats,
   events,
+  isClockedOut,
+  onClockInAgain,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
@@ -508,13 +512,13 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="w-full grid grid-cols-2 gap-2.5 shrink-0">
+        <div className="w-full grid grid-cols-2 gap-2.5 shrink-0 font-mono">
           <button
             onClick={downloadImage}
             className="py-2 px-3 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition flex items-center justify-center gap-2 transform active:scale-95 shadow-[0_0_8px_rgba(56,189,248,0.25)] border border-cyan-400/80 cursor-pointer"
             title="Download PNG image of receipt"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-4 h-4 shrink-0" />
             <span>EXPORT_PNG</span>
           </button>
 
@@ -523,7 +527,7 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
             className="py-2 px-3 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-200 font-bold text-xs border border-slate-750 transition flex items-center justify-center gap-2 transform active:scale-95 cursor-pointer"
             title="Copy copy text of shift report to clipboard"
           >
-            {copied ? <Check className="w-4 h-4 text-cyan-400" /> : <Share2 className="w-4 h-4" />}
+            {copied ? <Check className="w-4 h-4 text-cyan-400 shrink-0" /> : <Share2 className="w-4 h-4 shrink-0" />}
             <span>{copied ? 'COPIED!' : 'COPY_TEXT'}</span>
           </button>
         </div>

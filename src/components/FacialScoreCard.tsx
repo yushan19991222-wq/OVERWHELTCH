@@ -103,7 +103,7 @@ export const FacialScoreCard: React.FC<FacialScoreCardProps> = ({
             title="啟動 AI 面部氣色神采掃描"
           >
             <RefreshCw className={`w-3 h-3 ${isScanning ? 'animate-spin text-cyan-400' : ''}`} />
-            <span>{isScanning ? '掃描中...' : scoreData ? '重測' : '立即測試'}</span>
+            <span>{isScanning ? '掃描中...' : '重新掃描'}</span>
           </button>
         </div>
 

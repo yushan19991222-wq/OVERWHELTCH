@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Sparkles,
   HeartPulse,
@@ -11,6 +11,9 @@ import {
   RotateCcw,
   CheckCircle2,
   Camera,
+  FolderArchive,
+  FileText,
+  ArrowUpRight,
 } from 'lucide-react';
 import { EmotionData } from '../types';
 
@@ -49,6 +52,20 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
     }, 100);
     return () => clearInterval(timer);
   }, []);
+
+  const isAfterOffWork = useMemo(() => {
+    const [targetH, targetM] = (offWorkTime || '17:30').split(':').map((v) => Number(v) || 0);
+    const currentH = now.getHours();
+    const currentM = now.getMinutes();
+    return currentH > targetH || (currentH === targetH && currentM >= targetM);
+  }, [now, offWorkTime]);
+
+  const getClockOutText = () => {
+    if (isClockedOut) return '查看結算單';
+    if (isOvertime) return '加班打卡';
+    if (isAfterOffWork) return '打卡下班';
+    return '提早下班去';
+  };
 
   // Compute live stopwatch chronograph breakdown
   const { hoursStr, minsStr, secsStr, msStr, isOverdue } = (() => {
@@ -300,7 +317,7 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
                     : 'bg-cyan-400 animate-pulse shadow-[0_0_6px_#06b6d4]'
                 }`}
               />
-              <span className={`text-[11px] font-bold tracking-wider truncate ${isClockedOut ? 'text-emerald-300' : 'text-slate-200'}`}>
+              <span className={`text-[11px] font-bold tracking-wider truncate ${isClockedOut ? 'text-zinc-400' : 'text-zinc-200'}`}>
                 {isClockedOut ? '已打卡下班' : isOverdue || isOvertime ? '超時無償加班中' : '下班倒數碼表'}
               </span>
             </div>
@@ -309,17 +326,17 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
               onClockInAgain && (
                 <button
                   onClick={onClockInAgain}
-                  className="px-2 py-0.5 rounded bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/60 text-emerald-300 hover:text-white text-[9px] font-bold transition shrink-0 cursor-pointer flex items-center gap-1 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
+                  className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 text-[9px] font-bold transition shrink-0 cursor-pointer flex items-center gap-1"
                   title="重新啟動下班碼表"
                 >
-                  <RotateCcw className="w-3 h-3 text-emerald-300 shrink-0" />
+                  <RotateCcw className="w-3 h-3 text-zinc-400 shrink-0" />
                   <span>重新上班</span>
                 </button>
               )
             ) : (isOverdue || isOvertime) && onClockOut ? (
               <button
                 onClick={onClockOut}
-                className="px-2.5 py-0.5 rounded bg-rose-600 hover:bg-rose-500 text-white text-[9px] font-bold transition shrink-0 cursor-pointer flex items-center gap-1 shadow-[0_0_12px_rgba(244,63,94,0.6)] animate-pulse border border-rose-400"
+                className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-850 border border-rose-500/80 text-rose-300 text-[9px] font-bold transition shrink-0 cursor-pointer flex items-center gap-1"
                 title="立即打卡下班並領取結算收據"
               >
                 <span>打卡下班</span>
@@ -329,10 +346,10 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
               <span
                 className={`text-[8px] font-bold px-1.5 py-0.5 rounded border tracking-wider uppercase flex items-center gap-1 shrink-0 ${
                   healthScore >= 80
-                    ? 'bg-cyan-950/90 text-cyan-300 border-cyan-500/50'
+                    ? 'bg-zinc-900 text-zinc-300 border-zinc-800'
                     : healthScore >= 50
-                    ? 'bg-amber-950/90 text-amber-300 border-amber-500/50'
-                    : 'bg-rose-950/90 text-rose-300 border-rose-500/70 animate-pulse'
+                    ? 'bg-zinc-900 text-amber-300 border-amber-500/40'
+                    : 'bg-zinc-900 text-rose-300 border-rose-500/50 animate-pulse'
                 }`}
               >
                 <span
@@ -349,100 +366,193 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
             )}
           </div>
 
-          {/* High-Tension Digital Stopwatch Digits Display */}
-          <div className="bg-[#040710] border border-slate-800/90 rounded-md p-2 flex items-center justify-center gap-1 shadow-inner relative z-10">
-            {/* Hours Block */}
-            <div className="flex flex-col items-center">
-              <div className="bg-black/90 px-2 py-0.5 rounded border border-slate-800 shadow-inner">
-                <span
-                  className={`text-2xl sm:text-3xl font-black font-mono tracking-wider tabular-nums ${
-                    isOverdue || isOvertime
-                      ? 'text-rose-400 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]'
-                      : 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]'
-                  }`}
-                >
-                  {hoursStr}
-                </span>
-              </div>
-              <span className="text-[7px] text-slate-400 uppercase tracking-widest mt-0.5">HRS</span>
-            </div>
-
-            <span className="text-xl font-bold text-slate-500 mb-2 animate-pulse">:</span>
-
-            {/* Minutes Block */}
-            <div className="flex flex-col items-center">
-              <div className="bg-black/90 px-2 py-0.5 rounded border border-slate-800 shadow-inner">
-                <span
-                  className={`text-2xl sm:text-3xl font-black font-mono tracking-wider tabular-nums ${
-                    isOverdue || isOvertime
-                      ? 'text-rose-400 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]'
-                      : 'text-cyan-300 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]'
-                  }`}
-                >
-                  {minsStr}
-                </span>
-              </div>
-              <span className="text-[7px] text-slate-400 uppercase tracking-widest mt-0.5">MIN</span>
-            </div>
-
-            <span className="text-xl font-bold text-slate-500 mb-2 animate-pulse">:</span>
-
-            {/* Seconds Block */}
-            <div className="flex flex-col items-center">
-              <div className="bg-black/90 px-2 py-0.5 rounded border border-slate-800 shadow-inner">
-                <span
-                  className={`text-2xl sm:text-3xl font-black font-mono tracking-wider tabular-nums ${
-                    isOverdue || isOvertime
-                      ? 'text-rose-400 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]'
-                      : 'text-cyan-300 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]'
-                  }`}
-                >
-                  {secsStr}
-                </span>
-              </div>
-              <span className="text-[7px] text-slate-400 uppercase tracking-widest mt-0.5">SEC</span>
-            </div>
-
-            {/* Milliseconds Fraction */}
-            <div className="flex flex-col items-center pl-0.5">
-              <div className="bg-black/70 px-1 py-0.5 rounded border border-slate-800/80 shadow-inner">
-                <span className="text-sm sm:text-base font-bold font-mono text-cyan-400 tabular-nums">
-                  .{msStr}
-                </span>
-              </div>
-              <span className="text-[7px] text-slate-400 uppercase tracking-widest mt-0.5">MS</span>
-            </div>
-          </div>
-
-          {/* Bottom Action: Candid Gallery Album Button (Replaces 下班目標 and 過勞風險) */}
-          {onOpenCandidGallery && (
-            <button
-              onClick={onOpenCandidGallery}
-              className="w-full bg-[#030508] hover:bg-cyan-950/30 px-3 py-2 rounded-md border border-slate-800 hover:border-cyan-500/60 transition cursor-pointer flex items-center justify-between group shadow-sm font-mono text-left"
-              title="檢視工位抓拍紀錄存證"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-6 h-6 rounded bg-slate-900 border border-slate-800 flex items-center justify-center group-hover:border-cyan-500/50 transition shrink-0">
-                  <Camera className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+          {/* Digital Stopwatch or Clocked Out Sealed Banner */}
+          {isClockedOut ? (
+            <div className="bg-[#050505] border border-zinc-800 rounded-md p-2.5 flex items-center justify-between shadow-inner relative z-10 font-mono">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded bg-zinc-900 border border-zinc-700/80 flex items-center justify-center text-zinc-300 shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-zinc-300" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[11px] font-bold text-slate-200 group-hover:text-cyan-300 transition-colors truncate">
-                    工位相簿
-                  </span>
-                  <span className="text-[8px] text-slate-400 truncate">
-                    檢視工位野生瞬間與警報紀錄存證
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-zinc-200 tracking-wider">SHIFT_CLOSED</span>
+                    <span className="text-[8px] px-1.5 py-0.2 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
+                      已離席
+                    </span>
+                  </div>
+                  <span className="text-[9px] text-zinc-500 truncate mt-0.5">
+                    本日工時與健康存摺已結算封存
                   </span>
                 </div>
               </div>
-
-              <div className="flex items-center gap-1.5 shrink-0 pl-2">
-                <span className="text-[10px] font-bold font-mono text-cyan-400">
-                  {candidCount > 0 ? `${candidCount} 張` : '0 張'}
-                </span>
-                <span className="text-slate-500 text-xs group-hover:translate-x-0.5 transition-transform">→</span>
+              <div className="text-right shrink-0 pl-2">
+                <div className="text-xs font-bold text-zinc-400 tabular-nums">00:00:00</div>
+                <div className="text-[8px] text-zinc-600 font-bold tracking-widest uppercase">OFF DUTY</div>
               </div>
-            </button>
+            </div>
+          ) : (
+            /* High-Tension Digital Stopwatch Digits Display */
+            <div className="bg-[#050505] border border-zinc-800 rounded-md p-2 flex items-center justify-center gap-1 shadow-inner relative z-10 font-mono">
+              {/* Hours Block */}
+              <div className="flex flex-col items-center">
+                <div className="bg-black/90 px-2 py-0.5 rounded border border-zinc-800 shadow-inner">
+                  <span
+                    className={`text-2xl sm:text-3xl font-black tracking-wider tabular-nums ${
+                      isOverdue || isOvertime
+                        ? 'text-rose-400'
+                        : 'text-zinc-100'
+                    }`}
+                  >
+                    {hoursStr}
+                  </span>
+                </div>
+                <span className="text-[7px] text-zinc-500 uppercase tracking-widest mt-0.5">HRS</span>
+              </div>
+
+              <span className="text-xl font-bold text-zinc-600 mb-2">:</span>
+
+              {/* Minutes Block */}
+              <div className="flex flex-col items-center">
+                <div className="bg-black/90 px-2 py-0.5 rounded border border-zinc-800 shadow-inner">
+                  <span
+                    className={`text-2xl sm:text-3xl font-black tracking-wider tabular-nums ${
+                      isOverdue || isOvertime
+                        ? 'text-rose-400'
+                        : 'text-zinc-200'
+                    }`}
+                  >
+                    {minsStr}
+                  </span>
+                </div>
+                <span className="text-[7px] text-zinc-500 uppercase tracking-widest mt-0.5">MIN</span>
+              </div>
+
+              <span className="text-xl font-bold text-zinc-600 mb-2">:</span>
+
+              {/* Seconds Block */}
+              <div className="flex flex-col items-center">
+                <div className="bg-black/90 px-2 py-0.5 rounded border border-zinc-800 shadow-inner">
+                  <span
+                    className={`text-2xl sm:text-3xl font-black tracking-wider tabular-nums ${
+                      isOverdue || isOvertime
+                        ? 'text-rose-400'
+                        : 'text-zinc-200'
+                    }`}
+                  >
+                    {secsStr}
+                  </span>
+                </div>
+                <span className="text-[7px] text-zinc-500 uppercase tracking-widest mt-0.5">SEC</span>
+              </div>
+
+              {/* Milliseconds Fraction */}
+              <div className="flex flex-col items-center pl-0.5">
+                <div className="bg-black/70 px-1 py-0.5 rounded border border-zinc-800 shadow-inner">
+                  <span className="text-sm sm:text-base font-bold text-zinc-400 tabular-nums">
+                    .{msStr}
+                  </span>
+                </div>
+                <span className="text-[7px] text-zinc-500 uppercase tracking-widest mt-0.5">MS</span>
+              </div>
+            </div>
           )}
+
+          {/* Bottom Action Area: Flexible Left Button & Compact Vertical Right Entry */}
+          <div className="flex items-stretch gap-2 w-full font-mono h-[56px]">
+            {/* Left Button: Clock Out / Receipt Button (Flexible Main Width) */}
+            {onClockOut && (
+              <button
+                onClick={onClockOut}
+                className={`flex-1 min-w-0 px-3.5 py-2 rounded-md border transition cursor-pointer flex items-center justify-between group shadow-sm text-left ${
+                  isClockedOut
+                    ? 'bg-[#0a0a0a] hover:bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-200'
+                    : isOvertime
+                    ? 'bg-rose-950/60 hover:bg-rose-900/80 border-rose-500/70 text-rose-200 shadow-[0_0_12px_rgba(244,63,94,0.25)]'
+                    : isAfterOffWork
+                    ? 'bg-zinc-200 hover:bg-white text-zinc-950 font-bold border-zinc-300 shadow-sm'
+                    : 'bg-cyan-950/70 hover:bg-cyan-900/80 border-cyan-500/50 hover:border-cyan-400/80 text-cyan-200 shadow-[0_0_10px_rgba(6,182,212,0.18)]'
+                }`}
+                title={isClockedOut ? '檢視今日結算單（已凍結）' : '打卡下班並查看今日結算單'}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  {/* Unified Frameless Icon */}
+                  <div className="shrink-0 flex items-center justify-center">
+                    {isClockedOut ? (
+                      <FileText className="w-5 h-5 text-zinc-400 group-hover:text-zinc-200 transition-colors" />
+                    ) : isOvertime ? (
+                      <Clock className="w-5 h-5 text-rose-400 group-hover:scale-105 transition-all" />
+                    ) : isAfterOffWork ? (
+                      <Clock className="w-5 h-5 text-zinc-950 group-hover:scale-105 transition-all" />
+                    ) : (
+                      <Clock className="w-5 h-5 text-cyan-300 group-hover:text-cyan-200 group-hover:scale-105 transition-all" />
+                    )}
+                  </div>
+
+                  <div className="flex flex-col min-w-0 justify-center">
+                    <span
+                      className={`text-xs font-bold tracking-wider truncate leading-tight ${
+                        isClockedOut
+                          ? 'text-zinc-200 group-hover:text-white'
+                          : isOvertime
+                          ? 'text-rose-200 group-hover:text-white'
+                          : isAfterOffWork
+                          ? 'text-zinc-950'
+                          : 'text-cyan-100 group-hover:text-white'
+                      }`}
+                    >
+                      {getClockOutText()}
+                    </span>
+                    <span
+                      className={`text-[9px] tracking-tight truncate leading-tight mt-0.5 ${
+                        isAfterOffWork
+                          ? 'text-zinc-700 font-semibold'
+                          : isClockedOut
+                          ? 'text-zinc-500'
+                          : isOvertime
+                          ? 'text-rose-400/80'
+                          : 'text-cyan-400/80 group-hover:text-cyan-300'
+                      }`}
+                    >
+                      {isClockedOut ? '本日戰報已封存' : `表定 ${offWorkTime || '17:30'}`}
+                    </span>
+                  </div>
+                </div>
+
+                <ArrowUpRight
+                  className={`w-4 h-4 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 ml-2 ${
+                    isAfterOffWork
+                      ? 'text-zinc-950'
+                      : isClockedOut
+                      ? 'text-zinc-500 group-hover:text-zinc-300'
+                      : isOvertime
+                      ? 'text-rose-400 group-hover:text-rose-200'
+                      : 'text-cyan-400 group-hover:text-cyan-200'
+                  }`}
+                />
+              </button>
+            )}
+
+            {/* Right Button: Candid Gallery (Vertical Icon + Text, Clean Frameless, Balanced) */}
+            {onOpenCandidGallery && (
+              <button
+                onClick={onOpenCandidGallery}
+                className="w-20 sm:w-22 shrink-0 px-2.5 py-2 rounded-md border border-zinc-800 hover:border-zinc-700 bg-[#0a0a0a] hover:bg-zinc-900 transition cursor-pointer flex flex-col items-center justify-center gap-1 group shadow-sm text-center relative"
+                title="檢視工位抓拍紀錄存證相簿"
+              >
+                <div className="relative flex items-center justify-center">
+                  <Camera className="w-5 h-5 text-zinc-400 group-hover:text-cyan-400 group-hover:scale-105 transition-all" />
+                  {candidCount > 0 && (
+                    <span className="absolute -top-1.5 -right-3 px-1 min-w-[14px] text-center bg-zinc-850 text-cyan-300 border border-cyan-500/40 text-[7px] font-bold rounded-full leading-tight shadow-sm">
+                      {candidCount}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] font-bold text-zinc-300 group-hover:text-white transition-colors tracking-wider leading-tight">
+                  工位相簿
+                </span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
