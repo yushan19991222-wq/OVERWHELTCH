@@ -104,6 +104,7 @@ export interface FaceCharismaScore {
 export interface TelemetryData {
   mar: number;
   frown: number;
+  frownDurationSeconds?: number;
   proximity: number;
   blinkScore: number;
   ear?: number;

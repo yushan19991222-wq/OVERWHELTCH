@@ -152,8 +152,13 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
-          ...parsed,
-          hydrationIntervalMinutes: parsed.hydrationIntervalMinutes || 60,
+          baseAge: Number(parsed.baseAge) || 25,
+          offWorkTime: parsed.offWorkTime || '17:30',
+          sedentaryLimitMinutes: Number(parsed.sedentaryLimitMinutes) || 45,
+          hydrationIntervalMinutes: Number(parsed.hydrationIntervalMinutes) || 60,
+          soundEnabled: parsed.soundEnabled ?? true,
+          desktopNotificationsEnabled: parsed.desktopNotificationsEnabled ?? true,
+          voiceAlertsEnabled: parsed.voiceAlertsEnabled ?? true,
         };
       }
     } catch {}
@@ -407,6 +412,8 @@ export default function App() {
     proximityCooldown: 0,
     consecutiveDeskSecs: 0,
     consecutiveAwaySecs: 0,
+    deskSessionStartTime: null as number | null,
+    lastFaceLeaveTimestamp: null as number | null,
     hasTriggeredSlackAlert: false,
     lastFrameTime: performance.now(),
     overtimeTicker: 0,
@@ -518,7 +525,7 @@ export default function App() {
 
         setTrendHistory((history) => {
           // Dynamic 6-axis real-time composite fatigue load (1 ~ 10):
-          const instantFrownLoad = (telemetry.frown >= 0.08 ? 2.5 : 0);
+          const instantFrownLoad = (telemetry.frown >= 0.04 ? 2.5 : 0);
           const instantYawnLoad = (delta < 0 && reason.includes('哈欠') ? 4 : telemetry.mar > 0.45 ? 2.5 : 0);
           const instantProximityLoad = (telemetry.proximity > 60 ? 2 : 0);
           const instantBlinkLoad = (telemetry.isFrequentBlinking ? 2 : 0);
@@ -594,7 +601,7 @@ export default function App() {
             1,
             Math.round(
               (telemetry.mar > 0.45 ? 3 : 0) +
-              (telemetry.frown >= 0.09 ? 2.5 : 0) +
+              (telemetry.frown >= 0.04 ? 2.5 : 0) +
               (telemetry.proximity > 60 ? 2 : 0) +
               (telemetry.isFrequentBlinking ? 2 : 0) +
               (detectionRef.current.consecutiveDeskSecs > (settings.sedentaryLimitMinutes * 50) ? 2.5 : 0) +
@@ -1180,7 +1187,7 @@ export default function App() {
 
   const handleProximityBlur = useCallback(() => {
     setIsEyeStrainActive(true);
-    modifyScore(-5, '頭部距離螢幕過近：啟動護眼科技雷達校準 (-5點)', '👀');
+    modifyScore(-5, '頭部距離螢幕過近：啟動護眼科技雷達校準 (-5點)', 'PROXIMITY');
     soundSynth.playWarningBuzz();
     
     // Voice alert & notifications
@@ -1189,7 +1196,7 @@ export default function App() {
     }
     if (settings.desktopNotificationsEnabled && !isMeetingMode) {
       fireDesktopNotification({
-        title: '🚨 距離過近警告',
+        title: '距離過近警告',
         body: '頭部過度貼近螢幕（低於 30cm）！請靠上椅背保持最佳姿勢視距 (≥35cm)！',
         tag: 'ohg-proximity',
         requireInteraction: true,
@@ -1200,14 +1207,14 @@ export default function App() {
   const handleProximityCalibrationSuccess = useCallback(() => {
     setIsEyeStrainActive(false);
     triggerToast({
-      title: '🎯 最佳護眼距離已鎖定',
+      title: '最佳護眼距離已鎖定',
       desc: '已維持最佳姿勢視距 (≥35cm)，視力防護就緒',
       badge: '校準成功',
       badgeColor: 'bg-emerald-500 text-slate-950',
       image: '/memes/cat-curious.jpg',
       type: 'blink',
     });
-    logEvent('護眼雷達：成功維持最佳姿勢視距 (≥35cm) 並完成校準', 0, 'reward', '🎯');
+    logEvent('護眼雷達：成功維持最佳姿勢視距 (≥35cm) 並完成校準', 0, 'reward', 'CALIBRATED');
   }, [triggerToast, logEvent]);
 
   const handleSedentaryLock = useCallback(() => {
@@ -1235,6 +1242,7 @@ export default function App() {
   const handleSedentaryUnlock = useCallback(() => {
     setIsSedentaryLocked(false);
     detectionRef.current.consecutiveDeskSecs = 0;
+    detectionRef.current.deskSessionStartTime = Date.now();
     soundSynth.playRewardJingle();
     stopTitleFlashing();
     broadcastCrossTabEvent('sedentary_unlock', true);
@@ -1358,8 +1366,7 @@ export default function App() {
       }
     } catch (err: unknown) {
       console.warn('Camera access error:', err);
-      const errMsg = err instanceof Error ? err.message : String(err);
-      setCameraError(`無法開啟攝影機 (${errMsg})。可點選「重試」或使用下方快速模擬列進行互動體驗。`);
+      setCameraError('請允許瀏覽器授權開啟鏡頭，以啟動即時身心健康監測。');
       setIsCameraActive(false);
     }
   }, []);
@@ -1659,6 +1666,8 @@ export default function App() {
               const leftInnerBrow = landmarks[336] || landmarks[296];
               const rightEyeCorner = landmarks[33];
               const leftEyeCorner = landmarks[263];
+
+              // Eyebrow and Inner Furrow Tracking
               let geomFurrow = 0;
               if (
                 rightInnerBrow &&
@@ -1669,48 +1678,47 @@ export default function App() {
                 const eyeSpan = Math.max(0.01, Math.hypot(leftEyeCorner.x - rightEyeCorner.x, leftEyeCorner.y - rightEyeCorner.y));
                 const browSpan = Math.hypot(leftInnerBrow.x - rightInnerBrow.x, leftInnerBrow.y - rightInnerBrow.y);
                 const ratio = browSpan / eyeSpan;
-                // Only trigger geometric compression if eyebrows significantly squeeze together (< 0.33) AND brows pulled down
-                if (ratio < 0.33 && avgBrowDown > 0.06) {
-                  geomFurrow = Math.min(0.08, (0.33 - ratio) * 0.6);
+                // If inner brows draw closer together (< 0.35 of eye span)
+                if (ratio < 0.35) {
+                  geomFurrow = Math.min(0.035, (0.35 - ratio) * 0.35);
                 }
               }
 
-              // True human frown requires bilateral brow depression (both brows pull down)
-              const minBrowDown = Math.min(browDownL, browDownR);
-              const rawBrowSignal = minBrowDown * 0.65 + avgBrowDown * 0.35 + geomFurrow;
-              
-              // Deadzone filtering: resting faces have natural baseline noise around 0.03~0.05
-              // Subtraction ensures resting/reading face stays around 0.00~0.03 and slight fluctuations are ignored
-              const deadzone = 0.045;
-              const activeBrowDown = Math.max(0, rawBrowSignal - deadzone) * 1.35;
+              // Direct, responsive brow signal:
+              // Natural resting face sits around 0.00 ~ 0.02
+              // Natural effortless frown comfortably reaches 0.04 ~ 0.07 without straining
+              const browAvg = (browDownL + browDownR) / 2;
+              const browMax = Math.max(browDownL, browDownR);
+              // Scale blendshape so a natural, non-violent frown reaches 0.04+ easily
+              const rawBrowSignal = (browMax * 0.60 + browAvg * 0.40) * 1.55 + geomFurrow;
 
-              // Gentle micro-stress corroboration (only when actual brow down is active)
-              const microStressBoost = activeBrowDown > 0.02
-                ? Math.max(noseSneerVal * 0.2, mouthFrownVal * 0.2)
+              // Micro-stress hints (nose sneer / mouth frown) provide subtle boost when brows start moving
+              const microStressBoost = rawBrowSignal > 0.02
+                ? Math.max(noseSneerVal * 0.15, mouthFrownVal * 0.15)
                 : 0;
 
-              let baseBrowScore = activeBrowDown + microStressBoost;
+              let baseBrowScore = rawBrowSignal + microStressBoost;
 
               // Inhibit smile/laughter false positives
-              if (smileVal > 0.08 || lipCornerElevation > 0.015) {
-                const smileDamp = Math.max((smileVal - 0.08) * 3.5, (lipCornerElevation - 0.015) * 20);
+              if (smileVal > 0.10 || lipCornerElevation > 0.02) {
+                const smileDamp = Math.max((smileVal - 0.10) * 3.0, (lipCornerElevation - 0.02) * 15);
                 baseBrowScore *= Math.max(0.1, 1 - Math.min(0.9, smileDamp));
               }
 
               // Inhibit extreme jaw opening / yawn / speech
-              if (jawVal > 0.25) {
-                baseBrowScore *= Math.max(0.2, 1 - (jawVal - 0.25) * 2.0);
+              if (jawVal > 0.28) {
+                baseBrowScore *= Math.max(0.2, 1 - (jawVal - 0.28) * 2.0);
               }
 
               // Side-angle mild dampener (only if turned heavily sideways)
-              if (isLookingSideways && yawDev > 0.15) {
-                baseBrowScore *= Math.max(0.35, 1 - (yawDev - 0.15) * 2.5);
+              if (isLookingSideways && yawDev > 0.18) {
+                baseBrowScore *= Math.max(0.4, 1 - (yawDev - 0.18) * 2.0);
               }
 
               const rawBrowPressure = Math.max(0, baseBrowScore);
               const prevBrow = detectionRef.current.latestBrowPressure ?? rawBrowPressure;
-              // Gentle exponential moving average (0.35 new, 0.65 prev) to eliminate twitchy fluctuations
-              const browPressure = Number((prevBrow * 0.65 + rawBrowPressure * 0.35).toFixed(3));
+              // Responsive EMA: 0.50 new + 0.50 prev gives zero lag and smooth values
+              const browPressure = Number((prevBrow * 0.50 + rawBrowPressure * 0.50).toFixed(2));
               detectionRef.current.latestBrowPressure = browPressure;
               const frownVal = browPressure;
 
@@ -1807,16 +1815,46 @@ export default function App() {
               }
 
               // Update desk / away trackers
-              detectionRef.current.consecutiveDeskSecs += delta;
+              // If user was away, evaluate away duration using absolute system clock
+              if (detectionRef.current.lastFaceLeaveTimestamp) {
+                const awayDurationSecs = (Date.now() - detectionRef.current.lastFaceLeaveTimestamp) / 1000;
 
-              // 如果摸魚獎池畫面未開啟，回座時清理離座秒數；如果摸魚畫面已開啟，則讓計時器暫停（Hold）等待點擊領取！
-              if (activeHazardRef.current?.type !== 'slack') {
-                if (detectionRef.current.consecutiveAwaySecs >= 180) {
-                  const mins = Math.round(detectionRef.current.consecutiveAwaySecs / 60);
-                  handleSlackReward(mins);
+                // If away for more than 20 seconds, user genuinely left the desk (start new session)
+                if (awayDurationSecs >= 20) {
+                  detectionRef.current.deskSessionStartTime = Date.now();
+                  detectionRef.current.consecutiveDeskSecs = 0;
+
+                  // Default automatic leave-desk recovery reward (>= 180s = 3 minutes)
+                  if (awayDurationSecs >= 180) {
+                    const mins = Math.max(1, Math.round(awayDurationSecs / 60));
+                    handleSlackReward(mins);
+                  }
+                } else {
+                  // Momentary absence (< 20s): preserve desk session, pause duration adjustment
+                  if (detectionRef.current.deskSessionStartTime) {
+                    detectionRef.current.deskSessionStartTime += (awayDurationSecs * 1000);
+                  }
                 }
+                detectionRef.current.lastFaceLeaveTimestamp = null;
                 detectionRef.current.consecutiveAwaySecs = 0;
                 detectionRef.current.hasTriggeredSlackAlert = false;
+              }
+
+              if (!detectionRef.current.deskSessionStartTime) {
+                detectionRef.current.deskSessionStartTime = Date.now();
+              }
+
+              const elapsedDeskSecs = Math.floor((Date.now() - detectionRef.current.deskSessionStartTime) / 1000);
+              detectionRef.current.consecutiveDeskSecs = Math.max(0, elapsedDeskSecs);
+
+              // Check sedentary limit immediately on frame
+              const deskLimitSecs = (settings.sedentaryLimitMinutes || 45) * 60;
+              if (
+                detectionRef.current.consecutiveDeskSecs >= deskLimitSecs &&
+                !isStretchScreensaverOpen &&
+                !isSedentaryLocked
+              ) {
+                handleSedentaryLock();
               }
 
               // Yawn vs Laugh Distinction Check:
@@ -1848,23 +1886,25 @@ export default function App() {
                 detectionRef.current.hasTriggeredThisYawn = false;
               }
 
-              // Frown Trigger Check (Require genuine Brow Pressure >= 0.10 sustained for 5.0s, 6s buffer, facing forward)
-              const isFrowningNow = frownVal >= 0.10 && !isLookingSideways;
+              // Frown Trigger Check (Require genuine Brow Pressure >= 0.07 sustained for 3.0s, 5s buffer, facing forward)
+              const isFrowningNow = frownVal >= 0.07 && !isLookingSideways;
+              let currentFrownElapsedSecs = 0;
               if (isFrowningNow) {
                 if (!detectionRef.current.frownStartTime) {
                   detectionRef.current.frownStartTime = performance.now();
                 }
                 const elapsedFrown =
                   (performance.now() - detectionRef.current.frownStartTime) / 1000;
+                currentFrownElapsedSecs = elapsedFrown;
                 if (
-                  elapsedFrown >= 5.0 &&
+                  elapsedFrown >= 3.0 &&
                   !detectionRef.current.hasTriggeredThisFrown &&
                   detectionRef.current.frownCooldown <= 0 &&
                   !activeHazardRef.current
                 ) {
                   handleFrownPenalty();
                   detectionRef.current.hasTriggeredThisFrown = true;
-                  detectionRef.current.frownCooldown = 6; // 6s buffer
+                  detectionRef.current.frownCooldown = 5; // 5s buffer
                 }
               } else {
                 detectionRef.current.frownStartTime = null;
@@ -1946,6 +1986,7 @@ export default function App() {
               setTelemetry({
                 mar: jawVal,
                 frown: frownVal,
+                frownDurationSeconds: Number(currentFrownElapsedSecs.toFixed(1)),
                 proximity: proximityPct,
                 blinkScore,
                 ear,
@@ -1965,35 +2006,44 @@ export default function App() {
             } else {
               // No face present
               detectionRef.current.latestFaceBounds = null;
-              detectionRef.current.consecutiveDeskSecs = 0;
               detectionRef.current.yawnStartTime = null;
               detectionRef.current.frownStartTime = null;
 
-              // 離座機制：僅在攝影機開啟運作 (isCameraActive)、且確實持續離座滿 5 分鐘 (300 秒) 且尚未觸發過時觸發一次
-              if (isCameraActive) {
-                detectionRef.current.consecutiveAwaySecs += delta;
+              if (!detectionRef.current.lastFaceLeaveTimestamp) {
+                detectionRef.current.lastFaceLeaveTimestamp = Date.now();
+              }
 
-                if (
-                  detectionRef.current.consecutiveAwaySecs >= 300 &&
-                  !detectionRef.current.hasTriggeredSlackAlert &&
-                  (!activeHazardRef.current || activeHazardRef.current.type !== 'slack')
-                ) {
-                  detectionRef.current.hasTriggeredSlackAlert = true;
-                  dispatchHazardAlert(
-                    {
-                      type: 'slack',
-                      title: '☕ 離座摸魚健康修復 // 薪水小偷 Lv.MAX',
-                      message: '已離座超過 5 分鐘！離座計時器持續進行中，健康存摺點數每 5 分鐘自動進帳！',
-                      badge: '離座 5 分鐘獎勵',
-                      severity: 'reward',
-                      image: '/memes/cat-chill.jpg',
-                      timestamp: Date.now(),
-                    },
-                    '離座超過 5 分鐘，離座健康點數累積中！'
-                  );
-                }
-              } else {
-                detectionRef.current.consecutiveAwaySecs = 0;
+              const awaySecs = (Date.now() - detectionRef.current.lastFaceLeaveTimestamp) / 1000;
+              const defaultSlackTargetSecs = 180; // 3 mins default
+              detectionRef.current.consecutiveAwaySecs = awaySecs;
+
+              // Grace period: only reset desk timer if face has been gone for more than 20 seconds (prevents glances, head turns, drinking water from wiping desk time)
+              if (awaySecs >= 20) {
+                detectionRef.current.consecutiveDeskSecs = 0;
+                detectionRef.current.deskSessionStartTime = null;
+              }
+
+              // While away: if away time reaches default 3m and alert has not triggered
+              if (
+                isCameraActive &&
+                awaySecs >= defaultSlackTargetSecs &&
+                !detectionRef.current.hasTriggeredSlackAlert &&
+                (!activeHazardRef.current || activeHazardRef.current.type !== 'slack')
+              ) {
+                detectionRef.current.hasTriggeredSlackAlert = true;
+                const mins = Math.max(1, Math.round(awaySecs / 60));
+                dispatchHazardAlert(
+                  {
+                    type: 'slack',
+                    title: '☕ 離座摸魚健康修復 // 薪水小偷 Lv.MAX',
+                    message: `已離座滿 ${mins} 分鐘！離座休息有益血液循環，回座時將自動完成回血！`,
+                    badge: `離座 ${mins} 分鐘獎勵`,
+                    severity: 'reward',
+                    image: '/memes/cat-chill.jpg',
+                    timestamp: Date.now(),
+                  },
+                  `離座滿 ${mins} 分鐘，離座健康點數累積中！`
+                );
               }
 
               setTelemetry((prev) => ({
@@ -2007,21 +2057,22 @@ export default function App() {
                 smileScore: 0,
                 emotion: undefined,
                 isFacePresent: false,
-                consecutiveDeskSeconds: 0,
-                consecutiveAwaySeconds: detectionRef.current.consecutiveAwaySecs,
+                consecutiveDeskSeconds: awaySecs < 20 ? detectionRef.current.consecutiveDeskSecs : 0,
+                consecutiveAwaySeconds: Math.round(awaySecs),
                 isYawning: false,
                 isFrowning: false,
                 isTooClose: false,
+                isFrequentBlinking: false,
               }));
             }
           } catch {
             // landmarker detect error
           }
 
-          // Gesture Recognition for Peace Sign ✌️ Easter Egg (sampled every ~200ms)
+          // Gesture Recognition for Peace Sign ✌️ Easter Egg (sampled every ~100ms for swift response)
           if (
             !detectionRef.current.isRecognizingGesture &&
-            now - detectionRef.current.lastGestureCheckTime >= 200 &&
+            now - detectionRef.current.lastGestureCheckTime >= 100 &&
             detectionRef.current.peaceCooldown <= 0
           ) {
             detectionRef.current.lastGestureCheckTime = now;
@@ -2035,19 +2086,20 @@ export default function App() {
                   let isPeace = false;
 
                   // 1. Check MediaPipe pre-trained gesture categories for 'Victory' (✌️ Peace Sign)
-                  if (gestureResult.gestures && gestureResult.gestures.length > 0) {
-                    for (const handGestures of gestureResult.gestures) {
-                      for (const g of handGestures) {
-                        if (g.categoryName === 'Victory' && g.score > 0.48) {
-                          isPeace = true;
-                          break;
-                        }
+                  // Combined with structural landmark verification for instant accuracy
+                  if (gestureResult.gestures && gestureResult.gestures.length > 0 && gestureResult.landmarks && gestureResult.landmarks.length > 0) {
+                    for (let i = 0; i < gestureResult.gestures.length; i++) {
+                      const handGestures = gestureResult.gestures[i];
+                      const handLandmarks = gestureResult.landmarks[i];
+                      const victoryGesture = handGestures.find((g) => g.categoryName === 'Victory' && g.score >= 0.55);
+                      if (victoryGesture && handLandmarks && isPeaceSignLandmarks(handLandmarks)) {
+                        isPeace = true;
+                        break;
                       }
-                      if (isPeace) break;
                     }
                   }
 
-                  // 2. Check geometric landmark heuristic fallback (Index & Middle fingers extended in V-shape)
+                  // 2. Fallback: Check geometric landmark heuristic (Index & Middle fingers extended in straight V-shape)
                   if (!isPeace && gestureResult.landmarks && gestureResult.landmarks.length > 0) {
                     for (const handLandmarks of gestureResult.landmarks) {
                       if (isPeaceSignLandmarks(handLandmarks)) {
@@ -2060,7 +2112,7 @@ export default function App() {
                   if (isPeace) {
                     detectionRef.current.peaceConsecutiveDetections =
                       (detectionRef.current.peaceConsecutiveDetections || 0) + 1;
-                    // Trigger when held for at least 2 checks (~350-400ms) to ensure deliberate gesture
+                    // Trigger swiftly on 2 consecutive checks (~200ms) for snappy, effortless capture
                     if (detectionRef.current.peaceConsecutiveDetections >= 2) {
                       detectionRef.current.peaceCooldown = 5.0; // 5 seconds cooldown
                       detectionRef.current.peaceConsecutiveDetections = 0;
@@ -2161,8 +2213,13 @@ export default function App() {
         setCandidGallery((prev) => prev.filter((item) => new Date(item.timestamp).toLocaleDateString('en-CA') === currentDayKey));
       }
 
-      // 1. Sedentary Limit Check
-      const deskLimitSecs = settings.sedentaryLimitMinutes * 60;
+      // 1. Sedentary Limit Check (runs continuously in background even if tab hidden)
+      if (detectionRef.current.isFaceCurrentlyPresent && detectionRef.current.deskSessionStartTime) {
+        const elapsedDeskSecs = Math.floor((Date.now() - detectionRef.current.deskSessionStartTime) / 1000);
+        detectionRef.current.consecutiveDeskSecs = Math.max(0, elapsedDeskSecs);
+      }
+
+      const deskLimitSecs = (settings.sedentaryLimitMinutes || 45) * 60;
       if (
         detectionRef.current.consecutiveDeskSecs >= deskLimitSecs &&
         !isStretchScreensaverOpen &&
@@ -2192,21 +2249,21 @@ export default function App() {
 
       // 3. Overtime Check
       const now = new Date();
-      const currentHours = String(now.getHours()).padStart(2, '0');
-      const currentMinutes = String(now.getMinutes()).padStart(2, '0');
-      const currentTimeStr = `${currentHours}:${currentMinutes}`;
+      const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+      const [hPart, mPart] = (settings.offWorkTime || '17:30').split(':').map((v) => Number(v) || 0);
+      const targetTotalMinutes = hPart * 60 + mPart;
+      const isPastOffWorkTime = currentTotalMinutes >= targetTotalMinutes;
 
-      if (
-        currentTimeStr >= settings.offWorkTime &&
-        detectionRef.current.isFaceCurrentlyPresent
-      ) {
+      if (isPastOffWorkTime) {
         setIsOvertime(true);
-        detectionRef.current.overtimeTicker += 1;
-        setOvertimeMinutes(Math.floor(detectionRef.current.overtimeTicker / 60));
+        if (detectionRef.current.isFaceCurrentlyPresent) {
+          detectionRef.current.overtimeTicker += 1;
+          setOvertimeMinutes(Math.floor(detectionRef.current.overtimeTicker / 60));
 
-        // Deduct 15 points every 10 minutes (600s)
-        if (detectionRef.current.overtimeTicker % 600 === 0 && detectionRef.current.overtimeTicker > 0) {
-          handleOvertimeDeduction();
+          // Deduct 15 points every 10 minutes (600s)
+          if (detectionRef.current.overtimeTicker % 600 === 0 && detectionRef.current.overtimeTicker > 0) {
+            handleOvertimeDeduction();
+          }
         }
       } else {
         setIsOvertime(false);
@@ -2395,6 +2452,7 @@ export default function App() {
       activeHazardTimeoutRef.current = null;
     }
     detectionRef.current.consecutiveDeskSecs = 0;
+    detectionRef.current.deskSessionStartTime = Date.now();
     logEvent('已手動覆蓋久坐鎖定：站立辦公中', 0, 'info', '🧍');
   }, [logEvent]);
 
@@ -2407,6 +2465,7 @@ export default function App() {
     setHealthScore((prev) => Math.min(100, prev + 15));
     setIsSedentaryLocked(false);
     detectionRef.current.consecutiveDeskSecs = 0;
+    detectionRef.current.deskSessionStartTime = Date.now();
     triggerToast({
       title: '🧘 站立動態體操完成！',
       desc: '脊椎有效減壓，健康存摺 +15 點',
@@ -2426,6 +2485,7 @@ export default function App() {
     setIsStretchScreensaverOpen(false);
     setIsSedentaryLocked(false);
     detectionRef.current.consecutiveDeskSecs = 0;
+    detectionRef.current.deskSessionStartTime = Date.now();
   }, []);
 
   const handleDismissToast = useCallback((id: string) => {
@@ -2450,6 +2510,11 @@ export default function App() {
 
   const handleClockInAgain = useCallback(() => {
     setIsClockedOut(false);
+    setIsOvertime(false);
+    setOvertimeMinutes(0);
+    if (detectionRef.current) {
+      detectionRef.current.overtimeTicker = 0;
+    }
     setFrozenReceiptStats(null);
     setFrozenReceiptEvents(null);
     logEvent('💼 已切換回「繼續上班」模式，恢復即時體徵追蹤', 0, 'info', '💼');
@@ -2465,7 +2530,7 @@ export default function App() {
       }
       setIsSettingsOpen(false);
       logEvent(
-        `守護參數已更新：基礎年齡 ${newSettings.baseAge}歲 / 下班時間 ${newSettings.offWorkTime} / 補水提醒間隔 ${newSettings.hydrationIntervalMinutes || 60}分鐘`,
+        `守護參數已更新：久坐上限 ${newSettings.sedentaryLimitMinutes}分鐘 / 下班時間 ${newSettings.offWorkTime} / 補水提醒間隔 ${newSettings.hydrationIntervalMinutes || 60}分鐘`,
         0,
         'info',
         '⚙️'

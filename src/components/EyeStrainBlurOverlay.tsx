@@ -243,7 +243,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
         {refusalAttempt && (
           <div className="mb-2 px-4 py-2 rounded-xl bg-red-950/95 border-2 border-red-500 text-red-200 text-xs font-bold shadow-[0_0_30px_rgba(239,68,68,0.8)] flex items-center gap-2 animate-bounce z-30">
             <Lock className="w-4 h-4 text-red-400 shrink-0" />
-            <span>🚫 距離未達最佳標準（當前 {currentCm} cm，需 ≥ 35cm）！請稍向後靠拉開距離</span>
+            <span>距離未達最佳標準（當前 {currentCm} cm，需 ≥ 35cm）！請稍向後靠拉開距離</span>
           </div>
         )}
 
@@ -472,7 +472,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
 
                 {/* Quick Simulation / Testing Assistant Bar */}
                 <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
-                  <span className="text-slate-500 text-[9px]">⚡ 距離校準模擬:</span>
+                  <span className="text-slate-500 text-[9px]">距離校準模擬:</span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
@@ -544,7 +544,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                   <div className="flex items-center gap-2.5 text-emerald-300">
                     <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                     <div>
-                      <div className="text-xs font-bold">🎯 最佳護眼距離校準完成！(DISTANCE_OK)</div>
+                      <div className="text-xs font-bold">最佳護眼距離校準完成！(DISTANCE_OK)</div>
                       <div className="text-[10px] text-emerald-400/90 mt-0.5">
                         已維持最佳姿勢視距 (≥35cm)，獎勵健康存摺 +3 點！正在解除鎖定...
                       </div>
@@ -554,7 +554,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                   <div className="flex items-start gap-2 text-rose-300">
                     <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                     <div>
-                      <div className="text-xs font-bold">🔴 鏡頭未感應到人臉 (FACE_OFFLINE)</div>
+                      <div className="text-xs font-bold">鏡頭未感應到人臉 (FACE_OFFLINE)</div>
                       <div className="text-[10px] text-rose-200/90 mt-0.5 leading-relaxed">
                         請坐正面向相機鏡頭，保持最佳工作距離 <span className="font-bold text-white">35cm 以上</span>。
                       </div>
@@ -565,7 +565,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                        🎯 最佳姿勢已達標！維持 3 秒即自動解鎖
+                        最佳姿勢已達標！維持 3 秒即自動解鎖
                       </span>
                       <span className="text-sm font-black text-cyan-400 font-mono">
                         {holdTimer.toFixed(1)}s
@@ -586,7 +586,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                   <div className="flex items-start gap-2 text-amber-300">
                     <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <div>
-                      <div className="text-xs font-bold">🟡 處於過渡區（當前 {currentCm} cm，範圍 30-35cm）</div>
+                      <div className="text-xs font-bold">處於過渡區（當前 {currentCm} cm，範圍 30-35cm）</div>
                       <div className="text-[10px] text-amber-200/90 mt-0.5">
                         請稍微再往後退約 2~5 公分，達到 <span className="font-bold text-white">35cm 以上最佳姿勢區</span> 即可啟動解鎖倒數！
                       </div>
@@ -596,9 +596,9 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                   <div className="flex items-start gap-2 text-rose-300">
                     <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                     <div>
-                      <div className="text-xs font-bold">🔴 距離螢幕過近警告（當前 {currentCm} cm，低於 30cm）</div>
+                      <div className="text-xs font-bold">距離螢幕過近警告（當前 {currentCm} cm，低於 30cm）</div>
                       <div className="text-[10px] text-rose-200/90 mt-0.5 leading-relaxed">
-                        ⚠️ 距離低於 30cm 過近！請將腰背後靠至椅背，拉開至最佳姿勢標準（<span className="font-bold text-white">35 公分以上</span>）！
+                        距離低於 30cm 過近！請將腰背後靠至椅背，拉開至最佳姿勢標準（<span className="font-bold text-white">35 公分以上</span>）！
                       </div>
                     </div>
                   </div>

@@ -35,6 +35,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   );
   const [showConfirmReset, setShowConfirmReset] = useState(false);
 
+  // Sync state whenever modal opens or settings prop changes
+  useEffect(() => {
+    if (isOpen) {
+      setBaseAge(settings.baseAge);
+      setOffWorkTime(settings.offWorkTime || '17:30');
+      setSedentaryLimitMinutes(settings.sedentaryLimitMinutes);
+      setHydrationIntervalMinutes(settings.hydrationIntervalMinutes ?? 60);
+      setSoundEnabled(settings.soundEnabled);
+      setDesktopNotificationsEnabled(settings.desktopNotificationsEnabled ?? true);
+      setVoiceAlertsEnabled(settings.voiceAlertsEnabled ?? true);
+      setShowConfirmReset(false);
+    }
+  }, [isOpen, settings]);
+
   // Close modal on ESC key
   useEffect(() => {
     if (!isOpen) return;
@@ -116,28 +130,64 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               max="99"
               value={baseAge}
               onChange={(e) => setBaseAge(Number(e.target.value))}
-              className="w-full bg-[#06090f] border border-slate-800 rounded px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
+              className="w-full bg-[#06090f] border border-slate-800 rounded px-3 py-2 text-cyan-300 font-bold font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
             />
+            {/* Quick Age Presets */}
+            <div className="flex items-center gap-1.5 mt-1.5">
+              {[20, 25, 28, 30, 35, 40].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setBaseAge(preset)}
+                  className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer text-center ${
+                    Number(baseAge) === preset
+                      ? 'bg-cyan-950/80 border-cyan-500/70 text-cyan-300'
+                      : 'bg-black/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                  }`}
+                >
+                  {preset}歲
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Off Work Time */}
           <div>
-            <label className="flex items-center gap-1.5 font-bold text-slate-300 mb-1">
-              <Clock className="w-3.5 h-3.5 text-rose-400" />
-              <span>SHIFT_END (表定下班時間)</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="flex items-center gap-1.5 font-bold text-slate-300">
+                <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                <span>SHIFT_END (表定下班時間)</span>
+              </label>
+            </div>
             <input
               type="time"
               value={offWorkTime}
               onChange={(e) => setOffWorkTime(e.target.value)}
-              className="w-full bg-[#06090f] border border-slate-800 rounded px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
+              className="[color-scheme:dark] w-full bg-[#06090f] border border-slate-800 rounded px-3 py-2 text-cyan-300 font-bold font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
             />
+            {/* Quick Time Presets */}
+            <div className="flex items-center gap-1.5 mt-1.5">
+              {['17:00', '17:30', '18:00', '18:30', '19:00'].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setOffWorkTime(preset)}
+                  className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer text-center ${
+                    offWorkTime === preset
+                      ? 'bg-cyan-950/80 border-cyan-500/70 text-cyan-300'
+                      : 'bg-black/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                  }`}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Sedentary Limit */}
           <div>
             <label className="flex items-center gap-1.5 font-bold text-slate-300 mb-1">
-              <Armchair className="w-3.5 h-3.5 text-amber-400" />
+              <Armchair className="w-3.5 h-3.5 text-cyan-400" />
               <span>SEDENTARY_LIMIT (久坐上限/分鐘)</span>
             </label>
             <input
@@ -146,8 +196,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               max="180"
               value={sedentaryLimitMinutes}
               onChange={(e) => setSedentaryLimitMinutes(Number(e.target.value))}
-              className="w-full bg-[#06090f] border border-slate-800 rounded px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
+              className="w-full bg-[#06090f] border border-slate-800 rounded px-3 py-2 text-cyan-300 font-bold font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
             />
+            {/* Quick Sedentary Presets */}
+            <div className="flex items-center gap-1.5 mt-1.5">
+              {[15, 30, 45, 60, 90].map((mins) => (
+                <button
+                  key={mins}
+                  type="button"
+                  onClick={() => setSedentaryLimitMinutes(mins)}
+                  className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer text-center ${
+                    Number(sedentaryLimitMinutes) === mins
+                      ? 'bg-cyan-950/80 border-cyan-500/70 text-cyan-300'
+                      : 'bg-black/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                  }`}
+                >
+                  {mins}分
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Hydration Interval */}
@@ -162,8 +229,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               max="240"
               value={hydrationIntervalMinutes}
               onChange={(e) => setHydrationIntervalMinutes(Number(e.target.value))}
-              className="w-full bg-[#06090f] border border-slate-800 rounded px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
+              className="w-full bg-[#06090f] border border-slate-800 rounded px-3 py-2 text-cyan-300 font-bold font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
             />
+            {/* Quick Hydration Presets */}
+            <div className="flex items-center gap-1.5 mt-1.5">
+              {[30, 45, 60, 90, 120].map((mins) => (
+                <button
+                  key={mins}
+                  type="button"
+                  onClick={() => setHydrationIntervalMinutes(mins)}
+                  className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer text-center ${
+                    Number(hydrationIntervalMinutes) === mins
+                      ? 'bg-cyan-950/80 border-cyan-500/70 text-cyan-300'
+                      : 'bg-black/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                  }`}
+                >
+                  {mins}分
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Sound Toggle */}

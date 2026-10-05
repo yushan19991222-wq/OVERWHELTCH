@@ -53,34 +53,54 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
     return () => clearInterval(timer);
   }, []);
 
+  const resolvedOffWorkTime = offWorkTime || '17:30';
+
+  const { targetHours, targetMinutes } = useMemo(() => {
+    const parts = (resolvedOffWorkTime).split(':');
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    return {
+      targetHours: isNaN(h) ? 17 : Math.min(23, Math.max(0, h)),
+      targetMinutes: isNaN(m) ? 30 : Math.min(59, Math.max(0, m)),
+    };
+  }, [resolvedOffWorkTime]);
+
   const isAfterOffWork = useMemo(() => {
-    const [targetH, targetM] = (offWorkTime || '17:30').split(':').map((v) => Number(v) || 0);
     const currentH = now.getHours();
     const currentM = now.getMinutes();
-    return currentH > targetH || (currentH === targetH && currentM >= targetM);
-  }, [now, offWorkTime]);
+    return currentH > targetHours || (currentH === targetHours && currentM >= targetMinutes);
+  }, [now, targetHours, targetMinutes]);
 
   const getClockOutText = () => {
     if (isClockedOut) return '查看結算單';
-    if (isOvertime) return '加班打卡';
-    if (isAfterOffWork) return '打卡下班';
+    if (isOvertime || isAfterOffWork) return '加班打卡';
     return '提早下班去';
   };
 
   // Compute live stopwatch chronograph breakdown
-  const { hoursStr, minsStr, secsStr, msStr, isOverdue } = (() => {
+  const { hoursStr, minsStr, secsStr, msStr, isOverdue } = useMemo(() => {
     try {
-      const [hStr, mStr] = (offWorkTime || '18:00').split(':');
       const target = new Date(now);
-      target.setHours(parseInt(hStr, 10), parseInt(mStr, 10), 0, 0);
+      target.setHours(targetHours, targetMinutes, 0, 0);
 
       const diffMs = target.getTime() - now.getTime();
-      if (diffMs <= 0) {
-        const absMs = Math.abs(diffMs);
-        const hrs = Math.floor(absMs / (1000 * 60 * 60));
-        const mins = Math.floor((absMs % (1000 * 60 * 60)) / (1000 * 60));
-        const secs = Math.floor((absMs % (1000 * 60)) / 1000);
-        const ms = Math.floor((absMs % 1000) / 100);
+      const isPastOffWorkTime = diffMs <= 0;
+
+      // When either real time passed off-work time OR overtime mode is active
+      if (isPastOffWorkTime || isOvertime) {
+        let elapsedOvertimeMs = 0;
+        if (isPastOffWorkTime) {
+          elapsedOvertimeMs = Math.abs(diffMs);
+        } else if (isOvertime) {
+          // If manually simulated before scheduled off-work time
+          elapsedOvertimeMs = Math.max(600000, (overtimeMinutes || 10) * 60 * 1000);
+        }
+
+        const hrs = Math.floor(elapsedOvertimeMs / (1000 * 60 * 60));
+        const mins = Math.floor((elapsedOvertimeMs % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((elapsedOvertimeMs % (1000 * 60)) / 1000);
+        const ms = Math.floor((elapsedOvertimeMs % 1000) / 100);
+
         return {
           hoursStr: String(hrs).padStart(2, '0'),
           minsStr: String(mins).padStart(2, '0'),
@@ -89,10 +109,13 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
           isOverdue: true,
         };
       }
+
+      // Normal Countdown to Scheduled Off-Work Time
       const hrs = Math.floor(diffMs / (1000 * 60 * 60));
       const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
       const secs = Math.floor((diffMs % (1000 * 60)) / 1000);
       const ms = Math.floor((diffMs % 1000) / 100);
+
       return {
         hoursStr: String(hrs).padStart(2, '0'),
         minsStr: String(mins).padStart(2, '0'),
@@ -103,7 +126,7 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
     } catch {
       return { hoursStr: '00', minsStr: '00', secsStr: '00', msStr: '0', isOverdue: false };
     }
-  })();
+  }, [now, targetHours, targetMinutes, isOvertime, overtimeMinutes]);
 
   // Formula: Base Age + (100 - Current Score) * 0.8
   const estimatedBodyAge = Number((baseAge + (100 - healthScore) * 0.8).toFixed(1));
@@ -457,6 +480,20 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
             </div>
           )}
 
+          {/* Status Descriptor Subline */}
+          {!isClockedOut && (
+            <div className="flex items-center justify-between text-[10px] font-mono px-1 z-10">
+              <span className="text-zinc-500 flex items-center gap-1">
+                <span>{isOverdue || isOvertime ? '超時加班累計' : `表定下班: ${resolvedOffWorkTime}`}</span>
+              </span>
+              <span className={isOverdue || isOvertime ? 'text-rose-400 font-bold' : 'text-cyan-300 font-bold'}>
+                {isOverdue || isOvertime
+                  ? `已超時 ${hoursStr}:${minsStr}:${secsStr}`
+                  : `剩餘 ${parseInt(hoursStr, 10)}小時${parseInt(minsStr, 10)}分`}
+              </span>
+            </div>
+          )}
+
           {/* Bottom Action Area: Flexible Left Button & Compact Vertical Right Entry */}
           <div className="flex items-stretch gap-2 w-full font-mono h-[56px]">
             {/* Left Button: Clock Out / Receipt Button (Flexible Main Width) */}
@@ -536,18 +573,18 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
             {onOpenCandidGallery && (
               <button
                 onClick={onOpenCandidGallery}
-                className="w-20 sm:w-22 shrink-0 px-2.5 py-2 rounded-md border border-zinc-800 hover:border-zinc-700 bg-[#0a0a0a] hover:bg-zinc-900 transition cursor-pointer flex flex-col items-center justify-center gap-1 group shadow-sm text-center relative"
+                className="w-20 sm:w-22 shrink-0 px-2.5 pt-3 pb-2 rounded-md border border-zinc-800 hover:border-zinc-700 bg-[#0a0a0a] hover:bg-zinc-900 transition cursor-pointer flex flex-col items-center justify-center gap-1 group shadow-sm text-center relative"
                 title="檢視工位抓拍紀錄存證相簿"
               >
                 <div className="relative flex items-center justify-center">
                   <Camera className="w-5 h-5 text-zinc-400 group-hover:text-cyan-400 group-hover:scale-105 transition-all" />
                   {candidCount > 0 && (
-                    <span className="absolute -top-1.5 -right-3 px-1 min-w-[14px] text-center bg-zinc-850 text-cyan-300 border border-cyan-500/40 text-[7px] font-bold rounded-full leading-tight shadow-sm">
+                    <span className="absolute -top-1 -right-3 z-10 px-1 min-w-[15px] h-3.5 flex items-center justify-center text-center bg-cyan-950 text-cyan-300 border border-cyan-400/80 text-[9px] font-bold font-mono rounded-full leading-none shadow-[0_0_8px_rgba(6,182,212,0.45)]">
                       {candidCount}
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-bold text-zinc-300 group-hover:text-white transition-colors tracking-wider leading-tight">
+                <span className="text-[11px] font-bold text-zinc-300 group-hover:text-white transition-colors tracking-wider leading-tight">
                   工位相簿
                 </span>
               </button>
