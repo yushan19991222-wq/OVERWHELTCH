@@ -300,27 +300,27 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
         </div>
 
         {/* 2. Stress Level */}
-        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【精神緊繃壓力監測】眉心張力超過 0.08 且持續 5.0 秒將判定為壓力緊繃並觸發心靈排解提醒">
+        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【精神緊繃壓力監測】眉心張力超過 0.10 且持續 5.0 秒將判定為壓力緊繃並觸發心靈排解提醒">
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
             <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
               <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">psychology</span>
               <span>STRESS LEVEL</span>
             </span>
-            <span className={`font-bold shrink-0 ${telemetry.frown >= 0.08 ? 'text-amber-400' : 'text-cyan-400'}`}>
+            <span className={`font-bold shrink-0 ${telemetry.frown >= 0.10 ? 'text-amber-400' : 'text-cyan-400'}`}>
               {telemetry.frown.toFixed(2)}
             </span>
           </div>
           <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
             <div
               className={`h-full transition-all duration-75 ${
-                telemetry.frown >= 0.08 ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]' : 'bg-cyan-400'
+                telemetry.frown >= 0.10 ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]' : 'bg-cyan-400'
               }`}
-              style={{ width: `${Math.min(100, (telemetry.frown / 0.12) * 100)}%` }}
+              style={{ width: `${Math.min(100, (telemetry.frown / 0.15) * 100)}%` }}
             />
           </div>
           <div className="text-[9px] text-slate-400 mt-1 flex justify-end items-center">
-            <span className={telemetry.frown >= 0.08 ? 'text-amber-400 font-bold' : 'text-slate-400'}>
-              {telemetry.frown >= 0.08 ? '緊繃警戒 (≥0.08)' : '警戒線: 0.08'}
+            <span className={telemetry.frown >= 0.10 ? 'text-amber-400 font-bold' : 'text-slate-400'}>
+              {telemetry.frown >= 0.10 ? '緊繃警戒 (≥0.10)' : '警戒線: 0.10'}
             </span>
           </div>
         </div>

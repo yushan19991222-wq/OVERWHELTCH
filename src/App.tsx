@@ -1669,18 +1669,27 @@ export default function App() {
                 const eyeSpan = Math.max(0.01, Math.hypot(leftEyeCorner.x - rightEyeCorner.x, leftEyeCorner.y - rightEyeCorner.y));
                 const browSpan = Math.hypot(leftInnerBrow.x - rightInnerBrow.x, leftInnerBrow.y - rightInnerBrow.y);
                 const ratio = browSpan / eyeSpan;
-                // Typical relaxed eyebrow ratio is ~0.42 - 0.55. Furrowing brow pulls it below 0.38
-                if (ratio < 0.38) {
-                  geomFurrow = Math.min(0.12, (0.38 - ratio) * 0.8);
+                // Only trigger geometric compression if eyebrows significantly squeeze together (< 0.33) AND brows pulled down
+                if (ratio < 0.33 && avgBrowDown > 0.06) {
+                  geomFurrow = Math.min(0.08, (0.33 - ratio) * 0.6);
                 }
               }
 
-              // Corroborating nose sneer & mouth frown micro-tensions
-              const corrugatorComponent = avgBrowDown * 0.75 + maxBrowDown * 0.25 + geomFurrow;
-              const microStressBoost = Math.max(noseSneerVal * 0.4, mouthFrownVal * 0.3, mouthPressVal * 0.2);
+              // True human frown requires bilateral brow depression (both brows pull down)
+              const minBrowDown = Math.min(browDownL, browDownR);
+              const rawBrowSignal = minBrowDown * 0.65 + avgBrowDown * 0.35 + geomFurrow;
+              
+              // Deadzone filtering: resting faces have natural baseline noise around 0.03~0.05
+              // Subtraction ensures resting/reading face stays around 0.00~0.03 and slight fluctuations are ignored
+              const deadzone = 0.045;
+              const activeBrowDown = Math.max(0, rawBrowSignal - deadzone) * 1.35;
 
-              // Combined raw brow score: neutral face ~0.00 - 0.02; mild tension ~0.03 - 0.06; genuine frown ~0.07 - 0.20+
-              let baseBrowScore = corrugatorComponent + microStressBoost;
+              // Gentle micro-stress corroboration (only when actual brow down is active)
+              const microStressBoost = activeBrowDown > 0.02
+                ? Math.max(noseSneerVal * 0.2, mouthFrownVal * 0.2)
+                : 0;
+
+              let baseBrowScore = activeBrowDown + microStressBoost;
 
               // Inhibit smile/laughter false positives
               if (smileVal > 0.08 || lipCornerElevation > 0.015) {
@@ -1700,8 +1709,8 @@ export default function App() {
 
               const rawBrowPressure = Math.max(0, baseBrowScore);
               const prevBrow = detectionRef.current.latestBrowPressure ?? rawBrowPressure;
-              // Smooth with responsive tracking (0.75 new, 0.25 prev)
-              const browPressure = Number((prevBrow * 0.25 + rawBrowPressure * 0.75).toFixed(3));
+              // Gentle exponential moving average (0.35 new, 0.65 prev) to eliminate twitchy fluctuations
+              const browPressure = Number((prevBrow * 0.65 + rawBrowPressure * 0.35).toFixed(3));
               detectionRef.current.latestBrowPressure = browPressure;
               const frownVal = browPressure;
 
@@ -1839,8 +1848,8 @@ export default function App() {
                 detectionRef.current.hasTriggeredThisYawn = false;
               }
 
-              // Frown Trigger Check (Require genuine Brow Pressure >= 0.08 sustained for 5.0s, 6s buffer, facing forward)
-              const isFrowningNow = frownVal >= 0.08 && !isLookingSideways;
+              // Frown Trigger Check (Require genuine Brow Pressure >= 0.10 sustained for 5.0s, 6s buffer, facing forward)
+              const isFrowningNow = frownVal >= 0.10 && !isLookingSideways;
               if (isFrowningNow) {
                 if (!detectionRef.current.frownStartTime) {
                   detectionRef.current.frownStartTime = performance.now();
