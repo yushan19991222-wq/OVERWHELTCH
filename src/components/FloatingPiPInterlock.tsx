@@ -144,19 +144,19 @@ export const FloatingPiPInterlock: React.FC<FloatingPiPInterlockProps> = ({
       ) : activeHazard ? (
         /* 3. HAZARD POPUP (Yawn / Frown / Overtime / Slack) */
         <div
-          className={`flex-1 flex flex-col items-center justify-center p-3 rounded-lg border-2 text-center transition-all ${
+          className={`flex-1 flex flex-col items-center justify-center p-3 rounded-md border text-center transition-all ${
             activeHazard.severity === 'critical'
-              ? 'bg-rose-950/80 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.4)]'
+              ? 'bg-rose-950/80 border-rose-500/70 shadow-[0_0_10px_rgba(244,63,94,0.25)]'
               : activeHazard.severity === 'warning'
-              ? 'bg-amber-950/80 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
-              : 'bg-emerald-950/80 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]'
+              ? 'bg-amber-950/80 border-amber-500/70 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+              : 'bg-cyan-950/70 border-cyan-500/70 shadow-[0_0_10px_rgba(56,189,248,0.25)]'
           }`}
         >
           {activeHazard.image && (
             <img
               src={activeHazard.image}
               alt="Hazard Meme"
-              className="w-14 h-14 rounded-lg object-cover border border-slate-700 mb-2 shadow"
+              className="w-14 h-14 rounded object-cover border border-slate-700 mb-2 shadow"
             />
           )}
           <div className="text-xs font-bold mb-1 text-slate-100">{activeHazard.title}</div>
@@ -169,7 +169,7 @@ export const FloatingPiPInterlock: React.FC<FloatingPiPInterlockProps> = ({
                 ? 'bg-rose-500 text-white'
                 : activeHazard.severity === 'warning'
                 ? 'bg-amber-400 text-slate-950'
-                : 'bg-emerald-400 text-slate-950'
+                : 'bg-cyan-400 text-slate-950'
             }`}
           >
             {activeHazard.badge}
@@ -194,7 +194,7 @@ export const FloatingPiPInterlock: React.FC<FloatingPiPInterlockProps> = ({
                 <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
                 <span>預估生理年齡</span>
               </div>
-              <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-cyan-300 mt-0.5">
+              <div className="text-2xl font-black text-cyan-300 mt-0.5">
                 {estimatedAge} <span className="text-[10px] text-slate-500">歲</span>
               </div>
               <div className="text-[9px] text-slate-500">基礎: {baseAge} 歲</div>
@@ -209,7 +209,7 @@ export const FloatingPiPInterlock: React.FC<FloatingPiPInterlockProps> = ({
               <div
                 className={`text-2xl font-black mt-0.5 ${
                   healthScore >= 80
-                    ? 'text-emerald-400'
+                    ? 'text-cyan-300'
                     : healthScore >= 50
                     ? 'text-amber-400'
                     : 'text-rose-400 animate-pulse'
@@ -218,7 +218,7 @@ export const FloatingPiPInterlock: React.FC<FloatingPiPInterlockProps> = ({
                 {healthScore}
               </div>
               <div className="text-[9px] text-slate-500">
-                {healthScore >= 80 ? '存摺盈餘' : healthScore >= 50 ? '赤字邊緣' : '破產破產！'}
+                {healthScore >= 80 ? '存摺充沛' : healthScore >= 50 ? '赤字邊緣' : '破產破產！'}
               </div>
             </div>
           </div>

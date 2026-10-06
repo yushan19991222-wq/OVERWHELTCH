@@ -58,7 +58,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
       {/* Top Banner - Overwatch Command Strip */}
       <header className="relative z-10 w-full flex items-center justify-between pb-3 border-b border-white/10 text-xs">
         <div className="flex items-center gap-2 text-[#00d8ff] font-bold tracking-wider">
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#00d8ff]/15 border border-[#00d8ff]/60 text-[#00d8ff] font-bold tracking-wider shadow-[0_0_15px_rgba(0,216,255,0.25)]">
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-[#00d8ff]/15 border border-[#00d8ff]/60 text-[#00d8ff] font-bold tracking-wider shadow-[0_0_15px_rgba(0,216,255,0.25)]">
             <span className="w-2 h-2 rounded-full bg-[#00d8ff] animate-pulse shadow-[0_0_8px_#00d8ff]" />
             <span>&gt; OVERWATCH // OCULAR_PROTECTION</span>
           </div>
@@ -67,7 +67,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0a0c10]/90 border border-white/10 text-slate-300 text-xs">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0a0c10]/90 border border-white/10 text-slate-300 text-xs">
           <Clock className="w-3.5 h-3.5 text-[#00d8ff]" />
           <span className="font-bold tracking-widest">{currentTime}</span>
         </div>
@@ -78,7 +78,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
         {/* Animated Pulsing Eye Portal */}
         <div className="relative mb-3 flex items-center justify-center">
           <div className="absolute w-24 h-24 rounded-full bg-[#00d8ff]/20 animate-ping" />
-          <div className="w-16 h-16 rounded-xl bg-[#00d8ff]/15 border border-[#00d8ff] flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(0,216,255,0.4)]">
+          <div className="w-16 h-16 rounded-md bg-[#00d8ff]/15 border border-[#00d8ff] flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(0,216,255,0.4)]">
             👀
           </div>
         </div>
@@ -96,7 +96,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
         </p>
 
         {/* Dynamic Eye Follow Exercise Animation */}
-        <div className="relative w-full max-w-md h-24 mb-4 border border-white/10 rounded-xl bg-[#0a0c10]/95 overflow-hidden flex items-center justify-center p-2 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] backdrop-blur-xl cctv-brackets">
+        <div className="relative w-full max-w-md h-24 mb-4 border border-white/10 rounded-md bg-[#0a0c10]/95 overflow-hidden flex items-center justify-center p-2 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] backdrop-blur-xl cctv-brackets">
           <div className="absolute inset-0 flex flex-col items-center justify-between p-2 pointer-events-none opacity-40 text-[10px] text-[#00d8ff]">
             <span className="flex items-center gap-1 font-mono">⬆️ 向上望遠 [TARGET_LOCK]</span>
             <div className="w-full flex justify-between px-3 font-mono">
@@ -117,7 +117,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
         </div>
 
         {/* Progress Bar & Countdown Card */}
-        <div className="w-full max-w-md p-5 rounded-xl bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] mb-4 backdrop-blur-xl cctv-brackets">
+        <div className="w-full max-w-md p-5 rounded-md bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] mb-4 backdrop-blur-xl cctv-brackets">
           <div className="flex items-center justify-between text-xs text-slate-400 font-mono mb-2">
             <span className="flex items-center gap-1.5 text-slate-300 font-bold">
               <RotateCw className="w-3.5 h-3.5 animate-spin text-[#00d8ff]" />
@@ -128,9 +128,9 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
             </span>
           </div>
 
-          <div className="w-full bg-black/60 rounded-full h-2.5 overflow-hidden border border-white/10 p-0.5">
+          <div className="w-full bg-black/60 rounded-sm h-2.5 overflow-hidden border border-white/10 p-0.5">
             <div
-              className="bg-gradient-to-r from-[#00d8ff] via-teal-300 to-[#00ff87] h-full rounded-full transition-all duration-200 shadow-[0_0_12px_#00d8ff]"
+              className="bg-gradient-to-r from-[#00d8ff] via-teal-300 to-[#00ff87] h-full rounded-sm transition-all duration-200 shadow-[0_0_12px_#00d8ff]"
               style={{ width: `${Math.min(100, Math.max(0, progressPct))}%` }}
             />
           </div>
@@ -143,7 +143,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
 
         <button
           onClick={onDismiss}
-          className="text-[11px] text-slate-500 hover:text-slate-300 font-mono underline transition py-1 px-3 rounded-full hover:bg-white/5"
+          className="text-[11px] text-slate-500 hover:text-slate-300 font-mono underline transition py-1 px-3 rounded hover:bg-white/5"
         >
           [MANUAL_OVERRIDE // 手動喚醒] 我已坐正後退並深呼吸
         </button>

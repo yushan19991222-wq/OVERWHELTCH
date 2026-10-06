@@ -944,8 +944,8 @@ export default function App() {
               </span>
             </div>
             <div className="flex items-center gap-2 text-[10px] text-slate-400">
-              <span className="flex items-center gap-1 text-emerald-400 font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="flex items-center gap-1 text-cyan-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                 CAM_REC [ACTIVE]
               </span>
               <span>•</span>
@@ -961,7 +961,7 @@ export default function App() {
             onClick={handleTogglePiP}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
               isPiPActive
-                ? 'bg-cyan-950/90 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                ? 'bg-cyan-950/80 border-cyan-500/70 text-cyan-200 shadow-[0_0_8px_rgba(56,189,248,0.25)]'
                 : 'bg-[#030508] border-slate-800 text-slate-300 hover:border-slate-700'
             }`}
             title="開啟永遠置頂浮動視窗：無論使用任何分頁或程式，警報與鎖定直接在最上層彈出"
@@ -984,7 +984,7 @@ export default function App() {
             }}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
               isMeetingMode
-                ? 'bg-amber-950/80 border-amber-500 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                ? 'bg-amber-950/60 border-amber-500/60 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.2)]'
                 : 'bg-[#030508] border-slate-800 text-slate-400 hover:border-slate-700'
             }`}
             title="開啟會議模式：靜音所有彈窗與警報，但仍默默記錄健康分數"
@@ -1009,7 +1009,7 @@ export default function App() {
           {/* Clock-Out Summary Card Button */}
           <button
             onClick={() => setIsReceiptOpen(true)}
-            className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black px-2.5 py-1 rounded text-[11px] transition transform active:scale-95 shadow-[0_0_10px_rgba(16,185,129,0.25)]"
+            className="flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-2.5 py-1 rounded text-[11px] transition transform active:scale-95 border border-cyan-400/80 shadow-[0_0_8px_rgba(56,189,248,0.2)]"
           >
             <Clock className="w-3 h-3" />
             <span>[RECEIPT]</span>
@@ -1087,14 +1087,14 @@ export default function App() {
           <span>•</span>
           <span>DEV: CAM_0</span>
           <span>•</span>
-          <span className="text-emerald-400 font-bold">ZERO_DATA_UPLOAD</span>
+          <span className="text-cyan-400/90 font-bold">ZERO_DATA_UPLOAD</span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-slate-400">TELEMETRY: ACTIVE</span>
           <span>•</span>
           <span>REFRESH: 60Hz</span>
           <span>•</span>
-          <span className="text-teal-400">SECURE_SANDBOX</span>
+          <span className="text-slate-400">SECURE_SANDBOX</span>
         </div>
       </footer>
 

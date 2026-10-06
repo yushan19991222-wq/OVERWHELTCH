@@ -154,7 +154,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
       {/* TOP SCREENSAVER BANNER BAR - Overwatch Command Strip */}
       <header className="relative z-10 w-full flex items-center justify-between pb-3 border-b border-white/10 text-xs">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#ff3366]/15 border border-[#ff3366]/60 text-[#ff3366] font-bold tracking-wider shadow-[0_0_15px_rgba(255,51,102,0.3)] animate-pulse">
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-[#ff3366]/15 border border-[#ff3366]/60 text-[#ff3366] font-bold tracking-wider shadow-[0_0_15px_rgba(255,51,102,0.3)] animate-pulse">
             <span className="w-2 h-2 rounded-full bg-[#ff3366] shadow-[0_0_8px_#ff3366]" />
             <span>&gt; OVERWATCH // SEDENTARY_INTERLOCK</span>
           </div>
@@ -163,20 +163,20 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-2.5 text-xs">
-          {/* Digital Clock Pill */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0a0c10]/90 border border-white/10 text-slate-300">
+        <div className="flex items-center gap-2 text-xs">
+          {/* Digital Clock */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0a0c10]/90 border border-white/10 text-slate-300">
             <Clock className="w-3.5 h-3.5 text-[#00d8ff]" />
             <span className="font-bold tracking-widest">{currentTime}</span>
           </div>
 
-          {/* Fullscreen Button Pill */}
+          {/* Fullscreen Button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               toggleFullscreen();
             }}
-            className="p-1.5 rounded-full bg-[#10141c] border border-white/10 hover:border-[#00d8ff] text-slate-400 hover:text-white transition"
+            className="p-1.5 rounded bg-[#10141c] border border-white/10 hover:border-[#00d8ff] text-slate-400 hover:text-white transition"
             title="進入/退出全螢幕"
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -186,13 +186,13 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
 
       {/* FLOATING BOUNCING SCREENSAVER MEME ELEMENT (Classic DVD Logo Style Drift) */}
       <div
-        className="absolute z-10 pointer-events-none transition-transform duration-75 hidden sm:flex items-center gap-3 p-3 rounded-xl bg-[#0a0c10]/95 border border-white/15 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] backdrop-blur-md cctv-brackets"
+        className="absolute z-10 pointer-events-none transition-transform duration-75 hidden sm:flex items-center gap-3 p-3 rounded-md bg-[#0a0c10]/95 border border-white/15 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] backdrop-blur-md cctv-brackets"
         style={{
           left: `${bouncingPos.x}%`,
           top: `${bouncingPos.y}%`,
         }}
       >
-        <div className="w-12 h-12 rounded-lg overflow-hidden border border-[#ff3366]/60 shrink-0">
+        <div className="w-12 h-12 rounded overflow-hidden border border-[#ff3366]/60 shrink-0">
           <img
             src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&auto=format&fit=crop&q=80"
             alt="Meme Judge Cat"
@@ -214,7 +214,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
         {/* Animated Emergency Beacon */}
         <div className="relative mb-3 flex items-center justify-center">
           <div className="absolute w-24 h-24 rounded-full bg-[#ff3366]/20 animate-ping" />
-          <div className="w-16 h-16 rounded-xl bg-[#ff3366]/15 border border-[#ff3366] flex items-center justify-center shadow-[0_0_30px_rgba(255,51,102,0.5)]">
+          <div className="w-16 h-16 rounded-md bg-[#ff3366]/15 border border-[#ff3366] flex items-center justify-center shadow-[0_0_30px_rgba(255,51,102,0.5)]">
             <AlertOctagon className="w-8 h-8 text-[#ff3366] animate-pulse" />
           </div>
         </div>
@@ -233,7 +233,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
         </p>
 
         {/* Giant Countdown Clock */}
-        <div className="relative p-5 rounded-xl bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] mb-4 w-full max-w-md backdrop-blur-xl cctv-brackets">
+        <div className="relative p-5 rounded-md bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] mb-4 w-full max-w-md backdrop-blur-xl cctv-brackets">
           <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">
             &gt; UNLOCK_TIMER // 起立離座倒數解鎖
           </div>
@@ -243,7 +243,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
 
           {/* Sensor Detection Live Status */}
           <div
-            className={`mt-3 p-2.5 rounded-lg border flex items-center justify-between text-left transition-all ${
+            className={`mt-3 p-2.5 rounded border flex items-center justify-between text-left transition-all ${
               isFacePresent
                 ? 'bg-[#ff3366]/10 border-[#ff3366]/50 text-rose-200'
                 : 'bg-[#00ff87]/10 border-[#00ff87]/50 text-emerald-200 animate-pulse shadow-[0_0_15px_rgba(0,255,135,0.2)]'
@@ -265,7 +265,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
               </div>
             </div>
             <span
-              className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
+              className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono ${
                 isFacePresent ? 'bg-[#ff3366]/30 text-[#ff3366] border border-[#ff3366]/50' : 'bg-[#00ff87]/30 text-[#00ff87] border border-[#00ff87]/50'
               }`}
             >
@@ -276,21 +276,21 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
 
         {/* Dynamic 3-Step Animated Stretch Guide */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full max-w-md mb-4 text-left">
-          <div className="p-2.5 rounded-lg bg-[#10141c] border border-white/10 text-[11px] text-slate-300 backdrop-blur-md">
+          <div className="p-2.5 rounded bg-[#10141c] border border-white/10 text-[11px] text-slate-300 backdrop-blur-md">
             <div className="text-[#ff3366] font-bold mb-1 flex items-center gap-1.5 text-xs">
               <span className="animate-bounce">🙆</span>
               <span>雙手仰天拉伸</span>
             </div>
             <div className="text-slate-400 text-[10px] leading-tight">十指緊扣向上推高，釋放頸椎重壓</div>
           </div>
-          <div className="p-2.5 rounded-lg bg-[#10141c] border border-white/10 text-[11px] text-slate-300 backdrop-blur-md">
+          <div className="p-2.5 rounded bg-[#10141c] border border-white/10 text-[11px] text-slate-300 backdrop-blur-md">
             <div className="text-[#ffaa00] font-bold mb-1 flex items-center gap-1.5 text-xs">
               <span className="animate-pulse">🧘</span>
               <span>轉身活化脊椎</span>
             </div>
             <div className="text-slate-400 text-[10px] leading-tight">踏平地面，腰部深呼吸向兩側輕轉</div>
           </div>
-          <div className="p-2.5 rounded-lg bg-[#10141c] border border-white/10 text-[11px] text-slate-300 backdrop-blur-md">
+          <div className="p-2.5 rounded bg-[#10141c] border border-white/10 text-[11px] text-slate-300 backdrop-blur-md">
             <div className="text-[#00ff87] font-bold mb-1 flex items-center gap-1.5 text-xs">
               <span className="animate-bounce">🦵</span>
               <span>顛腳尖踢小腿</span>
@@ -299,11 +299,11 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
           </div>
         </div>
 
-        {/* 30-Second Stickman Calisthenics Screensaver Launcher - Pill Button */}
+        {/* 30-Second Stickman Calisthenics Screensaver Launcher Button */}
         {onStartStretchWorkout && (
           <button
             onClick={onStartStretchWorkout}
-            className="w-full max-w-md py-3 px-4 rounded-full bg-[#00ff87] hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm tracking-wide shadow-[0_0_25px_rgba(0,255,135,0.4)] flex items-center justify-center gap-2 transform hover:scale-[1.02] transition mb-3 font-mono"
+            className="w-full max-w-md py-2.5 px-4 rounded-md bg-[#00ff87] hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm tracking-wide shadow-[0_0_25px_rgba(0,255,135,0.4)] flex items-center justify-center gap-2 transform hover:scale-[1.01] transition mb-3 font-mono"
           >
             <Activity className="w-4 h-4 text-slate-950 animate-bounce" />
             <span>&gt; 進入 30 秒全螢幕戰術伸展操 (立即解鎖)</span>
@@ -312,7 +312,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
 
         {/* Screensaver Input Intercept Flash Prompt */}
         {keyPressAttempted && (
-          <div className="mb-3 px-3 py-1.5 rounded-full bg-[#ffaa00]/15 border border-[#ffaa00]/60 text-[#ffaa00] text-xs font-bold animate-bounce shadow-[0_0_15px_rgba(255,170,0,0.3)]">
+          <div className="mb-3 px-3 py-1.5 rounded bg-[#ffaa00]/15 border border-[#ffaa00]/60 text-[#ffaa00] text-xs font-bold animate-bounce shadow-[0_0_15px_rgba(255,170,0,0.3)]">
             &gt; ALERT: 螢幕保護程式鎖定中！請真正起立離開座位！
           </div>
         )}
@@ -323,7 +323,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
             e.stopPropagation();
             onEmergencyOverride();
           }}
-          className="text-[11px] text-slate-500 hover:text-slate-300 font-mono underline transition py-1 px-3 rounded-full hover:bg-white/5"
+          className="text-[11px] text-slate-500 hover:text-slate-300 font-mono underline transition py-1 px-3 rounded hover:bg-white/5"
         >
           [MANUAL_OVERRIDE // 手動喚醒] 我正在升降桌站立辦公或有緊急狀況
         </button>

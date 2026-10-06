@@ -488,7 +488,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
       {/* TOP HEADER STATUS BAR - Overwatch Command Strip */}
       <header className="relative z-10 w-full flex items-center justify-between pb-3 border-b border-white/10 text-xs">
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#00d8ff]/15 border border-[#00d8ff]/60 text-[#00d8ff] font-bold tracking-wider shadow-[0_0_15px_rgba(0,216,255,0.25)]">
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-[#00d8ff]/15 border border-[#00d8ff]/60 text-[#00d8ff] font-bold tracking-wider shadow-[0_0_15px_rgba(0,216,255,0.25)]">
             <span className="w-2 h-2 rounded-full bg-[#00d8ff] animate-pulse shadow-[0_0_8px_#00d8ff]" />
             <span>&gt; OVERWATCH // CALISTHENICS_ACTIVATION</span>
           </div>
@@ -499,12 +499,12 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
           </span>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {/* Mode Switcher: Canvas vs Lottie - Pill Shape */}
-          <div className="flex items-center bg-[#10141c] p-0.5 rounded-full border border-white/10 text-[11px]">
+        <div className="flex items-center gap-2">
+          {/* Mode Switcher: Canvas vs Lottie */}
+          <div className="flex items-center bg-[#10141c] p-0.5 rounded border border-white/10 text-[11px]">
             <button
               onClick={() => setActiveTab('canvas')}
-              className={`px-3 py-1 rounded-full transition text-[10px] font-bold tracking-wider ${
+              className={`px-2.5 py-0.5 rounded-sm transition text-[10px] font-bold tracking-wider ${
                 activeTab === 'canvas'
                   ? 'bg-[#00d8ff] text-slate-950 shadow-[0_0_10px_rgba(0,216,255,0.5)]'
                   : 'text-slate-400 hover:text-white'
@@ -514,7 +514,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
             </button>
             <button
               onClick={() => setActiveTab('lottie')}
-              className={`px-3 py-1 rounded-full transition text-[10px] font-bold tracking-wider ${
+              className={`px-2.5 py-0.5 rounded-sm transition text-[10px] font-bold tracking-wider ${
                 activeTab === 'lottie'
                   ? 'bg-[#00d8ff] text-slate-950 shadow-[0_0_10px_rgba(0,216,255,0.5)]'
                   : 'text-slate-400 hover:text-white'
@@ -524,34 +524,34 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
             </button>
           </div>
 
-          {/* Sound Toggle Pill Button */}
+          {/* Sound Toggle Button */}
           <button
             onClick={() => setIsMuted((m) => !m)}
-            className="p-1.5 rounded-full bg-[#10141c] border border-white/10 hover:border-[#00d8ff] text-slate-400 hover:text-white transition"
+            className="p-1.5 rounded bg-[#10141c] border border-white/10 hover:border-[#00d8ff] text-slate-400 hover:text-white transition"
             title={isMuted ? '開啟節奏音效' : '靜音'}
           >
             {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-[#00d8ff]" />}
           </button>
 
-          {/* Clock Pill */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0a0c10]/90 border border-white/10 text-slate-300 text-xs">
+          {/* Clock */}
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0a0c10]/90 border border-white/10 text-slate-300 text-xs">
             <Clock className="w-3.5 h-3.5 text-[#00d8ff]" />
             <span className="font-bold tracking-widest">{currentTime}</span>
           </div>
 
-          {/* Fullscreen Pill */}
+          {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
-            className="p-1.5 rounded-full bg-[#10141c] border border-white/10 hover:border-[#00d8ff] text-slate-400 hover:text-white transition"
+            className="p-1.5 rounded bg-[#10141c] border border-white/10 hover:border-[#00d8ff] text-slate-400 hover:text-white transition"
             title="切換全螢幕"
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
 
-          {/* Dismiss Pill */}
+          {/* Dismiss Button */}
           <button
             onClick={onDismiss}
-            className="p-1.5 rounded-full bg-[#10141c] border border-white/10 hover:border-[#ff3366] text-slate-400 hover:text-[#ff3366] transition"
+            className="p-1.5 rounded bg-[#10141c] border border-white/10 hover:border-[#ff3366] text-slate-400 hover:text-[#ff3366] transition"
             title="關閉"
           >
             <X className="w-3.5 h-3.5" />
@@ -563,7 +563,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
       <main className="relative z-10 flex-1 flex flex-col lg:flex-row items-center justify-between gap-6 px-4 py-2 max-w-6xl mx-auto my-auto w-full">
         {/* LEFT COLUMN: ANIMATION CANVAS DISPLAY */}
         <div className="flex-1 w-full flex flex-col items-center justify-center">
-          <div className="relative w-full max-w-lg h-72 sm:h-96 rounded-xl bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center backdrop-blur-xl cctv-brackets">
+          <div className="relative w-full max-w-lg h-72 sm:h-96 rounded-md bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center backdrop-blur-xl cctv-brackets">
             {activeTab === 'canvas' ? (
               <canvas ref={canvasRef} className="w-full h-full block" />
             ) : (
@@ -578,20 +578,20 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
                 <div className="text-xs text-slate-400 font-mono mb-3">
                   {currentStage.subtitle}
                 </div>
-                <div className="flex items-center gap-2 text-xs text-[#00ff87] bg-[#00ff87]/10 px-3 py-1 rounded-full border border-[#00ff87]/30">
+                <div className="flex items-center gap-2 text-xs text-[#00ff87] bg-[#00ff87]/10 px-2.5 py-1 rounded border border-[#00ff87]/30">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>&gt; LottieFiles 向量引導循環中</span>
                 </div>
               </div>
             )}
 
-            {/* Stage Indicator Pill Badge */}
-            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/80 border border-white/15 text-[10px] text-[#00d8ff] font-bold tracking-wider backdrop-blur-md flex items-center gap-1.5 shadow-md">
+            {/* Stage Indicator Badge */}
+            <div className="absolute top-3 left-3 px-2.5 py-1 rounded bg-black/80 border border-white/15 text-[10px] text-[#00d8ff] font-bold tracking-wider backdrop-blur-md flex items-center gap-1.5 shadow-md">
               <span>[PHASE: 0{currentStageIndex + 1} / 03 // ACTIVE]</span>
             </div>
 
             {/* Target Muscle Chip */}
-            <div className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-black/80 border border-white/15 text-[10px] text-slate-300 backdrop-blur-md hidden sm:block tracking-wide shadow-md">
+            <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded bg-black/80 border border-white/15 text-[10px] text-slate-300 backdrop-blur-md hidden sm:block tracking-wide shadow-md">
               &gt; TARGET_PHYSIOLOGY: {currentStage.targetMuscles}
             </div>
 
@@ -606,7 +606,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         </div>
 
         {/* RIGHT COLUMN: WORKOUT TELEMETRY & GUIDANCE PANEL */}
-        <div className="w-full lg:w-96 flex flex-col justify-between bg-[#0a0c10]/95 border border-white/10 rounded-xl p-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] backdrop-blur-xl cctv-brackets">
+        <div className="w-full lg:w-96 flex flex-col justify-between bg-[#0a0c10]/95 border border-white/10 rounded-md p-5 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] backdrop-blur-xl cctv-brackets">
           {/* GIANT COUNTDOWN DIAL */}
           <div className="text-center pb-4 border-b border-white/10">
             <div className="text-xs text-slate-400 tracking-widest uppercase font-bold mb-1">
@@ -617,9 +617,9 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
             </div>
 
             {/* Total 30s Progress Bar */}
-            <div className="w-full bg-black/60 rounded-full h-2 overflow-hidden border border-white/10 p-0.5 mt-2">
+            <div className="w-full bg-black/60 rounded-sm h-2 overflow-hidden border border-white/10 p-0.5 mt-2">
               <div
-                className="h-full bg-gradient-to-r from-[#00d8ff] via-teal-400 to-[#00ff87] rounded-full transition-all duration-300 shadow-[0_0_12px_#00d8ff]"
+                className="h-full bg-gradient-to-r from-[#00d8ff] via-teal-400 to-[#00ff87] rounded-sm transition-all duration-300 shadow-[0_0_12px_#00d8ff]"
                 style={{ width: `${totalProgressPct}%` }}
               />
             </div>
@@ -643,9 +643,9 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
               {currentStage.instructions.map((inst, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-2 p-2 rounded-lg bg-[#10141c]/80 border border-white/10 text-xs text-slate-300"
+                  className="flex items-start gap-2 p-2 rounded bg-[#10141c]/80 border border-white/10 text-xs text-slate-300"
                 >
-                  <span className="w-4 h-4 rounded-full bg-[#00d8ff]/20 text-[#00d8ff] border border-[#00d8ff]/50 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                  <span className="w-4 h-4 rounded bg-[#00d8ff]/20 text-[#00d8ff] border border-[#00d8ff]/50 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
                     {i + 1}
                   </span>
                   <span className="leading-tight">{inst}</span>
@@ -656,7 +656,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
 
           {/* TELEMETRY GAUGES */}
           <div className="grid grid-cols-2 gap-2 mb-4 text-[11px]">
-            <div className="p-2 rounded-lg bg-[#10141c] border border-white/10 text-left">
+            <div className="p-2 rounded bg-[#10141c] border border-white/10 text-left">
               <div className="text-slate-400 flex items-center gap-1 text-[10px]">
                 <Activity className="w-3 h-3 text-[#00d8ff]" />
                 <span>椎間盤減壓</span>
@@ -666,7 +666,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
               </div>
             </div>
 
-            <div className="p-2 rounded-lg bg-[#10141c] border border-white/10 text-left">
+            <div className="p-2 rounded bg-[#10141c] border border-white/10 text-left">
               <div className="text-slate-400 flex items-center gap-1 text-[10px]">
                 <Heart className="w-3 h-3 text-[#ff3366]" />
                 <span>生理存摺補償</span>
@@ -677,11 +677,11 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
             </div>
           </div>
 
-          {/* CONTROLS - Pill Shapes */}
+          {/* CONTROLS */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsPaused((p) => !p)}
-              className="flex-1 py-2.5 px-3 rounded-full bg-[#10141c] hover:bg-slate-800 border border-white/10 hover:border-[#00d8ff] text-slate-200 text-xs font-bold transition flex items-center justify-center gap-1.5"
+              className="flex-1 py-2.5 px-3 rounded bg-[#10141c] hover:bg-slate-800 border border-white/10 hover:border-[#00d8ff] text-slate-200 text-xs font-bold transition flex items-center justify-center gap-1.5"
             >
               {isPaused ? <Play className="w-3.5 h-3.5 text-[#00ff87]" /> : <Pause className="w-3.5 h-3.5 text-[#ffaa00]" />}
               <span>{isPaused ? '繼續暖身' : '暫停'}</span>
@@ -693,7 +693,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
                 setIsPaused(false);
                 setHasFinished(false);
               }}
-              className="p-2.5 rounded-full bg-[#10141c] hover:bg-slate-800 border border-white/10 hover:border-[#00d8ff] text-slate-400 hover:text-white transition"
+              className="p-2.5 rounded bg-[#10141c] hover:bg-slate-800 border border-white/10 hover:border-[#00d8ff] text-slate-400 hover:text-white transition"
               title="重置"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -704,7 +704,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
                 onCompleteRef.current();
                 onDismissRef.current();
               }}
-              className="flex-1 py-2.5 px-3 rounded-full bg-[#00ff87] hover:bg-emerald-400 text-slate-950 text-xs font-black transition shadow-[0_0_20px_rgba(0,255,135,0.4)] flex items-center justify-center gap-1.5"
+              className="flex-1 py-2.5 px-3 rounded bg-[#00ff87] hover:bg-emerald-400 text-slate-950 text-xs font-black transition shadow-[0_0_20px_rgba(0,255,135,0.4)] flex items-center justify-center gap-1.5"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>{hasFinished ? '完成！打卡回血' : '提早完成'}</span>

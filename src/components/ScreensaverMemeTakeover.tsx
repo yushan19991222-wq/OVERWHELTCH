@@ -358,17 +358,17 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
           title: '大腦嚴重缺氧 // 大哈欠抓包',
           subtitle: '嘴部開度超過閾值 1.5 秒，打哈欠連鎖反應偵測！建議起立補水或啟動 30 秒神經肌肉活化操！',
           badgeText: '> SEVERITY: ELEVATED // HEALTH_SCORE: -5',
-          badgeClass: 'bg-[#ffaa00]/15 text-[#ffaa00] border-[#ffaa00]/60 shadow-[0_0_15px_rgba(255,170,0,0.25)]',
-          accentColor: '#ffaa00',
+          badgeClass: 'bg-amber-500/15 text-amber-400 border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.2)]',
+          accentColor: '#f59e0b',
           memeImage:
             'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=600&auto=format&fit=crop&q=80',
           memeCaption: '> TARGET_LOG: [貓咪] 嘴張這麼大，準備吞噬整個辦公室？',
           floatingIcon: '🥱',
-          actionText: '🥤 咕嚕喝口水提神 (EXEC_OVERRIDE)',
+          actionText: '🥤 喝口水提神 (EXEC_OVERRIDE)',
           actionClass:
-            'bg-[#00d8ff] hover:bg-[#38bdf8] text-slate-950 font-black shadow-[0_0_25px_rgba(0,216,255,0.45)]',
+            'bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold border border-cyan-400/80 shadow-[0_0_8px_rgba(56,189,248,0.25)]',
           glowGradient:
-            'radial-gradient(circle at center, rgba(255,170,0,0.18) 0%, rgba(9,10,15,0.98) 75%)',
+            'radial-gradient(circle at center, rgba(245,158,11,0.12) 0%, rgba(9,10,15,0.98) 75%)',
         };
       case 'frown':
         return {
@@ -379,8 +379,8 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
             geminiMeme?.advice ||
             '偵測到面部肌群長期緊繃！跟隨同心光環進行深層腹式呼吸，放鬆眼眶與額頭神經！',
           badgeText: `> SEVERITY: STRESS // ${geminiMeme ? `GIPHY: #${geminiMeme.keyword}` : 'HEALTH_SCORE: -3'}`,
-          badgeClass: 'bg-[#ffaa00]/15 text-[#ffaa00] border-[#ffaa00]/60 shadow-[0_0_15px_rgba(255,170,0,0.25)]',
-          accentColor: '#ffaa00',
+          badgeClass: 'bg-amber-500/15 text-amber-400 border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.2)]',
+          accentColor: '#f59e0b',
           memeImage:
             aiGeneratedImageUrl ||
             geminiMeme?.gifUrl ||
@@ -391,43 +391,43 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
           floatingIcon: '🐕',
           actionText: '🧘‍♂️ 怨念釋放！我已深呼吸放鬆',
           actionClass:
-            'bg-[#ffaa00] hover:bg-amber-400 text-slate-950 font-black shadow-[0_0_25px_rgba(255,170,0,0.45)]',
+            'bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold border border-amber-400/80 shadow-[0_0_8px_rgba(245,158,11,0.25)]',
           glowGradient:
-            'radial-gradient(circle at center, rgba(255,170,0,0.2) 0%, rgba(9,10,15,0.98) 75%)',
+            'radial-gradient(circle at center, rgba(245,158,11,0.12) 0%, rgba(9,10,15,0.98) 75%)',
         };
       case 'slack':
         return {
           title: '離座摸魚 // 榮耀充能大捷',
           subtitle: '光學感測無人臉！適度離座走動、喝咖啡放鬆，乃打工人延續職業壽命的最佳戰略！',
           badgeText: '> STATUS: RECOVERY // HEALTH_SCORE: +10',
-          badgeClass: 'bg-[#00ff87]/15 text-[#00ff87] border-[#00ff87]/60 shadow-[0_0_15px_rgba(0,255,135,0.25)]',
-          accentColor: '#00ff87',
+          badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/50 shadow-[0_0_8px_rgba(56,189,248,0.2)]',
+          accentColor: '#38bdf8',
           memeImage:
             'https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=600&auto=format&fit=crop&q=80',
           memeCaption: '> TARGET_LOG: [樹懶] 於資本結構夾縫中，悠閒伸展才是真贏家',
           floatingIcon: '🦥',
           actionText: '☕ 乾杯！繼續維持高雅摸魚',
           actionClass:
-            'bg-[#00ff87] hover:bg-emerald-400 text-slate-950 font-black shadow-[0_0_25px_rgba(0,255,135,0.45)]',
+            'bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold border border-cyan-400/80 shadow-[0_0_8px_rgba(56,189,248,0.25)]',
           glowGradient:
-            'radial-gradient(circle at center, rgba(0,255,135,0.18) 0%, rgba(9,10,15,0.98) 75%)',
+            'radial-gradient(circle at center, rgba(56,189,248,0.12) 0%, rgba(9,10,15,0.98) 75%)',
         };
       case 'overtime':
         return {
           title: '生命力流失 // 超時加班警報',
           subtitle: '表定下班時間已超過！資本無情汲取精力，立即停止非必要任務，整裝下班！',
           badgeText: '> CRITICAL: VAMPIRE_DRAIN // HEALTH_SCORE: -15',
-          badgeClass: 'bg-[#ff3366]/20 text-[#ff3366] border-[#ff3366]/70 shadow-[0_0_20px_rgba(255,51,102,0.35)]',
-          accentColor: '#ff3366',
+          badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/60 shadow-[0_0_10px_rgba(244,63,94,0.25)]',
+          accentColor: '#f43f5e',
           memeImage:
             'https://images.unsplash.com/photo-1517849845537-4d257902454a?w=600&auto=format&fit=crop&q=80',
           memeCaption: '> TARGET_LOG: [小狗] 主人快撤！靈魂指標正在以 0.8x 光速流逝！',
           floatingIcon: '👻',
           actionText: '🏃‍♂️ 打卡下班！立刻收拾書包逃跑',
           actionClass:
-            'bg-[#ff3366] hover:bg-rose-500 text-white font-black shadow-[0_0_25px_rgba(255,51,102,0.5)] animate-pulse',
+            'bg-rose-600 hover:bg-rose-500 text-white font-bold border border-rose-400/80 shadow-[0_0_8px_rgba(244,63,94,0.3)]',
           glowGradient:
-            'radial-gradient(circle at center, rgba(255,51,102,0.22) 0%, rgba(9,10,15,0.98) 75%)',
+            'radial-gradient(circle at center, rgba(244,63,94,0.15) 0%, rgba(9,10,15,0.98) 75%)',
         };
       default:
         return {
@@ -483,9 +483,9 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
       {/* TOP HEADER STATUS BAR - Overwatch Command Strip */}
       <header className="relative z-10 w-full flex items-center justify-between pb-3 border-b border-white/10 text-xs">
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Pill Badge */}
+          {/* Tactical Badge */}
           <div
-            className={`flex items-center gap-2 px-3 py-1 rounded-full border text-[11px] font-bold tracking-wider ${theme.badgeClass}`}
+            className={`flex items-center gap-2 px-2.5 py-1 rounded border text-[11px] font-bold tracking-wider ${theme.badgeClass}`}
           >
             <span className="w-2 h-2 rounded-full bg-current animate-pulse shadow-[0_0_8px_currentColor]" />
             <span>
@@ -499,26 +499,26 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
           </span>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {/* Digital Clock */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0a0c10]/90 border border-white/10 text-slate-300 text-xs shadow-inner">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0a0c10]/90 border border-white/10 text-slate-300 text-xs shadow-inner">
             <Clock className="w-3.5 h-3.5 text-[#00d8ff]" />
             <span className="font-bold tracking-widest">{currentTime}</span>
           </div>
 
-          {/* Fullscreen Pill Button */}
+          {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
-            className="p-1.5 rounded-full bg-[#10141c] border border-white/10 hover:border-[#00d8ff]/70 text-slate-400 hover:text-white transition"
+            className="p-1.5 rounded bg-[#10141c] border border-white/10 hover:border-[#00d8ff]/70 text-slate-400 hover:text-white transition"
             title="切換全螢幕"
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
 
-          {/* Dismiss Pill Button */}
+          {/* Dismiss Button */}
           <button
             onClick={onDismiss}
-            className="p-1.5 rounded-full bg-[#10141c] border border-white/10 hover:border-[#ff3366] text-slate-400 hover:text-[#ff3366] transition"
+            className="p-1.5 rounded bg-[#10141c] border border-white/10 hover:border-[#ff3366] text-slate-400 hover:text-[#ff3366] transition"
             title="關閉彈窗"
           >
             <X className="w-3.5 h-3.5" />
@@ -528,7 +528,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
 
       {/* FLOATING BOUNCING TACTICAL PROBE DRONE (Overwatch HUD Telemetry Mascot) */}
       <div
-        className="absolute z-10 pointer-events-none transition-transform duration-75 hidden sm:flex items-center gap-2.5 px-3 py-2 rounded-full bg-[#0a0c10]/90 border border-[#00d8ff]/40 shadow-[0_0_20px_rgba(0,216,255,0.25)] backdrop-blur-md"
+        className="absolute z-10 pointer-events-none transition-transform duration-75 hidden sm:flex items-center gap-2.5 px-3 py-2 rounded-md bg-[#0a0c10]/90 border border-[#00d8ff]/40 shadow-[0_0_20px_rgba(0,216,255,0.25)] backdrop-blur-md"
         style={{
           left: `${bouncingPos.x}%`,
           top: `${bouncingPos.y}%`,
@@ -547,7 +547,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
 
       {/* CENTERPIECE: OVERWATCH COMMAND HUD MODAL CARD */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 max-w-2xl mx-auto my-auto py-2">
-        <div className="relative w-full rounded-xl bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] backdrop-blur-xl p-5 sm:p-7 cctv-brackets">
+        <div className="relative w-full rounded-md bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] backdrop-blur-xl p-5 sm:p-7 cctv-brackets">
           {/* Card Top Telemetry Stripe */}
           <div className="flex items-center justify-between border-b border-white/10 pb-2.5 mb-4 text-[10px] text-slate-400">
             <div className="flex items-center gap-1.5">
@@ -563,7 +563,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
 
           {/* Meme Visual Display Box with Tactical Frame */}
           <div className="relative group mb-4 mx-auto max-w-md">
-            <div className="relative rounded-xl overflow-hidden border border-white/15 shadow-2xl bg-black/80">
+            <div className="relative rounded-md overflow-hidden border border-white/15 shadow-2xl bg-black/80">
               {isGeneratingMeme || isGeneratingAiImage ? (
                 <div className="w-full h-44 sm:h-52 flex flex-col items-center justify-center bg-[#090c12] text-[#00d8ff] p-4">
                   <Sparkles className="w-8 h-8 animate-spin mb-2 text-[#ffaa00]" />
@@ -587,7 +587,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
               </div>
 
               {/* Glowing Corner Badge */}
-              <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-black/85 backdrop-blur-sm text-[9px] text-[#00d8ff] border border-[#00d8ff]/50 font-mono flex items-center gap-1 shadow-md">
+              <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/85 backdrop-blur-sm text-[9px] text-[#00d8ff] border border-[#00d8ff]/50 font-mono flex items-center gap-1 shadow-md">
                 <Sparkles className="w-2.5 h-2.5 text-[#00d8ff]" />
                 <span>
                   {aiGeneratedImageUrl
@@ -612,12 +612,12 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
           {/* FROWN SPECIAL: Dynamic Gemini Controls & Biometric Concentric Breathing Circle */}
           {alert.type === 'frown' && (
             <div className="mb-4 flex flex-col items-center w-full">
-              {/* Pill action buttons for AI */}
+              {/* Tactical action buttons for AI */}
               <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
                 <button
                   onClick={fetchGeminiFrownMeme}
                   disabled={isGeneratingMeme}
-                  className="px-3.5 py-1.5 rounded-full bg-[#10141c] hover:bg-slate-800 border border-[#ffaa00]/60 text-[#ffaa00] text-xs font-bold transition flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,170,0,0.2)]"
+                  className="px-3 py-1.5 rounded bg-[#10141c] hover:bg-slate-800 border border-[#ffaa00]/60 text-[#ffaa00] text-xs font-bold transition flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,170,0,0.2)]"
                 >
                   <RefreshCw
                     className={`w-3 h-3 ${isGeneratingMeme ? 'animate-spin' : ''}`}
@@ -628,7 +628,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                 <button
                   onClick={handleGenerateAiImage}
                   disabled={isGeneratingAiImage}
-                  className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-purple-900/60 to-indigo-900/60 hover:from-purple-800 hover:to-indigo-800 border border-purple-400/60 text-purple-200 text-xs font-bold transition flex items-center gap-1.5 shadow-[0_0_15px_rgba(168,85,247,0.25)]"
+                  className="px-3 py-1.5 rounded bg-gradient-to-r from-purple-900/60 to-indigo-900/60 hover:from-purple-800 hover:to-indigo-800 border border-purple-400/60 text-purple-200 text-xs font-bold transition flex items-center gap-1.5 shadow-[0_0_15px_rgba(168,85,247,0.25)]"
                 >
                   <ImageIcon
                     className={`w-3 h-3 ${isGeneratingAiImage ? 'animate-spin' : ''}`}
@@ -664,7 +664,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                   onDismissRef.current();
                   onStartStretchWorkoutRef.current?.();
                 }}
-                className="w-full py-2.5 px-4 rounded-full bg-[#00d8ff] hover:bg-[#38bdf8] text-slate-950 font-black text-xs sm:text-sm tracking-wider transition flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(0,216,255,0.4)] transform hover:scale-[1.02]"
+                className="w-full py-2.5 px-4 rounded bg-[#00d8ff] hover:bg-[#38bdf8] text-slate-950 font-black text-xs sm:text-sm tracking-wider transition flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(0,216,255,0.4)] transform hover:scale-[1.01]"
               >
                 <Activity className="w-4 h-4 animate-bounce text-slate-950" />
                 <span>&gt; 啟動 30 秒神經肌肉活化操 (CALISTHENICS_ROUTINE)</span>
@@ -672,12 +672,12 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
             </div>
           )}
 
-          {/* Interactive Command Pill Action Button */}
+          {/* Interactive Command Action Button */}
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-md mx-auto">
             <button
               onClick={handleInteractiveAction}
               disabled={actionTriggered}
-              className={`w-full py-3 px-6 rounded-full text-xs sm:text-sm tracking-wider uppercase font-bold transition-all transform active:scale-95 flex items-center justify-center gap-2 shadow-lg ${actionClassResolved(
+              className={`w-full py-2.5 px-6 rounded text-xs sm:text-sm tracking-wider uppercase font-bold transition-all transform active:scale-98 flex items-center justify-center gap-2 shadow-lg ${actionClassResolved(
                 theme.actionClass,
                 actionTriggered
               )}`}
@@ -715,7 +715,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
         {/* Mini Segmented Progress Bar */}
         <div className="flex items-center gap-2 font-mono">
           <span className="text-slate-400 text-[10px]">T-MINUS</span>
-          <div className="w-28 sm:w-36 bg-black/60 rounded-full h-1.5 overflow-hidden border border-white/10">
+          <div className="w-28 sm:w-36 bg-black/60 rounded-sm h-1.5 overflow-hidden border border-white/10">
             <div
               className="h-full bg-gradient-to-r from-[#00d8ff] to-[#00ff87] transition-all duration-1000 shadow-[0_0_8px_#00d8ff]"
               style={{ width: `${(countdown / (alert.type === 'frown' ? 12 : 8)) * 100}%` }}

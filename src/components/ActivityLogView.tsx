@@ -9,7 +9,7 @@ interface ActivityLogViewProps {
 
 export const ActivityLogView: React.FC<ActivityLogViewProps> = ({ events, onClear }) => {
   return (
-    <div className="bg-[#06080e] border border-slate-800 rounded-lg p-3.5 flex flex-col flex-1 min-h-[280px] backdrop-blur-md shadow-xl font-mono cctv-brackets">
+    <div className="bg-[#06080e] border border-slate-800 rounded-md p-3.5 flex flex-col flex-1 min-h-[280px] backdrop-blur-md shadow-xl font-mono cctv-brackets">
       <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-2.5">
         <div className="flex items-center gap-2">
           <Terminal className="w-3.5 h-3.5 text-cyan-400" />
@@ -41,13 +41,13 @@ export const ActivityLogView: React.FC<ActivityLogViewProps> = ({ events, onClea
             let tagColor = 'text-slate-500';
 
             if (ev.delta < 0) {
-              badgeBg = 'bg-rose-950/80 border-rose-500/60 text-rose-300';
+              badgeBg = 'bg-rose-950/70 border-rose-500/50 text-rose-300';
               tag = 'HAZARD';
               tagColor = 'text-rose-400';
             } else if (ev.delta > 0) {
-              badgeBg = 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300';
+              badgeBg = 'bg-cyan-950/70 border-cyan-500/50 text-cyan-300';
               tag = 'RECOVER';
-              tagColor = 'text-emerald-400';
+              tagColor = 'text-cyan-400';
             }
 
             return (

@@ -47,7 +47,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       id="settings-modal"
       className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 font-mono"
     >
-      <div className="bg-[#0b101b] border border-slate-700 max-w-md w-full p-5 rounded-xl shadow-2xl relative">
+      <div className="bg-[#0b101b] border border-slate-700 max-w-md w-full p-5 rounded-md shadow-2xl relative cctv-brackets">
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <div className="p-1.5 bg-slate-900 border border-slate-700 rounded text-cyan-400">
@@ -78,7 +78,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               max="99"
               value={baseAge}
               onChange={(e) => setBaseAge(Number(e.target.value))}
-              className="w-full bg-[#06090f] border border-slate-800 rounded-lg px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
+              className="w-full bg-[#06090f] border border-slate-800 rounded px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
             />
             <p className="text-[10px] text-slate-500 mt-1">
               計算公式: BASE_AGE + (100 - CURRENT_SCORE) * 0.8
@@ -95,7 +95,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               type="time"
               value={offWorkTime}
               onChange={(e) => setOffWorkTime(e.target.value)}
-              className="w-full bg-[#06090f] border border-slate-800 rounded-lg px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
+              className="w-full bg-[#06090f] border border-slate-800 rounded px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
             />
             <p className="text-[10px] text-slate-500 mt-1">
               超過此時間且人臉在位，觸發 OVERTIME_DRAIN 扣分程序
@@ -114,7 +114,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               max="180"
               value={sedentaryLimitMinutes}
               onChange={(e) => setSedentaryLimitMinutes(Number(e.target.value))}
-              className="w-full bg-[#06090f] border border-slate-800 rounded-lg px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
+              className="w-full bg-[#06090f] border border-slate-800 rounded px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
             />
             <p className="text-[10px] text-slate-500 mt-1">
               連續久坐達標即啟動全螢幕離座鎖定
@@ -149,9 +149,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               type="button"
               onClick={() => setDesktopNotificationsEnabled(!desktopNotificationsEnabled)}
-              className={`p-2 rounded-lg border transition-all ${
+              className={`p-2 rounded-md border transition-all ${
                 desktopNotificationsEnabled
-                  ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300'
+                  ? 'bg-cyan-950/70 border-cyan-500/60 text-cyan-300'
                   : 'bg-slate-900 border-slate-800 text-slate-500'
               }`}
             >
@@ -168,9 +168,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               type="button"
               onClick={() => setVoiceAlertsEnabled(!voiceAlertsEnabled)}
-              className={`p-2 rounded-lg border transition-all ${
+              className={`p-2 rounded-md border transition-all ${
                 voiceAlertsEnabled
-                  ? 'bg-purple-950/80 border-purple-500/60 text-purple-300'
+                  ? 'bg-cyan-950/70 border-cyan-500/60 text-cyan-300'
                   : 'bg-slate-900 border-slate-800 text-slate-500'
               }`}
             >
@@ -182,13 +182,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="mt-5 pt-3 border-t border-slate-800 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-300 text-xs border border-slate-700/80 transition"
+            className="px-3.5 py-1.5 rounded-md bg-slate-900 hover:bg-slate-850 text-slate-300 text-xs border border-slate-700/80 transition"
           >
             CANCEL
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition transform active:scale-95 border border-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
+            className="px-4 py-1.5 rounded-md bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition transform active:scale-95 border border-cyan-400/80 shadow-[0_0_8px_rgba(56,189,248,0.25)]"
           >
             SAVE_CONFIG
           </button>

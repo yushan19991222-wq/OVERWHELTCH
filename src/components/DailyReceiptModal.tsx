@@ -231,7 +231,7 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
       id="daily-receipt-modal"
       className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-300 font-mono"
     >
-      <div className="bg-[#0b101b] border border-slate-700 max-w-md w-full p-4 sm:p-5 rounded-xl shadow-2xl relative flex flex-col items-center my-auto">
+      <div className="bg-[#0b101b] border border-slate-700 max-w-md w-full p-4 sm:p-5 rounded-md shadow-2xl relative flex flex-col items-center my-auto cctv-brackets">
         {/* Modal Header */}
         <div className="w-full flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
           <div className="flex items-center gap-2">
@@ -249,12 +249,12 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
         </div>
 
         {/* Printable Canvas */}
-        <div className="w-full rounded-lg overflow-hidden shadow-2xl border border-slate-800 bg-[#06090e] mb-4 flex justify-center">
+        <div className="w-full rounded overflow-hidden shadow-2xl border border-slate-800 bg-[#06090e] mb-4 flex justify-center">
           <canvas
             ref={canvasRef}
             width={600}
             height={740}
-            className="w-full max-h-[60vh] object-contain rounded-lg"
+            className="w-full max-h-[60vh] object-contain rounded"
           />
         </div>
 
@@ -262,7 +262,7 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
         <div className="w-full grid grid-cols-2 gap-2.5">
           <button
             onClick={downloadImage}
-            className="py-2 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition flex items-center justify-center gap-2 transform active:scale-95 shadow-[0_0_10px_rgba(16,185,129,0.3)] border border-emerald-300"
+            className="py-2 px-3 rounded-md bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition flex items-center justify-center gap-2 transform active:scale-95 shadow-[0_0_8px_rgba(56,189,248,0.25)] border border-cyan-400/80"
           >
             <Download className="w-4 h-4" />
             <span>EXPORT_RECEIPT</span>
@@ -270,9 +270,9 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
 
           <button
             onClick={copyShareText}
-            className="py-2 px-3 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-200 font-bold text-xs border border-slate-700 transition flex items-center justify-center gap-2 transform active:scale-95"
+            className="py-2 px-3 rounded-md bg-slate-900 hover:bg-slate-850 text-slate-200 font-bold text-xs border border-slate-750 transition flex items-center justify-center gap-2 transform active:scale-95"
           >
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+            {copied ? <Check className="w-4 h-4 text-cyan-400" /> : <Share2 className="w-4 h-4" />}
             <span>{copied ? 'COPIED!' : 'COPY_TEXT'}</span>
           </button>
         </div>

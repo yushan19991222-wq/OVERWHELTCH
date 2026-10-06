@@ -70,7 +70,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
       {/* CCTV Viewport Container */}
       <div
         ref={containerRef}
-        className="relative w-full aspect-video bg-[#04060a] rounded-lg overflow-hidden border border-slate-800 shadow-2xl group flex items-center justify-center cctv-brackets"
+        className="relative w-full aspect-video bg-[#04060a] rounded-md overflow-hidden border border-slate-800 shadow-2xl group flex items-center justify-center cctv-brackets"
       >
         {/* Real Video Element */}
         <video
@@ -138,7 +138,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
               onClick={() => setFilterMode('normal')}
               className={`px-1.5 py-0.5 rounded transition ${
                 filterMode === 'normal'
-                  ? 'bg-cyan-900/90 text-cyan-200 border border-cyan-500/50'
+                  ? 'bg-cyan-900/80 text-cyan-200 border border-cyan-500/40'
                   : 'text-slate-400 hover:text-white'
               }`}
               title="正常彩色"
@@ -149,10 +149,10 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
               onClick={() => setFilterMode('nightvision')}
               className={`px-1.5 py-0.5 rounded transition ${
                 filterMode === 'nightvision'
-                  ? 'bg-emerald-900/90 text-emerald-200 border border-emerald-500/50'
+                  ? 'bg-cyan-900/80 text-cyan-200 border border-cyan-500/40'
                   : 'text-slate-400 hover:text-white'
               }`}
-              title="夜視綠光監控"
+              title="夜視監控模式"
             >
               NVG
             </button>
@@ -174,7 +174,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
             onClick={onToggleMesh}
             className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-all ${
               showMesh
-                ? 'bg-cyan-950/90 border-cyan-500/80 text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.3)]'
+                ? 'bg-cyan-950/80 border-cyan-500/60 text-cyan-300 shadow-[0_0_8px_rgba(56,189,248,0.25)]'
                 : 'bg-black/80 border-slate-800 text-slate-400 hover:text-white'
             }`}
           >
@@ -187,8 +187,8 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
           <div className="px-2 py-0.5 rounded bg-black/85 border border-slate-800 flex items-center gap-1.5 text-[10px] font-mono">
             {telemetry.isFacePresent ? (
               <>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_#10b981]" />
-                <span className="text-emerald-400 font-bold">TARGET: ACQUIRED [99.8%]</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_6px_rgba(56,189,248,0.5)]" />
+                <span className="text-cyan-400 font-bold">TARGET: ACQUIRED [99.8%]</span>
               </>
             ) : (
               <>
@@ -286,15 +286,15 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
         <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
             <span className="flex items-center gap-1 text-slate-300 font-bold">
-              <ShieldAlert className="w-3 h-3 text-amber-400" />
+              <ShieldAlert className="w-3 h-3 text-cyan-400" />
               BROW (眉頭壓力)
             </span>
-            <span className="font-bold text-amber-400">{telemetry.frown.toFixed(2)}</span>
+            <span className="font-bold text-cyan-400">{telemetry.frown.toFixed(2)}</span>
           </div>
           <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
             <div
               className={`h-full transition-all duration-75 ${
-                telemetry.frown > 0.45 ? 'bg-amber-400 shadow-[0_0_6px_#f59e0b]' : 'bg-teal-400'
+                telemetry.frown > 0.45 ? 'bg-amber-400' : 'bg-cyan-400'
               }`}
               style={{ width: `${Math.min(100, telemetry.frown * 180)}%` }}
             />
@@ -319,7 +319,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
           <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
             <div
               className={`h-full transition-all duration-75 ${
-                telemetry.proximity > 65 ? 'bg-rose-500 shadow-[0_0_6px_#f43f5e]' : 'bg-cyan-400'
+                telemetry.proximity > 65 ? 'bg-rose-500' : 'bg-cyan-400'
               }`}
               style={{ width: `${Math.min(100, telemetry.proximity)}%` }}
             />
@@ -339,17 +339,21 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
               <span className="text-xs">⏱️</span>
               SEDENTARY (久坐)
             </span>
-            <span className="font-bold text-rose-400">{deskTimeStr}</span>
+            <span className="font-bold text-slate-200">{deskTimeStr}</span>
           </div>
           <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
             <div
-              className="h-full bg-rose-500 transition-all duration-300 shadow-[0_0_6px_#f43f5e]"
+              className={`h-full transition-all duration-300 ${
+                deskProgressPct > 85 ? 'bg-rose-500' : 'bg-cyan-400'
+              }`}
               style={{ width: `${deskProgressPct}%` }}
             />
           </div>
           <div className="text-[9px] text-slate-500 mt-1 flex justify-between">
             <span>LOCK: {sedentaryLimitMinutes}m</span>
-            <span>{Math.round(deskProgressPct)}%</span>
+            <span className={deskProgressPct > 85 ? 'text-rose-400 font-bold' : 'text-slate-400'}>
+              {Math.round(deskProgressPct)}%
+            </span>
           </div>
         </div>
       </div>

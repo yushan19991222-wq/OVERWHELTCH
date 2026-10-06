@@ -20,30 +20,26 @@ export const MemeToastContainer: React.FC<MemeToastContainerProps> = ({ toasts, 
         const isSuccess = toast.badgeColor.includes('emerald') || toast.badgeColor.includes('green');
 
         const borderColor = isDanger
-          ? 'border-[#ff3366]/70 shadow-[0_0_25px_rgba(255,51,102,0.35)]'
+          ? 'border-rose-500/60 shadow-[0_0_10px_rgba(244,63,94,0.2)]'
           : isWarning
-          ? 'border-[#ffaa00]/70 shadow-[0_0_25px_rgba(255,170,0,0.35)]'
-          : isSuccess
-          ? 'border-[#00ff87]/70 shadow-[0_0_25px_rgba(0,255,135,0.35)]'
-          : 'border-[#00d8ff]/70 shadow-[0_0_25px_rgba(0,216,255,0.35)]';
+          ? 'border-amber-500/60 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+          : 'border-cyan-500/60 shadow-[0_0_10px_rgba(56,189,248,0.2)]';
 
         const dotColor = isDanger
-          ? 'bg-[#ff3366]'
+          ? 'bg-rose-500'
           : isWarning
-          ? 'bg-[#ffaa00]'
-          : isSuccess
-          ? 'bg-[#00ff87]'
-          : 'bg-[#00d8ff]';
+          ? 'bg-amber-400'
+          : 'bg-cyan-400';
 
         return (
           <div
             key={toast.id}
-            className={`pointer-events-auto bg-[#0a0c10]/95 border ${borderColor} p-2.5 rounded-xl shadow-2xl flex items-center gap-3 backdrop-blur-xl w-full animate-in slide-in-from-top-4 fade-in duration-300 transform transition-all cctv-brackets relative overflow-hidden`}
+            className={`pointer-events-auto bg-[#0a0c10]/95 border ${borderColor} p-2.5 rounded-md shadow-2xl flex items-center gap-3 backdrop-blur-xl w-full animate-in slide-in-from-top-4 fade-in duration-300 transform transition-all cctv-brackets relative overflow-hidden`}
           >
             {/* Tactical top label strip */}
             <div className="absolute top-0 left-3 right-3 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-            <div className="relative w-11 h-11 rounded-lg overflow-hidden border border-white/15 shrink-0 bg-black/60 shadow-inner">
+            <div className="relative w-11 h-11 rounded overflow-hidden border border-white/15 shrink-0 bg-black/60 shadow-inner">
               <img
                 src={toast.image}
                 alt={toast.title}

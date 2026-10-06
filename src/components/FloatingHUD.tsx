@@ -20,43 +20,37 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
   const estimatedBodyAge = Number((baseAge + (100 - healthScore) * 0.8).toFixed(1));
   const ageDifference = Number((estimatedBodyAge - baseAge).toFixed(1));
 
-  // Determine status & styling
+  // Determine status & styling with strictly controlled, low-saturation palette
   let statusIcon = '🧘';
   let statusTitle = '元氣滿滿社畜';
   let statusDesc = '心態極佳，身心皆在顛峰狀態';
-  let scoreColorClass = 'text-emerald-400';
-  let barGradient = 'from-emerald-500 via-teal-400 to-cyan-400';
+  let scoreColorClass = 'text-cyan-400';
+  let barColorClass = 'bg-cyan-400';
 
-  if (healthScore >= 95) {
+  if (healthScore >= 80) {
     statusIcon = '🧘';
     statusTitle = '元氣滿滿社畜';
     statusDesc = '心態極佳，身心皆在顛峰狀態';
-    scoreColorClass = 'text-emerald-400';
-    barGradient = 'from-emerald-500 via-teal-400 to-cyan-400';
-  } else if (healthScore >= 80) {
+    scoreColorClass = 'text-cyan-400';
+    barColorClass = 'bg-cyan-400';
+  } else if (healthScore >= 60) {
     statusIcon = '💼';
     statusTitle = '穩健打工人';
     statusDesc = '微量耗損，尚可應付常規專案';
-    scoreColorClass = 'text-teal-400';
-    barGradient = 'from-teal-500 to-emerald-400';
-  } else if (healthScore >= 60) {
+    scoreColorClass = 'text-cyan-300';
+    barColorClass = 'bg-cyan-400';
+  } else if (healthScore >= 40) {
     statusIcon = '🥱';
     statusTitle = '電量低落中';
     statusDesc = '咖啡因成癮，頻繁打哈欠與眼澀';
     scoreColorClass = 'text-amber-400';
-    barGradient = 'from-amber-500 to-yellow-400';
-  } else if (healthScore >= 40) {
-    statusIcon = '🧟';
-    statusTitle = '辦公室行屍走肉';
-    statusDesc = '椎間盤哀嚎，怨念濃烈發酵中';
-    scoreColorClass = 'text-orange-400';
-    barGradient = 'from-orange-500 to-rose-400';
+    barColorClass = 'bg-amber-400';
   } else {
     statusIcon = '💀';
     statusTitle = '半隻腳已入棺';
     statusDesc = '生命體徵微弱，急需遞交離職單';
     scoreColorClass = 'text-rose-400';
-    barGradient = 'from-rose-600 via-red-500 to-rose-400';
+    barColorClass = 'bg-rose-500';
   }
 
   const scorePct = Math.min(100, Math.max(0, healthScore));
@@ -64,9 +58,9 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
   return (
     <div
       id="main-health-hud"
-      className={`rounded-lg p-3.5 border transition-all duration-300 relative overflow-hidden backdrop-blur-md cctv-brackets ${
+      className={`rounded-md p-3.5 border transition-all duration-300 relative overflow-hidden backdrop-blur-md cctv-brackets ${
         isOvertime
-          ? 'bg-rose-950/40 border-rose-500 shadow-[0_0_25px_rgba(244,63,94,0.4)] animate-life-drain'
+          ? 'bg-rose-950/30 border-rose-500/70 shadow-[0_0_15px_rgba(244,63,94,0.25)] animate-life-drain'
           : 'bg-[#06080e] border-slate-800 shadow-xl'
       }`}
     >
@@ -95,8 +89,8 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
               <span
                 className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono ${
                   ageDifference > 0
-                    ? 'bg-rose-950/80 border border-rose-500/70 text-rose-300'
-                    : 'bg-emerald-950/80 border border-emerald-500/70 text-emerald-300'
+                    ? 'bg-rose-950/70 border border-rose-500/50 text-rose-300'
+                    : 'bg-cyan-950/70 border border-cyan-500/50 text-cyan-300'
                 }`}
               >
                 {ageDifference > 0 ? `+${ageDifference}` : `${ageDifference}`} YRS
@@ -134,7 +128,7 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
         </div>
         <div className="w-full bg-[#030508] h-2 rounded overflow-hidden p-0.5 border border-slate-800">
           <div
-            className={`h-full rounded-sm bg-gradient-to-r ${barGradient} transition-all duration-500`}
+            className={`h-full rounded-sm ${barColorClass} transition-all duration-500`}
             style={{ width: `${scorePct}%` }}
           />
         </div>

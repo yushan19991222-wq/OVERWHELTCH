@@ -69,7 +69,7 @@ export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
   return (
     <div
       id="cross-tab-control-bar"
-      className="bg-[#06080e] border border-slate-800 rounded-lg p-3 font-mono text-xs relative overflow-hidden backdrop-blur-md cctv-brackets shadow-lg"
+      className="bg-[#06080e] border border-slate-800 rounded-md p-3 font-mono text-xs relative backdrop-blur-md cctv-brackets shadow-lg"
     >
       {/* Top Banner Tag */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-800 mb-2.5">
@@ -124,13 +124,13 @@ export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
           onClick={onTogglePiP}
           className={`p-2 rounded border transition-all text-left flex items-center gap-2.5 group ${
             isPiPActive
-              ? 'bg-cyan-950/90 border-cyan-400 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
+              ? 'bg-cyan-950/70 border-cyan-500/60 text-cyan-200 shadow-[0_0_8px_rgba(56,189,248,0.2)]'
               : 'bg-[#030508] border-slate-800 hover:border-slate-700 text-slate-300'
           }`}
         >
           <div
             className={`p-1.5 rounded shrink-0 ${
-              isPiPActive ? 'bg-cyan-900 text-cyan-300' : 'bg-black text-slate-400 group-hover:text-cyan-400'
+              isPiPActive ? 'bg-cyan-900/60 text-cyan-300' : 'bg-black text-slate-400 group-hover:text-cyan-400'
             }`}
           >
             <AppWindow className="w-3.5 h-3.5" />
@@ -139,7 +139,7 @@ export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
             <div className="font-bold flex items-center justify-between text-xs">
               <span className="truncate">PIP_OVERLAY</span>
               {isPiPActive ? (
-                <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-900 text-cyan-300 font-bold">ACTIVE</span>
+                <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-900/80 text-cyan-300 font-bold">ACTIVE</span>
               ) : (
                 <span className="text-[9px] text-slate-600">OFF</span>
               )}
@@ -159,15 +159,15 @@ export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
           }
           className={`p-2 rounded border transition-all text-left flex items-center gap-2.5 group ${
             desktopNotificationsEnabled && notifPermission === 'granted'
-              ? 'bg-emerald-950/80 border-emerald-500/80 text-emerald-200 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+              ? 'bg-cyan-950/70 border-cyan-500/60 text-cyan-200 shadow-[0_0_8px_rgba(56,189,248,0.2)]'
               : 'bg-[#030508] border-slate-800 hover:border-slate-700 text-slate-300'
           }`}
         >
           <div
             className={`p-1.5 rounded shrink-0 ${
               desktopNotificationsEnabled && notifPermission === 'granted'
-                ? 'bg-emerald-900 text-emerald-300'
-                : 'bg-black text-slate-400 group-hover:text-emerald-400'
+                ? 'bg-cyan-900/60 text-cyan-300'
+                : 'bg-black text-slate-400 group-hover:text-cyan-400'
             }`}
           >
             {desktopNotificationsEnabled && notifPermission === 'granted' ? (
@@ -180,7 +180,7 @@ export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
             <div className="font-bold flex items-center justify-between text-xs">
               <span className="truncate">SYSTEM_NOTIF</span>
               {desktopNotificationsEnabled && notifPermission === 'granted' ? (
-                <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-900 text-emerald-300 font-bold">ARMED</span>
+                <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-900/80 text-cyan-300 font-bold">ARMED</span>
               ) : (
                 <span className="text-[9px] text-slate-600">OFF</span>
               )}
@@ -200,15 +200,15 @@ export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
           onClick={() => onToggleVoice(!voiceAlertsEnabled)}
           className={`p-2 rounded border transition-all text-left flex items-center gap-2.5 group ${
             voiceAlertsEnabled
-              ? 'bg-teal-950/80 border-teal-500/80 text-teal-200 shadow-[0_0_12px_rgba(20,184,166,0.25)]'
+              ? 'bg-cyan-950/70 border-cyan-500/60 text-cyan-200 shadow-[0_0_8px_rgba(56,189,248,0.2)]'
               : 'bg-[#030508] border-slate-800 hover:border-slate-700 text-slate-300'
           }`}
         >
           <div
             className={`p-1.5 rounded shrink-0 ${
               voiceAlertsEnabled
-                ? 'bg-teal-900 text-teal-300'
-                : 'bg-black text-slate-400 group-hover:text-teal-400'
+                ? 'bg-cyan-900/60 text-cyan-300'
+                : 'bg-black text-slate-400 group-hover:text-cyan-400'
             }`}
           >
             {voiceAlertsEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
@@ -217,7 +217,7 @@ export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
             <div className="font-bold flex items-center justify-between text-xs">
               <span className="truncate">VOICE_SYNTH</span>
               {voiceAlertsEnabled ? (
-                <span className="text-[9px] px-1 py-0.2 rounded bg-teal-900 text-teal-300 font-bold">LIVE</span>
+                <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-900/80 text-cyan-300 font-bold">LIVE</span>
               ) : (
                 <span className="text-[9px] text-slate-600">OFF</span>
               )}
