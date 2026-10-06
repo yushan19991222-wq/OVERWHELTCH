@@ -157,6 +157,93 @@ class SoundSynthEngine {
       console.warn('Sound synthesis error:', e);
     }
   }
+
+  /**
+   * Refreshing water glug & bubble sound for yawn wake-up
+   */
+  public playWaterDrink() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const glugs = [320, 390, 480, 580, 720];
+      glugs.forEach((freq, idx) => {
+        const start = ctx.currentTime + idx * 0.07;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, start);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.3, start + 0.06);
+
+        gain.gain.setValueAtTime(0.25, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.06);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.06);
+      });
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
+   * Coin shower sound for slacking reward
+   */
+  public playCoinShower() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const coins = [987.77, 1318.51, 1567.98, 2093.0];
+      coins.forEach((freq, idx) => {
+        const start = ctx.currentTime + idx * 0.06;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, start);
+        osc.frequency.setValueAtTime(freq * 1.5, start + 0.03);
+
+        gain.gain.setValueAtTime(0.18, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.15);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.15);
+      });
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
+   * Rapid cartoon escape footstep sound for overtime run-away
+   */
+  public playEscapeRun() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      for (let i = 0; i < 6; i++) {
+        const start = ctx.currentTime + i * 0.06;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(220 + (i % 2) * 80, start);
+        gain.gain.setValueAtTime(0.15, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.04);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.04);
+      }
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
 }
 
 export const soundSynth = new SoundSynthEngine();

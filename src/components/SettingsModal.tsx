@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, X, Volume2, VolumeX, Clock, Calendar, Armchair } from 'lucide-react';
+import { Settings, X, Volume2, VolumeX, Clock, Calendar, Armchair, Bell, BellOff, MessageSquare } from 'lucide-react';
 import { GuardianSettings } from '../types';
 
 interface SettingsModalProps {
@@ -21,6 +21,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     settings.sedentaryLimitMinutes
   );
   const [soundEnabled, setSoundEnabled] = useState(settings.soundEnabled);
+  const [desktopNotificationsEnabled, setDesktopNotificationsEnabled] = useState(
+    settings.desktopNotificationsEnabled ?? true
+  );
+  const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState(
+    settings.voiceAlertsEnabled ?? true
+  );
 
   if (!isOpen) return null;
 
@@ -30,6 +36,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       offWorkTime: offWorkTime || '18:30',
       sedentaryLimitMinutes: Number(sedentaryLimitMinutes) || 45,
       soundEnabled,
+      desktopNotificationsEnabled,
+      voiceAlertsEnabled,
     });
     onClose();
   };
@@ -129,6 +137,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }`}
             >
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {/* Desktop Notifications Toggle */}
+          <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+            <div>
+              <div className="font-bold text-slate-200">OS_NOTIFICATION: DESKTOP_ALERTS</div>
+              <div className="text-[10px] text-slate-500">切換其他分頁或桌面程式時，跳出常駐阻擋通知</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDesktopNotificationsEnabled(!desktopNotificationsEnabled)}
+              className={`p-2 rounded-lg border transition-all ${
+                desktopNotificationsEnabled
+                  ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-500'
+              }`}
+            >
+              {desktopNotificationsEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {/* Voice Broadcast Toggle */}
+          <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+            <div>
+              <div className="font-bold text-slate-200">AI_VOICE_TTS: SPEECH_BROADCAST</div>
+              <div className="text-[10px] text-slate-500">超時久坐與哈欠抓包時，發出語音播報中斷</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setVoiceAlertsEnabled(!voiceAlertsEnabled)}
+              className={`p-2 rounded-lg border transition-all ${
+                voiceAlertsEnabled
+                  ? 'bg-purple-950/80 border-purple-500/60 text-purple-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-500'
+              }`}
+            >
+              {voiceAlertsEnabled ? <MessageSquare className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>
           </div>
         </div>

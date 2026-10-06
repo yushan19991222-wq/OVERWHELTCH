@@ -46,11 +46,11 @@ export const DemoSimulationBar: React.FC<DemoSimulationBarProps> = ({
 
         <button
           onClick={onTriggerSedentary}
-          className="px-2.5 py-1.5 rounded bg-slate-900 hover:bg-slate-850 text-slate-200 border border-slate-700/80 hover:border-rose-500/70 transition transform active:scale-95 flex items-center gap-1.5 hover:text-white"
-          title="測試連續久坐觸發迷因貓全螢幕鎖定"
+          className="px-2.5 py-1.5 rounded bg-rose-950/80 hover:bg-rose-900 text-rose-200 border border-rose-500/80 hover:border-rose-400 transition transform active:scale-95 flex items-center gap-1.5 font-bold shadow-[0_0_10px_rgba(244,63,94,0.3)]"
+          title="測試連續久坐觸發全螢幕保護程式覆蓋中斷"
         >
-          <span>🪑</span>
-          <span>SEDENTARY (-10)</span>
+          <span>🖥️</span>
+          <span>螢幕保護中斷 (SCREENSAVER)</span>
         </button>
 
         <button

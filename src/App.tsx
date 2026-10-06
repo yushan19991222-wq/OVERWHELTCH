@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Shield,
   Volume2,
@@ -8,6 +9,7 @@ import {
   Briefcase,
   AlertCircle,
   HelpCircle,
+  AppWindow,
 } from 'lucide-react';
 import {
   HealthEvent,
@@ -15,6 +17,7 @@ import {
   GuardianSettings,
   TelemetryData,
   DailySummaryStats,
+  ActiveHazardAlert,
 } from './types';
 import { soundSynth } from './utils/audioSynth';
 import { getFaceLandmarker, drawFacialLandmarks } from './utils/faceLandmarker';
@@ -27,6 +30,18 @@ import { MemeToastContainer } from './components/MemeToastContainer';
 import { SettingsModal } from './components/SettingsModal';
 import { ActivityLogView } from './components/ActivityLogView';
 import { DemoSimulationBar } from './components/DemoSimulationBar';
+import { FloatingPiPInterlock } from './components/FloatingPiPInterlock';
+import { CrossTabControlBar } from './components/CrossTabControlBar';
+import { ScreensaverMemeTakeover } from './components/ScreensaverMemeTakeover';
+import { requestPiPWindow } from './utils/pipManager';
+import {
+  fireDesktopNotification,
+  speakVoiceAlert,
+  startTitleFlashing,
+  stopTitleFlashing,
+  broadcastCrossTabEvent,
+  subscribeCrossTabEvents,
+} from './utils/crossTabAlert';
 
 export default function App() {
   // Application State
@@ -36,10 +51,18 @@ export default function App() {
     offWorkTime: '18:30',
     sedentaryLimitMinutes: 45,
     soundEnabled: true,
+    desktopNotificationsEnabled: true,
+    voiceAlertsEnabled: true,
   });
 
   const [isMeetingMode, setIsMeetingMode] = useState<boolean>(false);
   const [showMesh, setShowMesh] = useState<boolean>(true);
+
+  // Picture-in-Picture & Always-on-Top Floating Interceptor State
+  const [isPiPActive, setIsPiPActive] = useState<boolean>(false);
+  const [pipWindow, setPipWindow] = useState<Window | null>(null);
+  const [activeHazard, setActiveHazard] = useState<ActiveHazardAlert | null>(null);
+  const activeHazardTimeoutRef = useRef<number | null>(null);
 
   // Modals
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -155,6 +178,89 @@ export default function App() {
     [logEvent]
   );
 
+  // Cross-tab & Multi-interface Hazard Dispatcher (OS Notifications, TTS Voice, Title Flashing, PiP)
+  const dispatchHazardAlert = useCallback(
+    (hazard: ActiveHazardAlert, voiceSpeechText: string) => {
+      setActiveHazard(hazard);
+      if (activeHazardTimeoutRef.current) {
+        clearTimeout(activeHazardTimeoutRef.current);
+      }
+      activeHazardTimeoutRef.current = window.setTimeout(() => {
+        setActiveHazard(null);
+      }, 10000);
+
+      // 1. OS Desktop Native Notification (blocks over all tabs and OS applications)
+      if (settings.desktopNotificationsEnabled && !isMeetingMode) {
+        fireDesktopNotification({
+          title: `🚨 ${hazard.title}`,
+          body: `${hazard.message} [${hazard.badge}]`,
+          icon: hazard.image,
+          tag: `ohg-${hazard.type}`,
+          requireInteraction: true,
+        });
+      }
+
+      // 2. Web Speech Synthesis Voice broadcast
+      if (settings.voiceAlertsEnabled && !isMeetingMode) {
+        speakVoiceAlert(voiceSpeechText);
+      }
+
+      // 3. Flashing background tab title
+      if (typeof document !== 'undefined' && document.hidden) {
+        startTitleFlashing(hazard.title);
+      }
+
+      // 4. Cross-tab synchronization
+      broadcastCrossTabEvent('hazard_alert', hazard);
+    },
+    [settings.desktopNotificationsEnabled, settings.voiceAlertsEnabled, isMeetingMode]
+  );
+
+  // Multi-tab synchronization listener
+  useEffect(() => {
+    const unsubscribe = subscribeCrossTabEvents((event) => {
+      if (event.type === 'sedentary_lock') {
+        setIsSedentaryLocked(true);
+        setSedentaryRemainingSeconds(15);
+      } else if (event.type === 'sedentary_unlock') {
+        setIsSedentaryLocked(false);
+      } else if (event.type === 'hazard_alert') {
+        const h = event.payload as ActiveHazardAlert;
+        setActiveHazard(h);
+        if (activeHazardTimeoutRef.current) clearTimeout(activeHazardTimeoutRef.current);
+        activeHazardTimeoutRef.current = window.setTimeout(() => setActiveHazard(null), 6000);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const handleTogglePiP = async () => {
+    if (isPiPActive && pipWindow) {
+      try {
+        pipWindow.close();
+      } catch {
+        // ignore
+      }
+      setPipWindow(null);
+      setIsPiPActive(false);
+      return;
+    }
+
+    const win = await requestPiPWindow(() => {
+      setIsPiPActive(false);
+      setPipWindow(null);
+    });
+
+    if (win) {
+      setPipWindow(win);
+      setIsPiPActive(true);
+      logEvent('跨桌面永遠置頂視窗已啟動：警報與鎖定將在螢幕最上層彈出阻擋', 0, 'info', '🪟');
+    }
+  };
+
   /* ====================================================================
      Detection Triggers (Both real-time AI & demo triggers)
      ==================================================================== */
@@ -171,7 +277,20 @@ export default function App() {
         'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=200&auto=format&fit=crop&q=80',
       type: 'yawn',
     });
-  }, [modifyScore, triggerToast]);
+    dispatchHazardAlert(
+      {
+        type: 'yawn',
+        title: '大哈欠抓包！老闆在背後看你！',
+        message: '偵測到嘴部大開超過 1.5 秒，打哈欠會傳染！快喝口水提神！',
+        badge: '扣 5 點生命值',
+        severity: 'critical',
+        image:
+          'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=200&auto=format&fit=crop&q=80',
+        timestamp: Date.now(),
+      },
+      '注意！偵測到張大嘴打哈欠，健康存摺扣五點，快喝口水提神！'
+    );
+  }, [modifyScore, triggerToast, dispatchHazardAlert]);
 
   const handleFrownPenalty = useCallback(() => {
     modifyScore(-3, '長期緊皺眉頭：怨念氣場爆棚 (-3點)', '😠');
@@ -186,7 +305,20 @@ export default function App() {
         'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=200&auto=format&fit=crop&q=80',
       type: 'frown',
     });
-  }, [modifyScore, triggerToast]);
+    dispatchHazardAlert(
+      {
+        type: 'frown',
+        title: '這點薪水不值得你緊皺眉頭！',
+        message: '偵測到怨氣沖天眉頭深鎖！可愛柴犬為你療癒，深呼吸放鬆額頭！',
+        badge: '扣 3 點生命值',
+        severity: 'warning',
+        image:
+          'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=200&auto=format&fit=crop&q=80',
+        timestamp: Date.now(),
+      },
+      '注意！偵測到緊皺眉頭怨念深重，請深呼吸放鬆額頭！'
+    );
+  }, [modifyScore, triggerToast, dispatchHazardAlert]);
 
   const handleProximityBlur = useCallback(() => {
     setIsEyeStrainActive(true);
@@ -194,7 +326,18 @@ export default function App() {
     setEyeStrainRemaining(5);
     modifyScore(-5, '眼球過近 / 眨眼頻率過低：畫面模糊護眼 (-5點)', '👀');
     soundSynth.playWarningBuzz();
-  }, [modifyScore]);
+    dispatchHazardAlert(
+      {
+        type: 'proximity',
+        title: '護眼阻擋！離螢幕過近',
+        message: '頭部距離螢幕過近！請向後靠椅背，用力眨眼放鬆睫狀肌！',
+        badge: '扣 5 點 // 護眼模糊中',
+        severity: 'critical',
+        timestamp: Date.now(),
+      },
+      '護眼警報！距離螢幕過近，請往後靠椅背放鬆雙眼！'
+    );
+  }, [modifyScore, dispatchHazardAlert]);
 
   const handleSedentaryLock = useCallback(() => {
     setIsSedentaryLocked(true);
@@ -202,12 +345,28 @@ export default function App() {
     modifyScore(-10, '嚴重連續久坐超過時限：觸發全螢幕迷因貓鎖定 (-10點)', '🪑');
     setStatsSummary((s) => ({ ...s, sedentaryLocksCount: s.sedentaryLocksCount + 1 }));
     soundSynth.playWarningBuzz();
-  }, [modifyScore]);
+    broadcastCrossTabEvent('sedentary_lock', true);
+    dispatchHazardAlert(
+      {
+        type: 'sedentary',
+        title: '🚨 連續久坐超時！全螢幕鎖定阻擋',
+        message: '屁股黏在椅子上了！連貓咪都看不下去了，請立刻起立離開座位！',
+        badge: '扣 10 點 // 鎖定中',
+        severity: 'critical',
+        image:
+          'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&auto=format&fit=crop&q=80',
+        timestamp: Date.now(),
+      },
+      '緊急警報！連續久坐超時，全螢幕鎖定已啟動，請立刻離開座位！'
+    );
+  }, [modifyScore, dispatchHazardAlert]);
 
   const handleSedentaryUnlock = useCallback(() => {
     setIsSedentaryLocked(false);
     detectionRef.current.consecutiveDeskSecs = 0;
     soundSynth.playRewardJingle();
+    stopTitleFlashing();
+    broadcastCrossTabEvent('sedentary_unlock', true);
     logEvent('恭喜起立活動！屁股與椅子成功分離，血液恢復流動', 0, 'info', '🎉');
     triggerToast({
       title: '🎉 恭喜離開座位活動！',
@@ -218,7 +377,10 @@ export default function App() {
         'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=200&auto=format&fit=crop&q=80',
       type: 'sedentary',
     });
-  }, [logEvent, triggerToast]);
+    if (settings.voiceAlertsEnabled && !isMeetingMode) {
+      speakVoiceAlert('恭喜成功起立離座活動！鎖定已解除，血液重新流動！');
+    }
+  }, [logEvent, triggerToast, settings.voiceAlertsEnabled, isMeetingMode]);
 
   const handleSlackReward = useCallback(
     (minutes: number) => {
@@ -234,8 +396,21 @@ export default function App() {
           'https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=200&auto=format&fit=crop&q=80',
         type: 'slack',
       });
+      dispatchHazardAlert(
+        {
+          type: 'slack',
+          title: '🏆 薪水小偷 Lv.MAX！',
+          message: `成功離開座位摸魚 ${minutes} 分鐘！適度摸魚才是長壽工作的大師哲學！`,
+          badge: '回血 +10 點',
+          severity: 'reward',
+          image:
+            'https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=200&auto=format&fit=crop&q=80',
+          timestamp: Date.now(),
+        },
+        `恭喜薪水小偷離座摸魚${minutes}分鐘，健康存摺回血十點！`
+      );
     },
-    [modifyScore, triggerToast]
+    [modifyScore, triggerToast, dispatchHazardAlert]
   );
 
   const handleOvertimeDeduction = useCallback(() => {
@@ -251,7 +426,20 @@ export default function App() {
         'https://images.unsplash.com/photo-1517849845537-4d257902454a?w=200&auto=format&fit=crop&q=80',
       type: 'overtime',
     });
-  }, [modifyScore, triggerToast]);
+    dispatchHazardAlert(
+      {
+        type: 'overtime',
+        title: '🩸 生命力光速流失中！',
+        message: '表定下班時間已過，你仍伏案加班！快收拾東西打卡下班！',
+        badge: '扣 15 點生命值',
+        severity: 'critical',
+        image:
+          'https://images.unsplash.com/photo-1517849845537-4d257902454a?w=200&auto=format&fit=crop&q=80',
+        timestamp: Date.now(),
+      },
+      '加班警報！下班時間已過，生命力正在光速流失，快打卡下班！'
+    );
+  }, [modifyScore, triggerToast, dispatchHazardAlert]);
 
   /* ====================================================================
      MediaPipe FaceLandmarker Initialization & Video Setup
@@ -625,6 +813,12 @@ export default function App() {
         }}
       />
 
+      {/* Screensaver Full-Screen Meme Takeover (Yawn, Frown, Slack, Overtime) */}
+      <ScreensaverMemeTakeover
+        alert={activeHazard}
+        onDismiss={() => setActiveHazard(null)}
+      />
+
       {/* Meme Floating Toasts */}
       <MemeToastContainer
         toasts={toasts}
@@ -659,6 +853,21 @@ export default function App() {
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* PiP Always-on-top Interceptor Quick Toggle */}
+          <button
+            onClick={handleTogglePiP}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all ${
+              isPiPActive
+                ? 'bg-cyan-950/90 border-cyan-400 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:border-cyan-500/70 hover:text-white'
+            }`}
+            title="開啟永遠置頂浮動視窗：無論使用任何分頁或程式，警報與鎖定直接在最上層彈出"
+          >
+            <AppWindow className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{isPiPActive ? 'PiP: 置頂中' : 'PiP: 跨桌面置頂'}</span>
+            <span className="sm:hidden">{isPiPActive ? 'PiP中' : 'PiP'}</span>
+          </button>
+
           {/* Meeting Mode Switch */}
           <button
             onClick={() => {
@@ -683,7 +892,7 @@ export default function App() {
                 isMeetingMode ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_#f59e0b]' : 'bg-slate-600'
               }`}
             />
-            <span>{isMeetingMode ? 'MEETING_MODE: ON' : 'MEETING_MODE: OFF'}</span>
+            <span>{isMeetingMode ? 'MEETING: ON' : 'MEETING: OFF'}</span>
           </button>
 
           {/* Settings Button */}
@@ -707,45 +916,63 @@ export default function App() {
       </header>
 
       {/* Main Content Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left / Center View: Camera & Telemetry */}
-        <div className="lg:col-span-8 flex flex-col gap-4">
-          <CameraFeed
-            videoRef={videoRef}
-            canvasRef={canvasRef}
-            isModelLoaded={isModelLoaded}
-            modelLoadError={modelLoadError}
-            isCameraActive={isCameraActive}
-            cameraError={cameraError}
-            onRetryCamera={startCamera}
-            showMesh={showMesh}
-            onToggleMesh={() => setShowMesh(!showMesh)}
-            telemetry={telemetry}
-            sedentaryLimitMinutes={settings.sedentaryLimitMinutes}
-          />
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 flex flex-col gap-5">
+        {/* Cross-Tab & Cross-Interface Interceptor Control Bar */}
+        <CrossTabControlBar
+          isPiPActive={isPiPActive}
+          onTogglePiP={handleTogglePiP}
+          voiceAlertsEnabled={settings.voiceAlertsEnabled}
+          onToggleVoice={(enabled) =>
+            setSettings((prev) => ({ ...prev, voiceAlertsEnabled: enabled }))
+          }
+          desktopNotificationsEnabled={settings.desktopNotificationsEnabled}
+          onToggleDesktopNotifications={(enabled) =>
+            setSettings((prev) => ({ ...prev, desktopNotificationsEnabled: enabled }))
+          }
+          isMeetingMode={isMeetingMode}
+          onToggleMeetingMode={() => setIsMeetingMode(!isMeetingMode)}
+        />
 
-          {/* Instant Simulation Bar */}
-          <DemoSimulationBar
-            onTriggerYawn={handleYawnPenalty}
-            onTriggerFrown={handleFrownPenalty}
-            onTriggerSedentary={handleSedentaryLock}
-            onTriggerSlack={() => handleSlackReward(5)}
-            onTriggerProximity={handleProximityBlur}
-            onTriggerOvertime={handleOvertimeDeduction}
-          />
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Left / Center View: Camera & Telemetry */}
+          <div className="lg:col-span-8 flex flex-col gap-4">
+            <CameraFeed
+              videoRef={videoRef}
+              canvasRef={canvasRef}
+              isModelLoaded={isModelLoaded}
+              modelLoadError={modelLoadError}
+              isCameraActive={isCameraActive}
+              cameraError={cameraError}
+              onRetryCamera={startCamera}
+              showMesh={showMesh}
+              onToggleMesh={() => setShowMesh(!showMesh)}
+              telemetry={telemetry}
+              sedentaryLimitMinutes={settings.sedentaryLimitMinutes}
+            />
 
-        {/* Right Column: Gamified HUD & Activity Log */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <FloatingHUD
-            healthScore={healthScore}
-            baseAge={settings.baseAge}
-            isOvertime={isOvertime}
-            offWorkTime={settings.offWorkTime}
-            overtimeMinutes={overtimeMinutes}
-          />
+            {/* Instant Simulation Bar */}
+            <DemoSimulationBar
+              onTriggerYawn={handleYawnPenalty}
+              onTriggerFrown={handleFrownPenalty}
+              onTriggerSedentary={handleSedentaryLock}
+              onTriggerSlack={() => handleSlackReward(5)}
+              onTriggerProximity={handleProximityBlur}
+              onTriggerOvertime={handleOvertimeDeduction}
+            />
+          </div>
 
-          <ActivityLogView events={events} onClear={() => setEvents([])} />
+          {/* Right Column: Gamified HUD & Activity Log */}
+          <div className="lg:col-span-4 flex flex-col gap-4">
+            <FloatingHUD
+              healthScore={healthScore}
+              baseAge={settings.baseAge}
+              isOvertime={isOvertime}
+              offWorkTime={settings.offWorkTime}
+              overtimeMinutes={overtimeMinutes}
+            />
+
+            <ActivityLogView events={events} onClear={() => setEvents([])} />
+          </div>
         </div>
       </main>
 
@@ -790,6 +1017,40 @@ export default function App() {
         stats={getSummaryStats()}
         events={events}
       />
+
+      {/* Picture-in-Picture Floating Interceptor Portal */}
+      {isPiPActive &&
+        pipWindow &&
+        createPortal(
+          <FloatingPiPInterlock
+            healthScore={healthScore}
+            baseAge={settings.baseAge}
+            telemetry={telemetry}
+            activeHazard={activeHazard}
+            isSedentaryLocked={isSedentaryLocked}
+            sedentaryRemaining={sedentaryRemainingSeconds}
+            isEyeStrainActive={isEyeStrainActive}
+            eyeStrainRemaining={eyeStrainRemaining}
+            isOvertime={isOvertime}
+            overtimeMinutes={overtimeMinutes}
+            onDismissHazard={() => setActiveHazard(null)}
+            onEmergencyOverride={() => {
+              setIsSedentaryLocked(false);
+              detectionRef.current.consecutiveDeskSecs = 0;
+              logEvent('已手動覆蓋久坐鎖定：站立辦公中', 0, 'info', '🧍');
+            }}
+            onClosePiP={() => {
+              try {
+                pipWindow.close();
+              } catch {
+                // ignore
+              }
+              setPipWindow(null);
+              setIsPiPActive(false);
+            }}
+          />,
+          pipWindow.document.body
+        )}
     </div>
   );
 }

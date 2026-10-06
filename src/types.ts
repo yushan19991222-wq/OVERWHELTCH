@@ -22,6 +22,18 @@ export interface GuardianSettings {
   offWorkTime: string;
   sedentaryLimitMinutes: number;
   soundEnabled: boolean;
+  desktopNotificationsEnabled: boolean;
+  voiceAlertsEnabled: boolean;
+}
+
+export interface ActiveHazardAlert {
+  type: 'yawn' | 'frown' | 'sedentary' | 'proximity' | 'overtime' | 'slack';
+  title: string;
+  message: string;
+  badge: string;
+  severity: 'critical' | 'warning' | 'reward';
+  image?: string;
+  timestamp: number;
 }
 
 export interface TelemetryData {
@@ -49,4 +61,13 @@ export interface DailySummaryStats {
   overtimeMinutes: number;
   title: string;
   quote: string;
+}
+
+declare global {
+  interface Window {
+    documentPictureInPicture?: {
+      requestWindow: (options?: { width?: number; height?: number }) => Promise<Window>;
+      window: Window | null;
+    };
+  }
 }
