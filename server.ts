@@ -94,7 +94,7 @@ Return a JSON object with:
 Respond ONLY in valid JSON format.`;
 
           const response = await client.models.generateContent({
-            model: 'gemini-3.8-flash',
+            model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
               responseMimeType: 'application/json',
@@ -178,6 +178,97 @@ Respond ONLY in valid JSON format.`;
   });
 
   /**
+   * POST /api/gemini/face-score
+   * AI Face Charisma & Beauty Score Evaluator
+   */
+  app.post('/api/gemini/face-score', async (req, res) => {
+    try {
+      const {
+        smile = 0.5,
+        browRelaxation = 0.8,
+        eyeOpenness = 0.8,
+        proximityPct = 40,
+        yawnsCount = 0,
+        frownsCount = 0,
+        consecutiveDeskMinutes = 0,
+        healthScore = 100,
+      } = req.body;
+      const client = getGeminiClient();
+
+      if (client) {
+        try {
+          const prompt = `You are a hilarious, high-energy Taiwanese entertainment and AI office vitality index evaluator (戰術顏值與靈魂神彩雷達評測系統).
+The user is sitting in front of the webcam. Biometric Telemetry:
+- Mouth Curvature / Smile Arc: ${(smile * 100).toFixed(0)}%
+- Brow Relaxation: ${(browRelaxation * 100).toFixed(0)}%
+- Eye Openness Arc: ${(eyeOpenness * 100).toFixed(0)}%
+- Yawns Count: ${yawnsCount}
+- Frowns Count: ${frownsCount}
+- Desk Sitting Minutes: ${consecutiveDeskMinutes}m
+- Health Reserve: ${healthScore}/100
+
+STRICT SCORING RULES (NOT physical appearance, but mental vitality, smile arc & eye alertness):
+- Baseline for a flat, unsmiling expression (Smile Arc < 15%) is 45 - 58 PTS (Rank S or B).
+- If Smile Arc < 10% AND Eye Openness Arc < 60% or Yawns > 0, score MUST drop to 20 - 42 PTS (Rank C or D, lost soul/exhausted).
+- ONLY award 75+ PTS (Rank SS or SSS) if Smile Arc >= 35% (visible upward mouth arc/smile) AND Eye Openness Arc >= 75%!
+
+Generate a fun evaluation in JSON format with:
+1. "score": integer between 15 and 98 according to the strict rules above.
+2. "rank": "SSS" | "SS" | "S" | "A+" | "B" | "C" | "D".
+3. "title": a humorous Taiwanese title (max 20 characters).
+4. "comment": a witty 1-2 sentence remark about their current expression/vitality (max 45 characters, in Traditional Chinese).
+5. "highlightTag": short tag.
+6. "metrics": object with integer percentage values for { "radiance", "sparkle", "smilePower", "symmetry", "charisma" }.
+
+Respond ONLY in valid JSON.`;
+
+          const response = await client.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+              responseMimeType: 'application/json',
+            },
+          });
+
+          const rawText = response.text?.trim() || '';
+          if (rawText) {
+            const parsed = JSON.parse(rawText);
+            return res.json({
+              success: true,
+              score: parsed.score || 88,
+              rank: parsed.rank || 'S',
+              title: parsed.title || '高智感元氣職場高光 ✨',
+              comment: parsed.comment || '狀態平穩，眼神有光，繼續保持優雅辦公！',
+              highlightTag: parsed.highlightTag || 'STABLE_WORKER',
+              metrics: parsed.metrics || {
+                radiance: 85,
+                sparkle: 88,
+                smilePower: 80,
+                symmetry: 85,
+                charisma: 82,
+              },
+            });
+          }
+        } catch (geminiErr) {
+          console.warn('Gemini face-score call failed, using local fallback:', geminiErr);
+        }
+      }
+
+      // Local Fallback
+      res.json({
+        success: false,
+        message: 'Falling back to local neural score computation',
+      });
+    } catch (err: any) {
+      console.warn('face-score API error:', err);
+      res.json({
+        success: false,
+        message: 'API error fallback',
+      });
+    }
+  });
+
+  /**
    * POST /api/gemini/generate-image
    * Generate an AI meme image using Gemini if requested
    */
@@ -193,7 +284,7 @@ Respond ONLY in valid JSON format.`;
       }
 
       const response = await client.models.generateContent({
-        model: 'gemini-3.1-flash-lite-image',
+        model: 'imagen-3.0-generate-002',
         contents: {
           parts: [
             {
@@ -228,6 +319,9 @@ Respond ONLY in valid JSON format.`;
       res.status(500).json({ error: err.message || 'Image generation failed' });
     }
   });
+
+  // Serve public static assets (including /memes/*)
+  app.use(express.static(path.join(process.cwd(), 'public')));
 
   // Vite middleware for dev / static for prod
   if (process.env.NODE_ENV !== 'production') {

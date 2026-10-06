@@ -78,8 +78,12 @@ export const FloatingPiPInterlock: React.FC<FloatingPiPInterlockProps> = ({
         <div className="flex-1 flex flex-col items-center justify-center p-3 rounded-lg bg-rose-950/90 border-2 border-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.5)] text-center animate-pulse">
           <div className="w-20 h-20 rounded-lg overflow-hidden border-2 border-rose-400 mb-2 shadow-lg">
             <img
-              src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&auto=format&fit=crop&q=80"
+              src="/memes/cat-judge.jpg"
               alt="Meme Judge Cat"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/memes/cat-judge.jpg';
+              }}
               className="w-full h-full object-cover"
             />
           </div>
@@ -156,6 +160,10 @@ export const FloatingPiPInterlock: React.FC<FloatingPiPInterlockProps> = ({
             <img
               src={activeHazard.image}
               alt="Hazard Meme"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/memes/cat-judge.jpg';
+              }}
               className="w-14 h-14 rounded object-cover border border-slate-700 mb-2 shadow"
             />
           )}

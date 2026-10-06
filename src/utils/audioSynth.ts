@@ -219,6 +219,59 @@ class SoundSynthEngine {
   }
 
   /**
+   * Sci-Fi radar beep for distance tracking
+   */
+  public playRadarLockBeep(pitch: number = 880) {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(pitch, now);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
+   * Target Acquired / Distance Calibration Complete Sci-Fi Success Chime
+   */
+  public playTargetAcquired() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const notes = [659.25, 880, 1174.66, 1760]; // E5, A5, D6, A6
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const start = ctx.currentTime + idx * 0.06;
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0.16, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.18);
+      });
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
    * Rapid cartoon escape footstep sound for overtime run-away
    */
   public playEscapeRun() {

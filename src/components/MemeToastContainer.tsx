@@ -41,8 +41,12 @@ export const MemeToastContainer: React.FC<MemeToastContainerProps> = ({ toasts, 
 
             <div className="relative w-11 h-11 rounded overflow-hidden border border-white/15 shrink-0 bg-black/60 shadow-inner">
               <img
-                src={toast.image}
+                src={toast.image || '/memes/cat-judge.jpg'}
                 alt={toast.title}
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/memes/cat-judge.jpg';
+                }}
                 className="w-full h-full object-cover"
               />
               <div className="absolute bottom-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-75" />
