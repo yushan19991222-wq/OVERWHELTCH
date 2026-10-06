@@ -602,7 +602,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[#070a0f] text-slate-200 hardware-grid-bg flex flex-col selection:bg-cyan-500 selection:text-black">
       {/* Full-Screen Overlays */}
       <SedentaryLockModal
         isOpen={isSedentaryLocked}
@@ -631,24 +631,29 @@ export default function App() {
         onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
       />
 
-      {/* Main Header */}
-      <header className="sticky top-0 z-30 px-4 sm:px-8 py-3.5 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl flex items-center justify-between">
+      {/* Main Hardware Instrument Header */}
+      <header className="sticky top-0 z-30 px-4 sm:px-6 py-3 border-b border-slate-800 bg-[#0a0e17]/95 backdrop-blur-md flex items-center justify-between shadow-lg shadow-black/40">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-400 to-cyan-500 flex items-center justify-center text-xl shadow-lg shadow-emerald-500/20">
+          <div className="w-9 h-9 rounded-lg bg-slate-900 border border-cyan-500/40 flex items-center justify-center text-lg shadow-[0_0_12px_rgba(6,182,212,0.2)]">
             🛡️
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-black tracking-tight bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-300 bg-clip-text text-transparent">
-                Office Health Guardian
+              <h1 className="text-sm sm:text-base font-black tracking-wider text-slate-100 uppercase font-mono">
+                OHG-2026 // HEALTH GUARDIAN
               </h1>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 hidden sm:inline-block">
-                v2.5 Local AI
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/70 border border-cyan-500/50 text-cyan-400 hidden sm:inline-block tracking-widest">
+                [AI_VISION_PRO]
               </span>
             </div>
-            <p className="text-xs text-slate-400 font-medium hidden md:block">
-              辦公室健康存摺 & 身體年齡惡搞監視器
-            </p>
+            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+              <span className="flex items-center gap-1.5 text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                SYS_ONLINE
+              </span>
+              <span>•</span>
+              <span className="hidden md:inline text-slate-400">辦公室健康存摺 & 身體年齡惡搞監視器</span>
+            </div>
           </div>
         </div>
 
@@ -666,26 +671,26 @@ export default function App() {
                 next ? '🤫' : '🔔'
               );
             }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all ${
               isMeetingMode
-                ? 'bg-amber-950/70 border-amber-500/80 text-amber-300 shadow-md shadow-amber-900/20'
-                : 'bg-slate-900/80 border-slate-700 text-slate-300 hover:border-slate-500'
+                ? 'bg-amber-950/80 border-amber-500 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+                : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:border-slate-500 hover:text-white'
             }`}
             title="開啟會議模式：靜音所有彈窗與警報，但仍默默記錄健康分數"
           >
             <span
-              className={`w-2.5 h-2.5 rounded-full ${
-                isMeetingMode ? 'bg-amber-400 animate-pulse' : 'bg-slate-500'
+              className={`w-2 h-2 rounded-full ${
+                isMeetingMode ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_#f59e0b]' : 'bg-slate-600'
               }`}
             />
-            <span>{isMeetingMode ? '會議中 (靜音監控)' : '會議模式: 關'}</span>
+            <span>{isMeetingMode ? 'MEETING_MODE: ON' : 'MEETING_MODE: OFF'}</span>
           </button>
 
           {/* Settings Button */}
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition"
-            title="守護者設定"
+            className="p-2 rounded-lg bg-slate-900 border border-slate-700/80 hover:border-cyan-500/60 text-slate-300 hover:text-cyan-400 transition"
+            title="守護者儀器參數設定"
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -693,16 +698,16 @@ export default function App() {
           {/* Clock-Out Summary Card Button */}
           <button
             onClick={() => setIsReceiptOpen(true)}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-400 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-slate-950 font-black px-4 py-1.5 rounded-full text-xs shadow-lg shadow-cyan-500/20 transition transform active:scale-95"
+            className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black font-mono px-3.5 py-1.5 rounded-lg text-xs shadow-[0_0_15px_rgba(16,185,129,0.25)] transition transform active:scale-95 border border-emerald-400/40"
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>下班結算收據</span>
+            <span>[結算收據]</span>
           </button>
         </div>
       </header>
 
       {/* Main Content Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left / Center View: Camera & Telemetry */}
         <div className="lg:col-span-8 flex flex-col gap-4">
           <CameraFeed
@@ -744,19 +749,22 @@ export default function App() {
         </div>
       </main>
 
-      {/* Footer info */}
-      <footer className="py-3 px-6 text-center text-[11px] text-slate-500 border-t border-slate-900 flex flex-wrap justify-between items-center max-w-7xl mx-auto w-full">
+      {/* Hardware Specialist Tool Footer */}
+      <footer className="py-2.5 px-6 text-[11px] font-mono text-slate-500 border-t border-slate-800/80 bg-[#090d14] flex flex-wrap justify-between items-center max-w-7xl mx-auto w-full gap-2">
         <div className="flex items-center gap-2">
-          <span>Office Health Guardian</span>
+          <span className="text-cyan-400 font-bold">[OHG-SYS-SPEC]</span>
+          <span>100% LOCAL WASM</span>
           <span>•</span>
-          <span>100% 瀏覽器本機 WebAssembly 運算，鏡頭影像絕不上傳伺服器</span>
+          <span>DEV: CAM_0</span>
+          <span>•</span>
+          <span className="text-emerald-400 font-bold">ZERO_DATA_UPLOAD</span>
         </div>
         <div className="flex items-center gap-3">
-          <span>按時喝水</span>
+          <span className="text-slate-400">TELEMETRY: ACTIVE</span>
           <span>•</span>
-          <span>適度伸展</span>
+          <span>REFRESH: 60Hz</span>
           <span>•</span>
-          <span>平安下班</span>
+          <span className="text-teal-400">SECURE_SANDBOX</span>
         </div>
       </footer>
 

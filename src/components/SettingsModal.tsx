@@ -37,30 +37,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   return (
     <div
       id="settings-modal"
-      className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 font-mono"
     >
-      <div className="bg-slate-900 border border-slate-700/80 max-w-md w-full p-6 rounded-3xl shadow-2xl relative">
-        <div className="flex items-center justify-between mb-5">
+      <div className="bg-[#0b101b] border border-slate-700 max-w-md w-full p-5 rounded-xl shadow-2xl relative">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-slate-800 rounded-xl text-cyan-400">
-              <Settings className="w-5 h-5" />
+            <div className="p-1.5 bg-slate-900 border border-slate-700 rounded text-cyan-400">
+              <Settings className="w-4 h-4" />
             </div>
-            <h3 className="text-base font-black text-slate-100">守護者參數設定</h3>
+            <h3 className="text-sm font-bold text-slate-100 tracking-wider uppercase">
+              [SYS_CONFIG // CALIBRATION]
+            </h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+            className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="space-y-4 text-xs">
           {/* Base Age */}
           <div>
-            <label className="flex items-center gap-1.5 font-bold text-slate-300 mb-1.5">
+            <label className="flex items-center gap-1.5 font-bold text-slate-300 mb-1">
               <Calendar className="w-3.5 h-3.5 text-cyan-400" />
-              <span>生理基本年齡 (歲)</span>
+              <span>PARAM: BASE_AGE (生理基礎年齡)</span>
             </label>
             <input
               type="number"
@@ -68,35 +70,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               max="99"
               value={baseAge}
               onChange={(e) => setBaseAge(Number(e.target.value))}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition"
+              className="w-full bg-[#06090f] border border-slate-800 rounded-lg px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
             />
-            <p className="text-[11px] text-slate-500 mt-1">
-              身體年齡將以此基準加上耗損值：原齡 + (100 - 目前點數) * 0.8
+            <p className="text-[10px] text-slate-500 mt-1">
+              計算公式: BASE_AGE + (100 - CURRENT_SCORE) * 0.8
             </p>
           </div>
 
           {/* Off Work Time */}
           <div>
-            <label className="flex items-center gap-1.5 font-bold text-slate-300 mb-1.5">
+            <label className="flex items-center gap-1.5 font-bold text-slate-300 mb-1">
               <Clock className="w-3.5 h-3.5 text-rose-400" />
-              <span>表定下班時間 (自動開啟加班奪命警報)</span>
+              <span>PARAM: SHIFT_END (表定下班時間)</span>
             </label>
             <input
               type="time"
               value={offWorkTime}
               onChange={(e) => setOffWorkTime(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition"
+              className="w-full bg-[#06090f] border border-slate-800 rounded-lg px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
             />
-            <p className="text-[11px] text-slate-500 mt-1">
-              超過此時間且人臉仍在座位，自動觸發生命力流失特效與扣分
+            <p className="text-[10px] text-slate-500 mt-1">
+              超過此時間且人臉在位，觸發 OVERTIME_DRAIN 扣分程序
             </p>
           </div>
 
           {/* Sedentary Limit */}
           <div>
-            <label className="flex items-center gap-1.5 font-bold text-slate-300 mb-1.5">
+            <label className="flex items-center gap-1.5 font-bold text-slate-300 mb-1">
               <Armchair className="w-3.5 h-3.5 text-amber-400" />
-              <span>連續久坐警戒門檻 (分鐘)</span>
+              <span>PARAM: SEDENTARY_LIMIT (久坐上限/分鐘)</span>
             </label>
             <input
               type="number"
@@ -104,26 +106,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               max="180"
               value={sedentaryLimitMinutes}
               onChange={(e) => setSedentaryLimitMinutes(Number(e.target.value))}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition"
+              className="w-full bg-[#06090f] border border-slate-800 rounded-lg px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-400 transition text-xs"
             />
-            <p className="text-[11px] text-slate-500 mt-1">
-              預設 45 分鐘，達到時觸發迷因貓全螢幕鎖定畫面
+            <p className="text-[10px] text-slate-500 mt-1">
+              連續久坐達標即啟動全螢幕離座鎖定
             </p>
           </div>
 
           {/* Sound Toggle */}
           <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
             <div>
-              <div className="font-bold text-slate-200">音效提示 (Web Audio)</div>
-              <div className="text-[11px] text-slate-500">打哈欠警報、摸魚獎勵、警示音效</div>
+              <div className="font-bold text-slate-200">WEB_AUDIO_SYNTH: SOUND_FEEDBACK</div>
+              <div className="text-[10px] text-slate-500">哈欠音效、摸魚獎勵、加班倒數警報</div>
             </div>
             <button
               type="button"
               onClick={() => setSoundEnabled(!soundEnabled)}
-              className={`p-2.5 rounded-xl border transition-all ${
+              className={`p-2 rounded-lg border transition-all ${
                 soundEnabled
                   ? 'bg-cyan-950/80 border-cyan-500/60 text-cyan-300'
-                  : 'bg-slate-950 border-slate-800 text-slate-500'
+                  : 'bg-slate-900 border-slate-800 text-slate-500'
               }`}
             >
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
@@ -131,18 +133,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-2.5">
+        <div className="mt-5 pt-3 border-t border-slate-800 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition"
+            className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-300 text-xs border border-slate-700/80 transition"
           >
-            取消
+            CANCEL
           </button>
           <button
             onClick={handleSave}
-            className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 text-xs font-black shadow-lg shadow-cyan-500/20 transition transform active:scale-95"
+            className="px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition transform active:scale-95 border border-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
           >
-            儲存設定
+            SAVE_CONFIG
           </button>
         </div>
       </div>
