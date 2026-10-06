@@ -187,6 +187,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
 
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  const hasTriggeredCompleteRef = useRef(false);
 
   // Currently active 3 random routine stages for this session
   const [activeStages, setActiveStages] = useState<RoutineStage[]>(() => selectRandomThreeStages());
@@ -209,6 +210,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
       setTotalSecondsRemaining(30);
       setIsPaused(false);
       setHasFinished(false);
+      hasTriggeredCompleteRef.current = false;
       soundSynth.playRadarLockBeep(520);
     }
   }, [isOpen]);
@@ -246,54 +248,8 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
 
     const interval = setInterval(() => {
       setTotalSecondsRemaining((prev) => {
-        // Main countdown reaches 0 -> Auto complete with full-screen confetti celebration
         if (prev <= 1) {
           clearInterval(interval);
-          setHasFinished(true);
-          soundSynth.playRewardJingle();
-
-          // 🎊 Multi-angle celebratory confetti bursts
-          try {
-            // Center main burst
-            confetti({
-              particleCount: 80,
-              spread: 100,
-              origin: { y: 0.6 },
-              colors: ['#00d8ff', '#10b981', '#fbbf24', '#f43f5e', '#ffffff'],
-              zIndex: 999999,
-            });
-
-            // Left cannon blast
-            setTimeout(() => {
-              confetti({
-                particleCount: 50,
-                angle: 60,
-                spread: 70,
-                origin: { x: 0.1, y: 0.75 },
-                colors: ['#00d8ff', '#10b981', '#fbbf24', '#a855f7'],
-                zIndex: 999999,
-              });
-            }, 300);
-
-            // Right cannon blast
-            setTimeout(() => {
-              confetti({
-                particleCount: 50,
-                angle: 120,
-                spread: 70,
-                origin: { x: 0.9, y: 0.75 },
-                colors: ['#10b981', '#fbbf24', '#f43f5e', '#ffffff'],
-                zIndex: 999999,
-              });
-            }, 600);
-          } catch (e) {
-            console.error('Confetti trigger error:', e);
-          }
-
-          // Stay for 2.8 seconds on celebratory screen before closing smoothly
-          setTimeout(() => {
-            onCompleteRef.current();
-          }, 2800);
           return 0;
         }
 
@@ -311,6 +267,57 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
 
     return () => clearInterval(interval);
   }, [isOpen, isPaused, isMuted, hasFinished]);
+
+  // Handle completion celebration and exactly-once onComplete callback
+  useEffect(() => {
+    if (isOpen && totalSecondsRemaining === 0 && !hasFinished && !hasTriggeredCompleteRef.current) {
+      hasTriggeredCompleteRef.current = true;
+      setHasFinished(true);
+      soundSynth.playRewardJingle();
+
+      // Multi-angle celebratory confetti bursts
+      try {
+        confetti({
+          particleCount: 80,
+          spread: 100,
+          origin: { y: 0.6 },
+          colors: ['#00d8ff', '#10b981', '#fbbf24', '#f43f5e', '#ffffff'],
+          zIndex: 999999,
+        });
+
+        setTimeout(() => {
+          confetti({
+            particleCount: 50,
+            angle: 60,
+            spread: 70,
+            origin: { x: 0.1, y: 0.75 },
+            colors: ['#00d8ff', '#10b981', '#fbbf24', '#a855f7'],
+            zIndex: 999999,
+          });
+        }, 300);
+
+        setTimeout(() => {
+          confetti({
+            particleCount: 50,
+            angle: 120,
+            spread: 70,
+            origin: { x: 0.9, y: 0.75 },
+            colors: ['#10b981', '#fbbf24', '#f43f5e', '#ffffff'],
+            zIndex: 999999,
+          });
+        }, 600);
+      } catch (e) {
+        console.error('Confetti trigger error:', e);
+      }
+
+      // Stay for 2.8 seconds on celebratory screen before closing smoothly
+      const timer = setTimeout(() => {
+        onCompleteRef.current();
+      }, 2800);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, totalSecondsRemaining, hasFinished]);
 
   // Keyboard shortcut listener (ESC to exit, SPACE to pause/resume)
   useEffect(() => {
@@ -951,12 +958,6 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
             <Activity className="w-3.5 h-3.5 animate-pulse shrink-0" />
             <span className="truncate">&gt; OVERWATCH // 30s 隨機站立動態體操</span>
           </div>
-
-          <span className="hidden md:inline text-slate-400 text-[11px] tracking-wide truncate">
-            {reason === 'yawn'
-              ? '腦部缺氧防護 // 站立伸展迅速充氧'
-              : '久坐超時防護 // 3 種隨機體操重置全身微循環'}
-          </span>
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -1233,11 +1234,8 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
       <footer className="relative z-10 w-full pt-2.5 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-500 gap-1.5">
         <div className="flex items-center gap-2">
           <span className="text-cyan-400 font-bold">[OVERWATCH // CALISTHENICS_OS]</span>
-          <span>每次隨機抽取 3 款科學舒展動作，每次 30 秒全面重置脊椎、肩頸與下肢微循環。</span>
         </div>
         <div className="flex items-center gap-3 font-mono">
-          <span>[SPACE] 暫停 / 繼續</span>
-          <span>•</span>
           <span className="text-emerald-400">&gt; BIOMECHANICS_ACTIVE</span>
         </div>
       </footer>

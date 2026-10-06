@@ -49,6 +49,46 @@ class SoundSynthEngine {
   }
 
   /**
+   * Tactile camera shutter click + energetic chime for Peace Sign ✌️ Easter Egg Snapshot
+   */
+  public playCameraShutter() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      // Mechanical shutter click
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.06);
+      gain.gain.setValueAtTime(0.28, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.06);
+
+      // Sweet two-tone chime (G5 -> C6)
+      [783.99, 1046.5].forEach((freq, idx) => {
+        const chime = ctx.createOscillator();
+        const chimeGain = ctx.createGain();
+        chime.type = 'sine';
+        const start = now + 0.07 + idx * 0.09;
+        chime.frequency.setValueAtTime(freq, start);
+        chimeGain.gain.setValueAtTime(0.18, start);
+        chimeGain.gain.exponentialRampToValueAtTime(0.001, start + 0.28);
+        chime.connect(chimeGain);
+        chimeGain.connect(ctx.destination);
+        chime.start(start);
+        chime.stop(start + 0.28);
+      });
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
    * Cheerful 8-bit / Arcade chime for Slacking Reward (+10pts)
    */
   public playRewardJingle() {
@@ -381,6 +421,36 @@ class SoundSynthEngine {
         gain.connect(ctx.destination);
         osc.start(start);
         osc.stop(start + 0.04);
+      }
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
+   * Mechanical receipt printer buzz/whir sound
+   */
+  public playPrintBuzz() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      for (let i = 0; i < 5; i++) {
+        const start = now + i * 0.16;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150 + Math.random() * 40, start);
+        osc.frequency.linearRampToValueAtTime(100 + Math.random() * 30, start + 0.1);
+
+        gain.gain.setValueAtTime(0.15, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.12);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.12);
       }
     } catch (e) {
       console.warn('Sound synthesis error:', e);

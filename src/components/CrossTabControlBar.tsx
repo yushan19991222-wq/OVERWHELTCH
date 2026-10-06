@@ -152,25 +152,34 @@ export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
 
         {/* 2. Desktop System Notification Toggle */}
         <button
-          onClick={
-            notifPermission === 'granted'
-              ? () => onToggleDesktopNotifications(!desktopNotificationsEnabled)
-              : handleRequestNotifications
-          }
-          className={`p-2 rounded border transition-all text-left flex items-center gap-2.5 group ${
-            desktopNotificationsEnabled && notifPermission === 'granted'
+          onClick={async () => {
+            const nextState = !desktopNotificationsEnabled;
+            onToggleDesktopNotifications(nextState);
+            if (nextState && isNotificationSupported() && notifPermission !== 'granted') {
+              try {
+                const res = await requestNotificationPermission();
+                if (res !== 'unsupported') {
+                  setNotifPermission(res);
+                }
+              } catch (err) {
+                console.warn('Failed to request notification permission:', err);
+              }
+            }
+          }}
+          className={`p-2 rounded border transition-all text-left flex items-center gap-2.5 group cursor-pointer ${
+            desktopNotificationsEnabled
               ? 'bg-cyan-950/70 border-cyan-500/60 text-cyan-200 shadow-[0_0_8px_rgba(56,189,248,0.2)]'
               : 'bg-[#030508] border-slate-800 hover:border-slate-700 text-slate-300'
           }`}
         >
           <div
             className={`p-1.5 rounded shrink-0 ${
-              desktopNotificationsEnabled && notifPermission === 'granted'
+              desktopNotificationsEnabled
                 ? 'bg-cyan-900/60 text-cyan-300'
                 : 'bg-black text-slate-400 group-hover:text-cyan-400'
             }`}
           >
-            {desktopNotificationsEnabled && notifPermission === 'granted' ? (
+            {desktopNotificationsEnabled ? (
               <Bell className="w-3.5 h-3.5" />
             ) : (
               <BellOff className="w-3.5 h-3.5" />
@@ -179,18 +188,18 @@ export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
           <div className="min-w-0 flex-1">
             <div className="font-bold flex items-center justify-between text-xs">
               <span className="truncate">SYSTEM_NOTIF</span>
-              {desktopNotificationsEnabled && notifPermission === 'granted' ? (
+              {desktopNotificationsEnabled ? (
                 <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-900/80 text-cyan-300 font-bold">ARMED</span>
               ) : (
                 <span className="text-[9px] text-slate-600">OFF</span>
               )}
             </div>
             <div className="text-[9px] text-slate-500 truncate">
-              {notifPermission === 'granted'
-                ? desktopNotificationsEnabled
+              {desktopNotificationsEnabled
+                ? notifPermission === 'granted'
                   ? '已授權：跳出系統強阻擋'
-                  : '已暫停 (點擊開啟)'
-                : '需點擊授權瀏覽器通知'}
+                  : '已開啟 (切換分頁發送警報)'
+                : '已關閉 (點擊開啟通知)'}
             </div>
           </div>
         </button>

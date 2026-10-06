@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { ActiveHazardAlert, TelemetryData } from '../types';
 import { soundSynth } from '../utils/audioSynth';
-import { TacticalMemeImage } from './TacticalMemeImage';
+import { TacticalMemeImage, preloadImages } from './TacticalMemeImage';
 
 interface ScreensaverMemeTakeoverProps {
   alert: ActiveHazardAlert | null;
@@ -132,283 +132,198 @@ const LOCAL_USER_YAWN_FALLBACKS = [
   '/memes/yawn/yawn-33.jpg',
 ];
 
-// Preload user images in browser cache immediately
+// Preload & pre-decode all user images in browser memory immediately for instant 0ms display
 if (typeof window !== 'undefined') {
-  USER_PROVIDED_YAWN_IMAGES.forEach((url) => {
-    const img = new Image();
-    img.referrerPolicy = 'no-referrer';
-    img.src = url;
-  });
-  LOCAL_USER_YAWN_FALLBACKS.forEach((url) => {
-    const img = new Image();
-    img.src = url;
-  });
+  preloadImages([
+    ...USER_PROVIDED_YAWN_IMAGES,
+    ...LOCAL_USER_YAWN_FALLBACKS,
+    '/memes/cat-yawn.jpg',
+    '/memes/dog-frown.jpg',
+    '/memes/cat-chill.jpg',
+    '/memes/cat-curious.jpg',
+    '/memes/dog-tired.jpg',
+    '/memes/idol-handsome-1.jpg',
+    '/memes/idol-beauty-1.jpg',
+    '/memes/idol-beauty-2.jpg',
+  ]);
 }
 
 const YAWN_CAPTIONS_POOL = [
   {
-    topText: '哈欠打得這麼豪邁？🥱',
-    bottomText: '小心下巴脫臼！快看神顏秒速醒腦！⚡',
-    caption: '大口哈欠警報，神級容顏強制驅散睡意',
-    title: '🥱 大口哈欠警告 // 神顏緊急醒腦',
-    subtitle: '大腦缺氧大口打哈欠！系統精選盛世美顏，瞬間驅散瞌睡蟲！',
-    badgeText: '> STATUS: YAWN_DETECTED // 哈欠醒腦中',
+    topText: '偵測到張口打哈欠',
+    bottomText: '請深呼吸並喝水提神醒腦',
+    caption: '大口哈欠警報，即時提神醒腦',
+    title: '疲勞哈欠警報',
+    subtitle: '偵測到大腦缺氧打哈欠，請補充水分並稍作放鬆。',
+    badgeText: '',
   },
   {
-    topText: '剛剛那口哈欠吞進了銀河系吧？🌌',
-    bottomText: '吸氣吸飽了，快看神顏把靈魂拉回工位！✨',
-    caption: '大腦缺氧臨界點，盛世美顏強行注入活力',
-    title: '🥱 哈欠吞噬宇宙 // 神顏拉回靈魂',
-    subtitle: '這口哈欠太誇張！看一眼神仙容顏，靈魂秒速回歸工位！',
-    badgeText: '> STATUS: YAWN_DETECTED // 靈魂召回中',
+    topText: '頻繁打哈欠代表大腦缺氧',
+    bottomText: '請調整坐姿並稍微伸展肩頸',
+    caption: '大腦缺氧臨界點，請適度放鬆',
+    title: '缺氧疲勞提醒',
+    subtitle: '連續打哈欠代表注意力下降，請起立活動 1 分鐘。',
+    badgeText: '',
   },
   {
-    topText: '哈欠會傳染！快閉嘴！🫢',
-    bottomText: '整間辦公室都要被你傳染了，看美圖醒醒！☕',
-    caption: '哈欠傳染指數超標，緊急派送高顏值防護',
-    title: '🥱 哈欠傳染警告 // 辦公室全員自救',
-    subtitle: '哈欠傳染力 100%！為了身邊同事，請速看神顏緊急醒腦！',
-    badgeText: '> STATUS: YAWN_DETECTED // 傳染隔離中',
+    topText: '工位疲勞積累中',
+    bottomText: '請喝水放鬆，恢復專注狀態',
+    caption: '工位疲勞積累，請適度休憩',
+    title: '疲勞指數上升',
+    subtitle: '即時監測到連續打哈欠，請補充水分維持專注。',
+    badgeText: '',
   },
   {
-    topText: '嘴巴張那麼大，老闆在看你！👀',
-    bottomText: '快把哈欠收起來，神仙顏值幫你掩護！🚨',
-    caption: '工位哈欠被捕捉，神顏立即接管視線',
-    title: '🥱 工位哈欠現行犯 // 神顏安全掩護',
-    subtitle: '打哈欠抓拍存證！神仙容貌緊急救場，立刻恢復認真神態！',
-    badgeText: '> STATUS: YAWN_DETECTED // 戰術掩護中',
-  },
-  {
-    topText: '大腦 CPU 缺氧過熱中？🌪️',
-    bottomText: '頂級美貌降溫系統啟動，瞌睡秒退散！❄️',
-    caption: '哈欠連天降溫中，神顏爆擊提神醒腦',
-    title: '🥱 大腦過熱重啟 // 頂級美貌降溫',
-    subtitle: '大腦運算過熱打哈欠！神級顏值降溫散熱，效能立即回穩！',
-    badgeText: '> STATUS: YAWN_DETECTED // 降溫冷卻中',
-  },
-  {
-    topText: '電量只剩 1%，哈欠連發？🪫',
-    bottomText: '超高顏值神救援，電量瞬間飆回 100%！🔋',
-    caption: '精神餘額不足，盛世美顏強制充滿電',
-    title: '🥱 精神電量不足 // 神顏極速快充',
-    subtitle: '哈欠連發代表電量耗盡！看一眼頂級神顏，瞬間滿血開工！',
-    badgeText: '> STATUS: YAWN_DETECTED // 極速快充中',
-  },
-  {
-    topText: '下巴還好嗎？打哈欠注意關節！🦴',
-    bottomText: '絕世容顏為你打氣，今天又是努力的一天！💪',
-    caption: '豪邁哈欠預警，神顏注入滿滿活力',
-    title: '🥱 下巴關節警報 // 絕世容顏加油',
-    subtitle: '豪邁哈欠小心下巴！絕美神顏為你加油打氣，精神百倍！',
-    badgeText: '> STATUS: YAWN_DETECTED // 活力注入中',
-  },
-  {
-    topText: '打哈欠不是你的錯🥱',
-    bottomText: '是工作太無聊！看張神顏立刻滿血復活！🚀',
-    caption: '打哈欠無罪，神顏助攻原地復活',
-    title: '🥱 哈欠無罪釋放 // 神顏原地復活',
-    subtitle: '工位太無聊打哈欠正常！神級美貌為你提供滿滿工作動力！',
-    badgeText: '> STATUS: YAWN_DETECTED // 原地復活中',
-  },
-  {
-    topText: '靈魂剛剛隨哈欠飄走了嗎？👻',
-    bottomText: '神顏召喚術！一秒把你召回現實世界！🪄',
-    caption: '哈欠靈魂出竅中，神仙容顏秒速招魂',
-    title: '🥱 靈魂出竅捕捉 // 神顏召回術',
-    subtitle: '哈欠打到眼神放空！神仙容貌施展召喚術，秒回現實！',
-    badgeText: '> STATUS: YAWN_DETECTED // 精神召回中',
-  },
-  {
-    topText: '嘴巴張到可以塞下一顆大蘋果🍎',
-    bottomText: '這口哈欠太誇張！送上神顏幫你醒腦！💫',
-    caption: '超大哈欠現場，神顏震撼提神',
-    title: '🥱 大蘋果哈欠 // 震撼神顏醒腦',
-    subtitle: '超大口徑哈欠震撼鏡頭！神級美貌為你帶來視覺震撼提神！',
-    badgeText: '> STATUS: YAWN_DETECTED // 震撼提神中',
-  },
-  {
-    topText: '午休還沒到就哈欠連連？🕒',
-    bottomText: '神顏特寫爆擊！咖啡因都沒這張臉有效！☕',
-    caption: '晨間/午後哈欠潮，神級顏值勝過特濃美式',
-    title: '🥱 咖啡因替代方案 // 神顏強效提神',
-    subtitle: '哈欠連連不用喝三杯咖啡，神顏特寫爆擊瞬間神清氣爽！',
-    badgeText: '> STATUS: YAWN_DETECTED // 咖啡因替代',
-  },
-  {
-    topText: '打哈欠打到眼角泛淚？💧',
-    bottomText: '不是感動是真睏！看完美貌深呼吸繼續衝！🔥',
-    caption: '哈欠打出眼淚，神顏為你注入元氣',
-    title: '🥱 睏到流淚現場 // 神顏元氣補給',
-    subtitle: '打哈欠打出眼淚太辛酸！看完美顏深吸一口氣，繼續征服工位！',
-    badgeText: '> STATUS: YAWN_DETECTED // 元氣補給中',
-  },
-  {
-    topText: '第 N 個哈欠被攝影機 4K 捕捉！📸',
-    bottomText: '別睡了！這麼好看的人都在努力營業呢！🌟',
-    caption: '哈欠高清特寫，帥哥美女陪你一起奮鬥',
-    title: '🥱 4K 哈欠存證 // 神顏偶像陪練',
-    subtitle: '4K 高清捕捉哈欠瞬間！神顏偶像努力營業中，你也別睡啦！',
-    badgeText: '> STATUS: YAWN_DETECTED // 偶像陪練中',
-  },
-  {
-    topText: '哈欠傳染指數已達 99.9%！📈',
-    bottomText: '為了同事的清醒，請速看神顏緊急自救！🆘',
-    caption: '哈欠群聚感染中，美顏強效抗疲勞',
-    title: '🥱 傳染指數爆表 // 神顏自救指南',
-    subtitle: '哈欠傳染指數破表！看一眼神仙容顏，阻斷辦公室瞌睡傳播鏈！',
-    badgeText: '> STATUS: YAWN_DETECTED // 阻斷傳染中',
-  },
-  {
-    topText: '打哈欠打出三下巴了？🤭',
-    bottomText: '快看頂級帥哥美女的下顎線，精緻起來！💎',
+    topText: '打哈欠打出三下巴了？',
+    bottomText: '快看頂級帥哥美女的下顎線，精緻起來！',
     caption: '哈欠表情失控，神級下顎線完美範本',
-    title: '🥱 下顎線失控 // 神級顏值教科書',
-    subtitle: '打哈欠表情崩壞！頂級立體神顏降臨，幫你找回精緻氣場！',
-    badgeText: '> STATUS: YAWN_DETECTED // 精緻矯正中',
+    title: '下顎線失控',
+    subtitle: '打哈欠表情崩壞！頂級立體神顏降臨，幫你找回精緻氣場。',
+    badgeText: '',
   },
   {
-    topText: '床在呼喚你，但打卡鐘說不行！⏰',
-    bottomText: '神顏強效提神，比冰美式還提神十倍！🧊',
+    topText: '床在呼喚你，但打卡鐘說不行！',
+    bottomText: '神顏強效提神，比冰美式還提神十倍！',
     caption: '瞌睡蟲大舉入侵，神顏一秒擊退',
-    title: '🥱 夢想與現實對決 // 神顏強效清醒',
-    subtitle: '打卡鐘無情嘲笑你的哈欠！神仙美貌強效提神，戰勝瞌睡蟲！',
-    badgeText: '> STATUS: YAWN_DETECTED // 清醒對決中',
+    title: '夢想與現實對決',
+    subtitle: '打卡鐘無情嘲笑你的哈欠！神仙美貌強效提神，戰勝瞌睡蟲。',
+    badgeText: '',
   },
   {
-    topText: '剛剛那口哈欠，把元氣都吐光了？😮‍💨',
-    bottomText: '滿格魅力補給站，一秒充滿多巴胺！💖',
+    topText: '剛剛那口哈欠，把元氣都吐光了？',
+    bottomText: '滿格魅力補給站，一秒充滿多巴胺！',
     caption: '哈欠吐氣放空，神顏回血滿格',
-    title: '🥱 元氣漏氣警報 // 滿格多巴胺補給',
-    subtitle: '哈欠把今天的元氣都吐光了？神級顏值補給站，多巴胺立即滿格！',
-    badgeText: '> STATUS: YAWN_DETECTED // 多巴胺充滿',
+    title: '元氣漏氣警報',
+    subtitle: '哈欠把今天的元氣都吐光了？神級顏值補給站，多巴胺立即滿格。',
+    badgeText: '',
   },
   {
-    topText: '瞌睡蟲正在進攻，哈欠淪陷中！⚔️',
-    bottomText: '頂級天神顏值降臨，一拳擊碎所有睡意！🥊',
+    topText: '瞌睡蟲正在進攻，哈欠淪陷中！',
+    bottomText: '頂級天神顏值降臨，一拳擊碎所有睡意！',
     caption: '哈欠防線失守，神顏大招全屏秒殺睡意',
-    title: '🥱 瞌睡大軍壓境 // 神顏大招秒殺',
-    subtitle: '瞌睡大軍入侵打哈欠！頂級神顏大招釋放，一拳秒殺全場睡意！',
-    badgeText: '> STATUS: YAWN_DETECTED // 秒殺睡意中',
+    title: '瞌睡大軍壓境',
+    subtitle: '瞌睡大軍入侵打哈欠！頂級神顏大招釋放，一拳秒殺全場睡意。',
+    badgeText: '',
   },
   {
-    topText: '這口哈欠連螢幕都感受到了震動！📳',
-    bottomText: '心動不如行動，看完美顏精神抖擻！💓',
+    topText: '這口哈欠連螢幕都感受到了震動！',
+    bottomText: '心動不如行動，看完美顏精神抖擻！',
     caption: '震級哈欠來襲，神顏心跳加速提神',
-    title: '🥱 芮氏哈欠地震 // 心跳加速提神',
-    subtitle: '大哈欠震撼螢幕！無懈可擊的神仙顏值讓你心跳加速，清醒滿分！',
-    badgeText: '> STATUS: YAWN_DETECTED // 心跳加速中',
+    title: '芮氏哈欠地震',
+    subtitle: '大哈欠震撼螢幕！無懈可擊的神仙顏值讓你心跳加速，清醒滿分。',
+    badgeText: '',
   },
   {
-    topText: '連打了三個大哈欠？🥱🥱🥱',
-    bottomText: '系統判定：極度需要神顏喚醒靈魂！🧬',
+    topText: '連打了三個大哈欠？',
+    bottomText: '系統判定：極度需要神顏喚醒靈魂！',
     caption: '三連哈欠警報，神仙顏值專屬急救',
-    title: '🥱 三連哈欠警報 // 神顏專屬急救',
-    subtitle: '三連哈欠觸發最高警報！神仙顏值急救隊抵達，靈魂瞬間歸位！',
-    badgeText: '> STATUS: YAWN_DETECTED // 急救喚醒中',
+    title: '三連哈欠警報',
+    subtitle: '三連哈欠觸發警報！神仙顏值隊抵達，靈魂瞬間歸位。',
+    badgeText: '',
   },
   {
-    topText: '哈欠是身體在抗議：我想放假！🏖️',
-    bottomText: '現實是：看張神顏美圖繼續做 PPT 吧！📊',
+    topText: '哈欠是身體在抗議：我想放假！',
+    bottomText: '現實是：看張神顏美圖繼續做 PPT 吧！',
     caption: '哈欠放假幻想，神顏陪你笑著面對加班',
-    title: '🥱 放假幻想破滅 // 神顏陪伴開工',
-    subtitle: '哈欠是大腦想去度假！面對殘酷現實，讓神顏陪你笑著衝刺！',
-    badgeText: '> STATUS: YAWN_DETECTED // 陪伴衝刺中',
+    title: '放假幻想破滅',
+    subtitle: '哈欠是大腦想去度假！面對殘酷現實，讓神顏陪你笑著衝刺。',
+    badgeText: '',
   },
   {
-    topText: '打哈欠是在偷吸仙氣嗎？✨',
-    bottomText: '這位才是真正的神仙顏值，快看！🧚',
+    topText: '打哈欠是在偷吸仙氣嗎？',
+    bottomText: '這位才是真正的神仙顏值，快看！',
     caption: '哈欠偷吸仙氣，不如直接看真仙女男神',
-    title: '🥱 仙氣吸收失敗 // 真神仙顏值降臨',
-    subtitle: '打哈欠偷吸仙氣失敗！真・仙女男神降臨，直接吸飽神仙顏值！',
-    badgeText: '> STATUS: YAWN_DETECTED // 仙氣充能中',
+    title: '真神仙顏值降臨',
+    subtitle: '打哈欠偷吸仙氣失敗！真・仙女男神降臨，直接吸飽神仙顏值。',
+    badgeText: '',
   },
   {
-    topText: '哈欠的盡頭是夢鄉，但你還有 KPI！📈',
-    bottomText: '美顏爆擊讓你瞳孔放大，瞌睡秒退！👀',
+    topText: '哈欠的盡頭是夢鄉，但你還有 KPI！',
+    bottomText: '美顏爆擊讓你瞳孔放大，瞌睡秒退！',
     caption: '哈欠對決 KPI，神顏為你注入滿格戰力',
-    title: '🥱 夢鄉 vs KPI // 美顏爆擊提神',
-    subtitle: '哈欠想睡但 KPI 不准！美顏爆擊讓你瞳孔放大，專注力滿點！',
-    badgeText: '> STATUS: YAWN_DETECTED // 戰力拉滿中',
+    title: '美顏爆擊提神',
+    subtitle: '哈欠想睡但 KPI 不准！美顏爆擊讓你瞳孔放大，專注力滿點。',
+    badgeText: '',
   },
   {
-    topText: '哈欠大到能吞下隔壁同事的螢幕！🖥️',
-    bottomText: '冷靜！神顏現身，專注力重新上線！🎯',
+    topText: '哈欠大到能吞下隔壁同事的螢幕！',
+    bottomText: '冷靜！神顏現身，專注力重新上線！',
     caption: '巨無霸哈欠退散，神顏召喚專注力',
-    title: '🥱 巨無霸哈欠 // 專注力重新上線',
-    subtitle: '巨型哈欠吞噬螢幕！頂級顏值現身，專注力 100% 重新上線！',
-    badgeText: '> STATUS: YAWN_DETECTED // 專注上線中',
+    title: '巨無霸哈欠',
+    subtitle: '巨型哈欠吞噬螢幕！頂級顏值現身，專注力 100% 重新上線。',
+    badgeText: '',
   },
   {
-    topText: '已經哈欠連天到懷疑人生？🤯',
-    bottomText: '神顏一出誰與爭鋒！瞬間清醒繼續衝！🏆',
+    topText: '已經哈欠連天到懷疑人生？',
+    bottomText: '神顏一出誰與爭鋒！瞬間清醒繼續衝！',
     caption: '哈欠懷疑人生，神顏重燃熱血戰魂',
-    title: '🥱 懷疑人生現場 // 神顏重燃戰魂',
-    subtitle: '哈欠打到懷疑人生！神顏一出誰與爭鋒，重燃熱血工作戰魂！',
-    badgeText: '> STATUS: YAWN_DETECTED // 戰魂重燃中',
+    title: '懷疑人生現場',
+    subtitle: '哈欠打到懷疑人生！神顏一出誰與爭鋒，重燃熱血工作戰魂。',
+    badgeText: '',
   },
   {
-    topText: '這口哈欠宣告了精神餘額嚴重不足！⚠️',
-    bottomText: '盛世美貌為你強制充值 100% 精神力！⚡',
+    topText: '這口哈欠宣告了精神餘額嚴重不足！',
+    bottomText: '盛世美貌為你強制充值 100% 精神力！',
     caption: '哈欠餘額警告，神顏瞬間滿電',
-    title: '🥱 精神餘額警告 // 盛世美貌充值',
-    subtitle: '精神餘額不足警告！頂級盛世美貌為你強制充值 100% 精神力！',
-    badgeText: '> STATUS: YAWN_DETECTED // 強制充值中',
+    title: '精神餘額警告',
+    subtitle: '精神餘額不足警告！頂級盛世美貌為你強制充值 100% 精神力。',
+    badgeText: '',
   },
   {
-    topText: '打完哈欠伸個懶腰吧！🤸',
-    bottomText: '欣賞完這張神顏，繼續征服今天的工作！🌈',
+    topText: '打完哈欠伸個懶腰吧！',
+    bottomText: '欣賞完這張神顏，繼續征服今天的工作！',
     caption: '打哈欠拉伸放鬆，神顏相伴精神百倍',
-    title: '🥱 打哈欠拉個筋 // 神顏相伴征服工作',
-    subtitle: '打完哈欠伸展一下！欣賞完極品神顏，今天的工作輕鬆征服！',
-    badgeText: '> STATUS: YAWN_DETECTED // 征服工作中',
+    title: '打哈欠拉個筋',
+    subtitle: '打完哈欠伸展一下！欣賞完極品神顏，今天的工作輕鬆征服。',
+    badgeText: '',
   },
   {
-    topText: '哈欠打得這麼銷魂？🤤',
-    bottomText: '醒醒！眼前這張神顏才是真正的人間絕色！👑',
+    topText: '哈欠打得這麼銷魂？',
+    bottomText: '醒醒！眼前這張神顏才是真正的人間絕色！',
     caption: '銷魂哈欠退場，人間絕色神顏登場',
-    title: '🥱 銷魂哈欠退場 // 人間絕色登場',
-    subtitle: '銷魂哈欠快醒醒！人間絕色神顏登場，瞬間驅散所有睏意！',
-    badgeText: '> STATUS: YAWN_DETECTED // 絕色登場中',
+    title: '銷魂哈欠退場',
+    subtitle: '銷魂哈欠快醒醒！人間絕色神顏登場，瞬間驅散所有睏意。',
+    badgeText: '',
   },
   {
-    topText: '大腦正在重啟中，哈欠是加載條！⏳',
-    bottomText: '加載完畢！神顏降臨，效能瞬間拉滿！🚀',
+    topText: '大腦正在重啟中，哈欠是加載條！',
+    bottomText: '加載完畢！神顏降臨，效能瞬間拉滿！',
     caption: '哈欠重啟大腦，神顏加速運算速度',
-    title: '🥱 大腦重啟加載 // 神顏效能拉滿',
-    subtitle: '哈欠是大腦加載進度條！加載完畢，神顏降臨，工作效能瞬間拉滿！',
-    badgeText: '> STATUS: YAWN_DETECTED // 效能拉滿中',
+    title: '大腦重啟加載',
+    subtitle: '哈欠是大腦加載進度條！加載完畢，神顏降臨，工作效能瞬間拉滿。',
+    badgeText: '',
   },
   {
-    topText: '這口哈欠差點把鍵盤給吸進去！⌨️',
-    bottomText: '嘴巴合上，看眼神仙容顏壓壓驚！😮',
+    topText: '這口哈欠差點把鍵盤給吸進去！',
+    bottomText: '嘴巴合上，看眼神仙容顏壓壓驚！',
     caption: '深淵哈欠現場，神級美貌即刻壓驚',
-    title: '🥱 深淵巨口哈欠 // 神仙容貌壓驚',
-    subtitle: '深淵哈欠太驚人！嘴巴快合上，看眼神仙容顏壓壓驚繼續衝！',
-    badgeText: '> STATUS: YAWN_DETECTED // 壓驚醒腦中',
+    title: '深淵巨口哈欠',
+    subtitle: '深淵哈欠太驚人！嘴巴快合上，看眼神仙容顏壓壓驚繼續衝。',
+    badgeText: '',
   },
   {
-    topText: '哈欠聲大到連隔壁部門都聽到了！📢',
-    bottomText: '低調！讓神顏幫你找回優雅與清醒！🎩',
+    topText: '哈欠聲大到連隔壁部門都聽到了！',
+    bottomText: '低調！讓神顏幫你找回優雅與清醒！',
     caption: '哈欠廣播全場，優雅神顏緊急救場',
-    title: '🥱 哈欠全場廣播 // 優雅神顏救場',
-    subtitle: '大哈欠全場聽見！讓優雅神顏幫你找回專注與氣質，低調清醒！',
-    badgeText: '> STATUS: YAWN_DETECTED // 優雅救場中',
+    title: '哈欠全場廣播',
+    subtitle: '大哈欠全場聽見！讓優雅神顏幫你找回專注與氣質，低調清醒。',
+    badgeText: '',
   },
   {
-    topText: '瞌睡蟲在你耳邊唱催眠曲？🎵',
-    bottomText: '神顏重低音爆發，瞬間打破催眠節奏！🎸',
+    topText: '瞌睡蟲在你耳邊唱催眠曲？',
+    bottomText: '神顏重低音爆發，瞬間打破催眠節奏！',
     caption: '哈欠催眠無效，神顏炸場秒清醒',
-    title: '🥱 催眠曲無效化 // 神顏炸場秒清醒',
-    subtitle: '瞌睡催眠曲響起！神顏爆發強大氣場，瞬間打破節奏，秒速清醒！',
-    badgeText: '> STATUS: YAWN_DETECTED // 炸場清醒中',
+    title: '催眠曲無效化',
+    subtitle: '瞌睡催眠曲響起！神顏爆發強大氣場，瞬間打破節奏，秒速清醒。',
+    badgeText: '',
   },
   {
-    topText: '這口哈欠打出了靈魂出竅的節奏！🛸',
-    bottomText: '神顏引力波發射，把你的專注力抓回來！🌌',
+    topText: '這口哈欠打出了靈魂出竅的節奏！',
+    bottomText: '神顏引力波發射，把你的專注力抓回來！',
     caption: '哈欠引力失控，神顏鎖定專注力',
-    title: '🥱 靈魂出竅節奏 // 神顏引力鎖定',
-    subtitle: '哈欠引力失控！神仙顏值引力波發射，把你的專注力緊緊鎖定！',
-    badgeText: '> STATUS: YAWN_DETECTED // 引力鎖定中',
+    title: '靈魂出竅節奏',
+    subtitle: '哈欠引力失控！神仙顏值引力波發射，把你的專注力緊緊鎖定。',
+    badgeText: '',
   },
 ];
 
@@ -612,33 +527,33 @@ const IntegratedJackpotCabinet: React.FC<IntegratedJackpotCabinetProps> = ({
         {/* Dual Compartment Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 relative z-10">
           {/* LEFT COMPARTMENT: stopwatch display */}
-          <div className="flex flex-col items-center justify-center p-2.5 bg-gradient-to-b from-[#05140b] to-black border border-emerald-500/30 rounded-xl shadow-md">
+          <div className="flex flex-col items-center justify-between p-2.5 bg-gradient-to-b from-[#05140b] to-black border border-emerald-500/30 rounded-xl shadow-md">
             <div className="text-[9px] font-mono font-bold text-emerald-400 tracking-wider uppercase mb-1 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
               <span>離座時數</span>
             </div>
 
             {/* Odometer Stopwatch Display */}
-            <div className="bg-black border border-emerald-500/40 rounded-lg px-3 py-1 font-mono text-center flex items-center justify-center shadow-inner relative w-full">
-              <span className="text-xl sm:text-2xl font-black text-emerald-300 tracking-widest drop-shadow-[0_0_10px_rgba(16,185,129,0.8)]">
+            <div className="bg-black border border-emerald-500/40 rounded-lg px-2 sm:px-3 h-9 sm:h-10 font-mono text-center flex items-center justify-center shadow-inner relative w-full">
+              <span className="text-xl sm:text-2xl font-black text-emerald-300 tracking-widest drop-shadow-[0_0_10px_rgba(16,185,129,0.8)] leading-none">
                 {stopwatchStr}
               </span>
             </div>
           </div>
 
           {/* RIGHT COMPARTMENT: odometer points display */}
-          <div className="flex flex-col items-center justify-center p-2.5 bg-gradient-to-b from-[#181303] to-black border border-yellow-500/30 rounded-xl shadow-md">
+          <div className="flex flex-col items-center justify-between p-2.5 bg-gradient-to-b from-[#181303] to-black border border-yellow-500/30 rounded-xl shadow-md">
             <div className="text-[9px] font-mono font-bold text-yellow-400 tracking-wider uppercase mb-1 flex items-center gap-1">
               <span>🏆</span>
               <span>累計健康彩金</span>
             </div>
 
             {/* Points Roller */}
-            <div className="bg-black border border-yellow-500/40 rounded-lg px-3 py-1 font-mono text-center flex items-center justify-center gap-1.5 shadow-inner relative w-full">
-              <div className="flex gap-0.5">
+            <div className="bg-black border border-yellow-500/40 rounded-lg px-2 sm:px-3 h-9 sm:h-10 font-mono text-center flex items-center justify-center gap-1.5 shadow-inner relative w-full">
+              <div className="flex gap-1 items-center">
                 {String(displayPoints).padStart(2, '0').split('').map((char, index) => (
-                  <div key={index} className="relative w-5.5 h-7 bg-gradient-to-b from-zinc-850 via-zinc-950 to-zinc-850 border border-zinc-800 rounded flex items-center justify-center overflow-hidden">
-                    <span className={`text-sm sm:text-base font-black text-yellow-400 select-none ${isRolling ? 'animate-pulse text-yellow-300' : ''}`} style={{ textShadow: '0 0 8px rgba(234,179,8,0.7)' }}>
+                  <div key={index} className="relative w-6 sm:w-7 h-7 sm:h-8 bg-gradient-to-b from-zinc-850 via-zinc-950 to-zinc-850 border border-zinc-800 rounded flex items-center justify-center overflow-hidden">
+                    <span className={`text-xl sm:text-2xl font-black text-yellow-400 select-none leading-none ${isRolling ? 'animate-pulse text-yellow-300' : ''}`} style={{ textShadow: '0 0 8px rgba(234,179,8,0.7)' }}>
                       {char}
                     </span>
                     <div className="absolute inset-x-0 top-0 h-[1px] bg-black/50" />
@@ -646,7 +561,7 @@ const IntegratedJackpotCabinet: React.FC<IntegratedJackpotCabinetProps> = ({
                   </div>
                 ))}
               </div>
-              <span className="text-xs font-black text-yellow-300 font-mono">BP</span>
+              <span className="text-xs sm:text-sm font-black text-yellow-300 font-mono">BP</span>
             </div>
           </div>
         </div>
@@ -692,7 +607,7 @@ const IntegratedJackpotCabinet: React.FC<IntegratedJackpotCabinetProps> = ({
         ) : (
           <div className="w-full text-center px-4 py-2 rounded-lg bg-emerald-950/30 border border-emerald-500/30 text-[11px] font-mono text-emerald-400 animate-pulse flex items-center justify-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>離座中計時累計中... 回座後即可領取</span>
+            <span>離座中計時累計中... 回座後即可領取摸魚彩金</span>
           </div>
         )}
       </div>
@@ -745,6 +660,8 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
   const [floatingTexts, setFloatingTexts] = useState<{ id: number; text: string; left: number; top: number }[]>([]);
   const [isUpgradingCar, setIsUpgradingCar] = useState<boolean>(false);
   const [upgradedCarName, setUpgradedCarName] = useState<string>('');
+  const [isCompletingFund, setIsCompletingFund] = useState<boolean>(false);
+  const [isEscapingWithToyota, setIsEscapingWithToyota] = useState<boolean>(false);
 
   // Cleanup for floating texts
   useEffect(() => {
@@ -762,9 +679,10 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
   // Hourly Water Alert States
   const [waterStep, setWaterStep] = useState<'initial' | 'drinking' | 'completed'>('initial');
   const [waterProgress, setWaterProgress] = useState<number>(0);
+  const [hydrationEyeStyle, setHydrationEyeStyle] = useState<'anime' | 'sunglasses'>('sunglasses');
 
-  // Yawn Mode States: Unified 10s countdown, only displaying remaining seconds
-  const [yawnRemainingSeconds, setYawnRemainingSeconds] = useState<number>(10);
+  // Yawn Mode States: Unified 7s countdown, only displaying remaining seconds
+  const [yawnRemainingSeconds, setYawnRemainingSeconds] = useState<number>(7);
   const [yawnElapsedSeconds, setYawnElapsedSeconds] = useState<number>(0);
 
   // Blink Mode States: Real camera closed-eye detection for 10 seconds
@@ -796,6 +714,24 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
     return () => clearInterval(interval);
   }, [alert?.type]);
 
+  // Hidden ESC Key dismiss mechanism (Pressing ESC closes screensaver immediately without any prompt)
+  useEffect(() => {
+    if (!alert) return;
+
+    const handleKeyDownCapture = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        onDismissRef.current();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDownCapture, { capture: true });
+    return () => {
+      window.removeEventListener('keydown', handleKeyDownCapture, { capture: true });
+    };
+  }, [alert]);
+
   // Reset states ONLY when alert type actually transitions (prevents wiping user interaction)
   useEffect(() => {
     if (!alert) return;
@@ -809,31 +745,32 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
       isRestCompleteRef.current = false;
       setClosedEyeSeconds(0);
       setIsRestComplete(false);
-      setYawnRemainingSeconds(10);
+      setYawnRemainingSeconds(7);
       setYawnElapsedSeconds(0);
       setWaterStep('initial');
       setWaterProgress(0);
       setAwaySeconds(300);
       setWoodenFishClicks(0);
+      setIsCompletingFund(false);
       setIsWaiverChecked(false);
       setFloatingTexts([]);
     }
   }, [alert?.type]);
 
-  // Yawn Mode Timer: Unified 10 seconds countdown, auto-dismisses after 10s
+  // Yawn Mode Timer: Unified 7 seconds countdown, auto-dismisses after 7s
   useEffect(() => {
     if (!alert || alert.type !== 'yawn') return;
 
     setYawnElapsedSeconds(0);
-    setYawnRemainingSeconds(10);
+    setYawnRemainingSeconds(7);
 
     const startTs = Date.now();
-    const TOTAL_DURATION_MS = 10000; // 10 seconds total
+    const TOTAL_DURATION_MS = 7000; // 7 seconds total
 
     const interval = setInterval(() => {
       const now = Date.now();
       const elapsedMs = now - startTs;
-      const elapsedSec = Math.min(10, elapsedMs / 1000);
+      const elapsedSec = Math.min(7, elapsedMs / 1000);
       const remainingSec = Math.max(0, Math.ceil((TOTAL_DURATION_MS - elapsedMs) / 1000));
 
       setYawnElapsedSeconds(elapsedSec);
@@ -1160,9 +1097,9 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
       }
       case 'blink': {
         return {
-          title: '👁️ 雙眼乾澀修復 // 閉眼碼表倒數',
-          subtitle: '眼球乾澀度爆表！請閉上雙眼進行 10 秒靈魂光學保濕！',
-          badgeText: '> TRIGGER: BLINK_FREQUENCY_HIGH // 雙眼乾澀警報',
+          title: '雙眼乾澀修復',
+          subtitle: '眼球乾澀度偏高，請閉上雙眼進行 10 秒光學保濕。',
+          badgeText: '',
           badgeClass: 'bg-blue-500/20 text-blue-300 border-blue-400/60 shadow-[0_0_12px_rgba(59,130,246,0.35)]',
           accentColor: '#3b82f6',
           category: 'general' as const,
@@ -1172,36 +1109,36 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
             'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80',
           ],
           topText: '請閉眼休息 10 秒',
-          bottomText: '讓緊繃的眼球肌肉徹底放鬆！👁️💤',
+          bottomText: '讓緊繃的眼球肌肉徹底放鬆',
           memeCaption: '系統監測雙眼閉合累計 10 秒即自動關閉',
-          floatingIcon: '👁️',
+          floatingIcon: '',
           glowGradient:
             'radial-gradient(circle at center, rgba(59,130,246,0.22) 0%, rgba(9,10,15,0.98) 75%)',
         };
       }
       case 'slack': {
         return {
-          title: '☕ 離座摸魚健康修復 // 薪水小偷 Lv.MAX',
-          subtitle: '離座超過 5 分鐘！健康點數正以每 5 分鐘為單位不斷進帳！',
-          badgeText: '> TRIGGER: AWAY_DESK_5MIN // 離座健康點數累積中',
+          title: '摸魚獎池',
+          subtitle: '離座超過 5 分鐘，摸魚獎金累積中。',
+          badgeText: '',
           badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/60 shadow-[0_0_12px_rgba(52,211,153,0.35)]',
           accentColor: '#10b981',
           category: 'general' as const,
           memeImage: '/memes/cat-chill.jpg',
           fallbackImages: ['/memes/dog-tired.jpg'],
-          topText: '遠離螢幕，長壽工作大師 ☕',
-          bottomText: '健康點數每 5 分鐘自動進帳！✨',
+          topText: '遠離螢幕，專注休息',
+          bottomText: '離座每 5 分鐘自動累積獎金',
           memeCaption: '適度離開工位，重獲心靈安寧',
-          floatingIcon: '☕',
+          floatingIcon: '',
           glowGradient:
             'radial-gradient(circle at center, rgba(16,185,129,0.2) 0%, rgba(9,10,15,0.98) 75%)',
         };
       }
       case 'frown': {
         return {
-          title: '😠 觸發原因：偵測到緊皺眉頭 // 命運解答之書',
-          subtitle: '是什麼事讓你眉頭深鎖？讓【命運解答之書】為你指點迷津，開解人生難題與職場困惑！',
-          badgeText: '> TRIGGER: FROWN_DETECTED // 眉頭深鎖怨氣爆表',
+          title: '解答之書',
+          subtitle: '心中有疑惑？讓解答之書為你指點迷津，開解職場困惑。',
+          badgeText: '',
           badgeClass: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50 shadow-[0_0_12px_rgba(99,102,241,0.25)]',
           accentColor: '#6366f1',
           category: 'general' as const,
@@ -1211,48 +1148,49 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
             'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800&auto=format&fit=crop&q=80',
           ],
           topText: '是什麼事讓你眉頭深鎖？',
-          bottomText: '讓解答之書為你指點迷津 📖',
-          memeCaption: '翻開典籍，解鎖職場金句與宇宙解毒聖諭',
-          floatingIcon: '📖',
+          bottomText: '讓解答之書為你指點迷津',
+          memeCaption: '翻開典籍，解鎖職場金句與宇宙解答',
+          floatingIcon: '',
           glowGradient:
             'radial-gradient(circle at center, rgba(99,102,241,0.18) 0%, rgba(9,10,15,0.98) 75%)',
         };
       }
+      case 'hydration':
       case 'beauty_score': {
         return {
-          title: alert.title || '💧 觸發原因：工位久坐滿 1 小時 // 喝水補水提醒',
-          subtitle: alert.message || '大口喝水補水，讓細胞充盈水光，顏值與專注力瞬間飆升！',
-          badgeText: '> TRIGGER: HOURLY_CHECK // 工位整點補水督導',
-          badgeClass: 'bg-pink-500/20 text-pink-300 border-pink-400/60 shadow-[0_0_12px_rgba(236,72,153,0.35)]',
-          accentColor: '#ec4899',
+          title: '定時補充水分',
+          subtitle: '大口補充水分，讓細胞充盈水光，維持良好專注狀態。',
+          badgeText: '久坐補水',
+          badgeClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.35)]',
+          accentColor: '#06b6d4',
           category: 'general' as const,
           memeImage: alert.image || '/memes/idol-handsome-1.jpg',
           fallbackImages: [
             '/memes/idol-beauty-1.jpg',
             'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80',
           ],
-          topText: '整點補水！喝口溫水 💧',
-          bottomText: '肌膚透亮水光，顏值立即飆升！✨',
+          topText: '定時補水，喝口溫水',
+          bottomText: '補充體內水分，專注力與活力全面升級',
           memeCaption: `${alert.badge || '工位補水存證'}`,
           floatingIcon: '💧',
           glowGradient:
-            'radial-gradient(circle at center, rgba(236,72,153,0.2) 0%, rgba(9,10,15,0.98) 75%)',
+            'radial-gradient(circle at center, rgba(6,182,212,0.2) 0%, rgba(9,10,15,0.98) 75%)',
         };
       }
       default:
         return {
-          title: alert.title,
-          subtitle: alert.message,
-          badgeText: `> ALERT: ${alert.badge}`,
+          title: alert.title ? alert.title.replace(/[\p{Extended_Pictographic}\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').replace(/\/\/.*/g, '').trim() : '提醒',
+          subtitle: alert.message ? alert.message.replace(/[\p{Extended_Pictographic}\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim() : '請注意適度休息。',
+          badgeText: '',
           badgeClass: 'bg-[#00d8ff]/15 text-[#00d8ff] border-[#00d8ff]/60 shadow-[0_0_15px_rgba(0,216,255,0.25)]',
           accentColor: '#00d8ff',
           category: 'general' as const,
           memeImage: alert.image || '/memes/cat-chill.jpg',
           fallbackImages: [],
-          topText: '生理狀態異常偵測',
-          bottomText: '請維持高度警覺，守護生理資產！🛡️',
-          memeCaption: '保持高度警覺，守護專注力',
-          floatingIcon: '🛡️',
+          topText: '狀態提醒',
+          bottomText: '請維持適度警覺，保護健康狀況',
+          memeCaption: '保持適度警覺，守護專注力',
+          floatingIcon: '',
           glowGradient:
             'radial-gradient(circle at center, rgba(0,216,255,0.18) 0%, rgba(9,10,15,0.98) 75%)',
         };
@@ -1326,9 +1264,6 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
             <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-current animate-pulse shadow-[0_0_8px_currentColor] shrink-0" />
             <span className="truncate">&gt; OVERWATCH // INTERCEPT</span>
           </div>
-          <span className="hidden md:inline text-slate-400 text-[10px] sm:text-[11px] tracking-wide truncate">
-            {theme.badgeText}
-          </span>
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -1366,17 +1301,17 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
       </div>
 
       {/* MAIN HERO CARD */}
-      <main className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center text-center px-1 sm:px-2 max-w-5xl lg:max-w-6xl mx-auto my-auto py-1 w-full overflow-hidden">
-        <div className="relative w-full h-full max-h-full flex flex-col justify-between rounded-lg bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_36px_0_rgba(0,0,0,0.85)] backdrop-blur-xl p-2 sm:p-3 overflow-hidden cctv-brackets">
+      <main className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center text-center px-2 sm:px-4 max-w-5xl lg:max-w-6xl mx-auto py-2 w-full overflow-hidden">
+        <div className="relative w-full h-full max-h-full flex flex-col items-center justify-center rounded-lg bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_36px_0_rgba(0,0,0,0.85)] backdrop-blur-xl p-3 sm:p-4 overflow-hidden cctv-brackets">
 
           {/* DYNAMIC CONTENT PER HAZARD TYPE */}
-          <div className={`relative group mx-auto w-full flex-1 min-h-[320px] max-h-[74vh] flex flex-col my-1 shrink overflow-hidden rounded-lg border shadow-2xl bg-black/95 transition-all duration-300 ${
+          <div className={`relative group mx-auto w-full flex-1 min-h-[320px] max-h-[74vh] flex flex-col shrink overflow-hidden rounded-lg border shadow-2xl bg-black/95 transition-all duration-300 ${
             alert.type === 'overtime' ? 'border-red-500/80 shadow-[0_0_30px_rgba(239,68,68,0.4)]' : 'border-white/10'
           }`}>
             
             {/* 1. BLINK MODE: 雙眼閉合修復 (碼表倒數與 completion 分離) */}
             {alert.type === 'blink' ? (
-              <div className="w-full h-full flex flex-col items-center justify-center p-3 sm:p-4 text-center bg-gradient-to-b from-[#090d16] via-[#05070a] to-[#090d16] pointer-events-auto relative overflow-hidden my-auto">
+              <div className="w-full h-full flex-1 flex flex-col items-center justify-center p-4 sm:p-6 text-center bg-gradient-to-b from-[#090d16] via-[#05070a] to-[#090d16] pointer-events-auto relative overflow-hidden">
                 {/* Background Ambient Glow */}
                 <div className="absolute w-[300px] h-[300px] rounded-full bg-cyan-500/10 blur-[80px] pointer-events-none" />
 
@@ -1686,7 +1621,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                   })()}
                 </div>
               </div>
-            ) : alert.type === 'beauty_score' ? (
+            ) : (alert.type === 'hydration' || alert.type === 'beauty_score') ? (
               /* 3. HOURLY WATER HYDRATION ALERT WITH CANDID PHOTO & ANIMATED SVG DRINKING & BEAUTY TRANSFORMATION */
               waterStep === 'initial' ? (
                 /* STEP 1: PHOTO FILLS THE UPPER FRAME, BUTTON PLACED COMPLETELY OUTSIDE THE PHOTO */
@@ -1909,7 +1844,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                       {/* Top Banner with Celebratory Text */}
                       <div className="inline-flex items-center gap-1.5 px-4 py-1 rounded-full bg-cyan-950/90 border border-cyan-300 text-cyan-200 text-xs sm:text-sm font-mono font-black shadow-[0_0_20px_rgba(56,189,248,0.5)] shrink-0">
                         <Sparkles className="w-4 h-4 text-cyan-300 animate-spin shrink-0" />
-                        <span>✨ 補水完成！細胞充盈水光，瞬回 18 歲神仙神顏！✨</span>
+                        <span>✨ 補水完成！細胞水分充盈，專注力全面復甦！✨</span>
                       </div>
 
                       {/* 🌸 Transformed Japanese Purikura Beauty Photo Frame with Refined Cool-Toned Bling Bling & Anime Eyes */}
@@ -1922,6 +1857,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                           faceCenter={alert.faceCenter || { x: 50, y: 35 }}
                           eyePositions={alert.eyePositions}
                           showAnimeEyes={true}
+                          eyeFilterMode="auto"
                           alt="日系冷調水光拍貼"
                           className="w-full h-full object-cover transition-all duration-700 filter brightness-112 contrast-102 saturate-108 drop-shadow-[0_0_35px_rgba(56,189,248,0.75)]"
                         />
@@ -1953,21 +1889,21 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                         </div>
                       </div>
 
-                      {/* Witty Return to Workspace Button */}
+                      {/* Return to Workspace Button */}
                       <button
                         type="button"
                         onClick={() => onDismissRef.current()}
                         className="group relative px-6 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-300 to-emerald-400 hover:from-cyan-300 hover:via-sky-200 hover:to-emerald-300 text-slate-950 font-bold text-xs sm:text-sm border-2 border-white shadow-[0_0_30px_rgba(56,189,248,0.75)] transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center gap-2 select-none shrink-0"
                       >
-                        <span className="text-lg">💅</span>
-                        <span className="tracking-wide">水光感拉滿！帶上神仙顏值回工位閃瞎全場 ➔</span>
+                        <span className="text-lg">💧</span>
+                        <span className="tracking-wide">水分補給完成！帶着滿滿能量回工位 ➔</span>
                         <Sparkles className="w-4 h-4 text-slate-950 animate-spin" />
                       </button>
 
                       {/* Status Line - smaller and positioned below button */}
                       <div className="text-center font-mono shrink-0 mt-1">
-                        <p className="text-[10px] sm:text-[11px] text-cyan-300/80 font-normal tracking-wide">
-                          ⚡ 顏值血條回滿 100%！健康資產 +5 BP 摸魚紅利已入帳
+                        <p className="text-[10px] sm:text-[11px] text-emerald-300/90 font-normal tracking-wide">
+                          ⚡ 水分充填 100%！修復活力全面灌注，健康資產 +5 BP 摸魚紅利已入帳
                         </p>
                       </div>
                     </div>
@@ -2010,10 +1946,8 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                   }
                   @keyframes owUpgradeFlash {
                     0% { transform: scale(0.7); opacity: 0; filter: blur(15px); }
-                    15% { transform: scale(1.1); opacity: 1; filter: blur(0); }
-                    30% { transform: scale(1); opacity: 1; }
-                    80% { transform: scale(1); opacity: 1; }
-                    100% { transform: scale(1.2); opacity: 0; filter: blur(20px); }
+                    15% { transform: scale(1); opacity: 1; filter: blur(0); }
+                    100% { transform: scale(1); opacity: 1; filter: blur(0); }
                   }
                   @keyframes owConfettiBlast {
                     0% { transform: translate(-50%, -50%) scale(0.1) rotate(0deg); opacity: 1; }
@@ -2028,13 +1962,37 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                     animation: owCarVibrate 0.32s cubic-bezier(0.25, 1, 0.5, 1);
                   }
                   .animate-upgrade-banner {
-                    animation: owUpgradeFlash 2.2s cubic-bezier(0.19, 1, 0.22, 1) both;
+                    animation: owUpgradeFlash 1.8s cubic-bezier(0.19, 1, 0.22, 1) both;
                   }
                   .animate-confetti-blast {
-                    animation: owConfettiBlast 1.5s cubic-bezier(0.1, 0.8, 0.3, 1) both;
+                    animation: owConfettiBlast 1.8s cubic-bezier(0.1, 0.8, 0.3, 1) both;
                   }
                   .animate-spin-arrival {
                     animation: owSpinArrival 1.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+                  }
+                  @keyframes toyotaDriveAway {
+                    0% {
+                      transform: translateX(-350px);
+                    }
+                    20% {
+                      transform: translateX(0px);
+                    }
+                    60% {
+                      transform: translateX(0px);
+                    }
+                    100% {
+                      transform: translateX(650px);
+                    }
+                  }
+                  @keyframes toyotaIdleShake {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-2px); }
+                  }
+                  .animate-toyota-drive {
+                    animation: toyotaDriveAway 2.5s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+                  }
+                  .animate-toyota-shake {
+                    animation: toyotaIdleShake 0.08s infinite;
                   }
                 `}</style>
                 
@@ -2054,7 +2012,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                     return (
                       <>
                         <h2 className="text-base sm:text-lg font-black text-white font-mono tracking-wide mb-0.5">
-                          老闆的 119 屆跑車圓夢計畫 🏎️
+                          老闆的 999+ 屆跑車圓夢計畫 🏎️
                         </h2>
                         <p className="text-[10px] sm:text-[11px] text-zinc-400 font-mono max-w-sm mb-2.5 leading-snug">
                           當前目標：{activeCar.name}
@@ -2123,22 +2081,163 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                                   <div className="text-sm font-black text-white font-mono drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.8)] truncate">
                                     {upgradedCarName}
                                   </div>
-                                  <div className="text-[9px] text-zinc-400 mt-1 font-mono">
-                                    🎉 恭喜解鎖全新座駕，資金累計重置 🎉
-                                  </div>
                                 </div>
                               </div>
                             )}
 
-                            <svg
-                              key={`${woodenFishClicks}-${isUpgradingCar}`}
-                              className={`w-64 h-32 select-none pointer-events-none ${
-                                isUpgradingCar ? 'animate-spin-arrival' : woodenFishClicks > 0 ? 'animate-car-shake' : ''
-                              }`}
-                              style={{ filter: `drop-shadow(0 0 20px ${activeCar.glow})` }}
-                              viewBox="0 0 200 100"
-                              fill="none"
-                            >
+                            {/* Exquisite TOYOTA Vector SVG Transformation Scene */}
+                            {isEscapingWithToyota && (
+                              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center p-3 bg-[#02050b]/98 rounded-2xl border-2 border-emerald-400 shadow-[0_0_60px_rgba(16,185,129,0.95)] animate-fade-in font-mono">
+                                <svg
+                                  className="w-full h-56 sm:h-64 select-none"
+                                  viewBox="0 0 320 180"
+                                  fill="none"
+                                >
+                                  <defs>
+                                    <linearGradient id="toyotaBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                      <stop offset="0%" stopColor="#e2e8f0" />
+                                      <stop offset="50%" stopColor="#94a3b8" />
+                                      <stop offset="100%" stopColor="#475569" />
+                                    </linearGradient>
+                                    <linearGradient id="toyotaGlassGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                      <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" />
+                                      <stop offset="100%" stopColor="#0284c7" stopOpacity="0.3" />
+                                    </linearGradient>
+                                    <radialGradient id="toyotaGlow" cx="50%" cy="50%" r="50%">
+                                      <stop offset="0%" stopColor="#cbd5e1" stopOpacity="0.6" />
+                                      <stop offset="100%" stopColor="#64748b" stopOpacity="0" />
+                                    </radialGradient>
+                                  </defs>
+
+                                  {/* Ambient Emerald Ground Light & Shadow */}
+                                  <ellipse cx="160" cy="150" rx="120" ry="12" fill="url(#toyotaGlow)" />
+                                  <ellipse cx="160" cy="152" rx="100" ry="6" fill="rgba(0,0,0,0.8)" />
+
+                                  {/* Comic Poof Cloud Particles behind Transformation */}
+                                  <g className="animate-ping" opacity="0.3">
+                                    <circle cx="80" cy="110" r="18" fill="#94a3b8" />
+                                    <circle cx="240" cy="105" r="22" fill="#cbd5e1" />
+                                    <circle cx="160" cy="70" r="26" fill="#e2e8f0" />
+                                  </g>
+
+                                  {/* Indestructible 神車 TOYOTA Vehicle SVG Structure with Left-to-Right Drive & Shake */}
+                                  <g className="animate-toyota-drive" style={{ transformOrigin: '160px 115px' }}>
+                                    <g className="animate-toyota-shake">
+                                      {/* TOYOTA Main Metallic Sedan Body */}
+                                      <path
+                                        d="M 30,132 L 45,100 L 105,75 Q 160,70 215,85 L 285,105 L 295,132 Z"
+                                        fill="url(#toyotaBodyGrad)"
+                                        stroke="#94a3b8"
+                                        strokeWidth="1.5"
+                                      />
+
+                                      {/* Mismatched Primer-Colored Fender Panel */}
+                                      <path
+                                        d="M 32,132 L 45,100 L 68,96 L 62,132 Z"
+                                        fill="#334155"
+                                        stroke="#475569"
+                                        strokeWidth="0.8"
+                                        opacity="0.85"
+                                      />
+
+                                      {/* Cabin Windshield & Windows */}
+                                      <path
+                                        d="M 100,78 L 145,62 Q 185,62 210,75 L 200,95 L 90,95 Z"
+                                        fill="url(#toyotaGlassGrad)"
+                                        stroke="#cbd5e1"
+                                        strokeWidth="1"
+                                      />
+
+                                      {/* Cracked Glass Line on Windshield */}
+                                      <path
+                                        d="M 115,74 L 125,82 L 120,86 L 128,91"
+                                        stroke="#f1f5f9"
+                                        strokeWidth="1"
+                                        strokeLinecap="round"
+                                        opacity="0.9"
+                                      />
+
+                                      {/* DoorSeams & Chrome Handle */}
+                                      <path d="M 150,85 L 150,132" stroke="#475569" strokeWidth="1.5" />
+                                      <rect x="160" y="98" width="12" height="3" rx="1" fill="#f8fafc" />
+
+                                      {/* Beaten-Up Rust Spots */}
+                                      <ellipse cx="90" cy="120" rx="4" ry="2" fill="#7c2d12" opacity="0.8" />
+                                      <ellipse cx="145" cy="126" rx="5" ry="1.5" fill="#7c2d12" opacity="0.8" />
+                                      <ellipse cx="210" cy="122" rx="3" ry="1" fill="#9a3412" opacity="0.9" />
+
+                                      {/* X-Shaped Yellow Duct Tape Patch on Rear Door */}
+                                      <g stroke="#eab308" strokeWidth="2.5" strokeLinecap="round" opacity="0.9">
+                                        <line x1="175" y1="102" x2="195" y2="118" />
+                                        <line x1="195" y1="102" x2="175" y2="118" />
+                                      </g>
+
+                                      {/* TOYOTA Front Grille & Oval Badge */}
+                                      <path d="M 270,110 L 293,112 L 292,126 L 268,124 Z" fill="#0f172a" stroke="#334155" strokeWidth="1" />
+                                      <ellipse cx="282" cy="117" rx="5" ry="3.5" fill="#f8fafc" stroke="#0284c7" strokeWidth="0.8" />
+                                      <ellipse cx="282" cy="117" rx="3" ry="2" fill="none" stroke="#0f172a" strokeWidth="0.6" />
+
+                                      {/* Bright LED Headlight & Light Beam Overlay (Slightly Dimmer Yellow for Old Bulb) */}
+                                      <polygon points="280,105 318,95 320,135 282,122" fill="#fef08a" opacity="0.25" />
+                                      <path d="M 275,106 L 292,107 L 290,116 L 273,114 Z" fill="#fef08a" stroke="#fde047" strokeWidth="1" />
+
+                                      {/* High-Mileage Beater Exhaust Smoke Puffs (Slightly darker blue-grey oil smoke) */}
+                                      <g className="animate-pulse">
+                                        <circle cx="15" cy="130" r="7" fill="rgba(148,163,184,0.6)" />
+                                        <circle cx="7" cy="125" r="10" fill="rgba(100,116,139,0.4)" />
+                                        <circle cx="0" cy="118" r="13" fill="rgba(71,85,105,0.2)" />
+                                      </g>
+
+                                      {/* Spinning Alloy Wheels (Rear & Front) */}
+                                      <g transform="translate(75, 132)">
+                                        <circle cx="0" cy="0" r="18" fill="#0f172a" stroke="#334155" strokeWidth="2" />
+                                        <circle cx="0" cy="0" r="12" fill="#94a3b8" />
+                                        <g className="animate-spin" style={{ animationDuration: '0.4s' }}>
+                                          <line x1="-10" y1="0" x2="10" y2="0" stroke="#f8fafc" strokeWidth="2" />
+                                          <line x1="0" y1="-10" x2="0" y2="10" stroke="#f8fafc" strokeWidth="2" />
+                                        </g>
+                                        <circle cx="0" cy="0" r="4" fill="#0f172a" />
+                                      </g>
+
+                                      <g transform="translate(235, 132)">
+                                        <circle cx="0" cy="0" r="18" fill="#0f172a" stroke="#334155" strokeWidth="2" />
+                                        <circle cx="0" cy="0" r="12" fill="#94a3b8" />
+                                        <g className="animate-spin" style={{ animationDuration: '0.4s' }}>
+                                          <line x1="-10" y1="0" x2="10" y2="0" stroke="#f8fafc" strokeWidth="2" />
+                                          <line x1="0" y1="-10" x2="0" y2="10" stroke="#f8fafc" strokeWidth="2" strokeOpacity="0.8" />
+                                        </g>
+                                        <circle cx="0" cy="0" r="4" fill="#0f172a" />
+                                      </g>
+                                    </g>
+                                  </g>
+
+                                  {/* Static Flying Text Overlay inside SVG Canvas */}
+                                  <text
+                                    x="160"
+                                    y="38"
+                                    textAnchor="middle"
+                                    fill="#fef08a"
+                                    fontSize="18"
+                                    fontWeight="900"
+                                    style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.9))' }}
+                                  >
+                                    🚗 抱歉了老闆 我先開我的TOYOTA走了
+                                  </text>
+                                </svg>
+                              </div>
+                            )}
+
+                            {/* Render Boss Supercar ONLY when not escaping with TOYOTA */}
+                            {!isEscapingWithToyota && (
+                              <svg
+                                key={`${woodenFishClicks}-${isUpgradingCar}`}
+                                className={`w-64 h-32 select-none pointer-events-none ${
+                                  isUpgradingCar ? 'animate-spin-arrival' : woodenFishClicks > 0 ? 'animate-car-shake' : ''
+                                }`}
+                                style={{ filter: `drop-shadow(0 0 20px ${activeCar.glow})` }}
+                                viewBox="0 0 200 100"
+                                fill="none"
+                              >
                               {/* Soft Shadow underneath car */}
                               <ellipse cx="100" cy="85" rx="78" ry="5.5" fill="rgba(0,0,0,0.65)" />
 
@@ -2241,6 +2340,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                                 </linearGradient>
                               </defs>
                             </svg>
+                          )}
 
                             {/* Flying Coins / Money Container Overlay */}
                             {floatingTexts.map((part) => (
@@ -2262,116 +2362,99 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                           </div>
                         </div>
 
-                        {/* DOUBLE ACTION BUTTONS */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6 w-full mt-4">
-                          {/* OPTION A: Escape to freedom (+20 HP!) */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              try {
-                                soundSynth.playRewardJingle();
-                              } catch {}
-                              
-                              const finalFund = currentCarFunded + sessionFundAdded;
-                              if (finalFund >= activeCar.price) {
-                                const nextCarIdx = (currentCarIndex + 1) % CAR_LIST.length;
-                                localStorage.setItem('ow_current_car_index_v3', String(nextCarIdx));
-                                localStorage.setItem('ow_current_car_funded_v3', '0');
-                                setCurrentCarIndex(nextCarIdx);
-                                setCurrentCarFunded(0);
-                              } else {
-                                localStorage.setItem('ow_current_car_funded_v3', String(finalFund));
-                                setCurrentCarFunded(finalFund);
-                              }
-                              setWoodenFishClicks(0);
-                              setSessionFundAdded(0);
+                        {/* CONDITIONAL ACTION BUTTONS */}
+                        {!isEscapingWithToyota && (
+                          <div className={`w-full mt-4 ${woodenFishClicks > 0 ? 'flex justify-center w-full' : 'grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6'}`}>
+                            {/* OPTION A: Escape to freedom (+20 HP!) */}
+                            {!isCompletingFund && woodenFishClicks === 0 && (
+                              <button
+                                type="button"
+                                disabled={isEscapingWithToyota || isCompletingFund}
+                                onClick={() => {
+                                  if (isEscapingWithToyota) return;
+                                  setIsEscapingWithToyota(true);
 
-                              if (onEscapeOvertimeRef.current) {
-                                onEscapeOvertimeRef.current(true); // ranAway = true (adds +20 HP!)
-                              }
-                              onDismissRef.current();
-                            }}
-                            className="group relative px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-[11px] sm:text-xs border border-emerald-400/60 shadow-[0_0_15px_rgba(16,185,129,0.5)] transition hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 select-none"
-                          >
-                            <span className="text-xs animate-bounce">🏃‍♂️</span>
-                            <span className="tracking-wide">拒絕内卷！打卡下班 🏃‍♂️💨</span>
-                          </button>
+                                  try {
+                                    soundSynth.playRewardJingle();
+                                    soundSynth.playOracleReveal();
+                                  } catch {}
 
-                          {/* OPTION B: Submit to capitalism (Tap to fund, dismisses on 10th tap) */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const nextClicks = woodenFishClicks + 1;
-                              
-                              // Variable funding percentage per click: between 1.5% and 3.5%
-                              const pct = 1.5 + Math.random() * 2.0;
-                              const deltaAmount = Math.max(100, Math.floor((pct / 100) * activeCar.price));
-                              const totalFund = currentCarFunded + sessionFundAdded + deltaAmount;
-                              
-                              let isUpgraded = false;
-                              let updatedCarIndex = currentCarIndex;
-                              let updatedCarFunded = currentCarFunded;
-                              let updatedSessionFundAdded = sessionFundAdded + deltaAmount;
+                                  setFloatingTexts((prev) => [
+                                    ...prev,
+                                    { id: Date.now() + 1, text: '💥 老闆超跑不見了！', left: -50, top: -110 },
+                                    { id: Date.now() + 2, text: '🚗 已為您換購神車 TOYOTA！', left: 40, top: -130 },
+                                    { id: Date.now() + 3, text: '🎉 健康存摺 +20 BP！', left: 0, top: -150 },
+                                  ]);
 
-                               if (totalFund >= activeCar.price) {
-                                // Instantly upgrade to next car!
-                                isUpgraded = true;
-                                const nextCarIdx = (currentCarIndex + 1) % CAR_LIST.length;
-                                const overflow = totalFund - activeCar.price;
-                                localStorage.setItem('ow_current_car_index_v3', String(nextCarIdx));
-                                localStorage.setItem('ow_current_car_funded_v3', String(overflow));
-                                setCurrentCarIndex(nextCarIdx);
-                                setCurrentCarFunded(overflow);
-                                setSessionFundAdded(0);
-                                updatedCarIndex = nextCarIdx;
-                                updatedCarFunded = overflow;
-                                updatedSessionFundAdded = 0;
+                                  setTimeout(() => {
+                                    const finalFund = currentCarFunded + sessionFundAdded;
+                                    localStorage.setItem('ow_current_car_funded_v3', String(finalFund));
+                                    setWoodenFishClicks(0);
+                                    setSessionFundAdded(0);
+                                    setIsEscapingWithToyota(false);
 
-                                // Trigger spectacular upgrade effects
-                                setIsUpgradingCar(true);
-                                setUpgradedCarName(CAR_LIST[nextCarIdx].name);
-                                try {
-                                  soundSynth.playRewardJingle();
-                                  soundSynth.playOracleReveal();
-                                } catch {}
+                                    if (onEscapeOvertimeRef.current) {
+                                      onEscapeOvertimeRef.current(true); // ranAway = true (adds +20 HP!)
+                                    }
+                                    onDismissRef.current();
+                                  }, 2500);
+                                }}
+                                className="group relative w-full px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs border border-emerald-400/60 shadow-[0_0_15px_rgba(16,185,129,0.5)] transition hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 select-none disabled:opacity-50"
+                              >
+                                <span className="text-xs">🚗</span>
+                                <span className="tracking-wide">🚗 打卡下班</span>
+                              </button>
+                            )}
+
+                            {/* OPTION B: Submit to capitalism (Tap to fund, lingers briefly on 10th tap before dismiss) */}
+                            <button
+                              type="button"
+                              disabled={isCompletingFund}
+                              onClick={() => {
+                                if (isCompletingFund) return;
+                                const nextClicks = woodenFishClicks + 1;
                                 
-                                // Reset upgrading flag after 2.2 seconds
-                                setTimeout(() => {
-                                  setIsUpgradingCar(false);
-                                }, 2200);
-                              } else {
-                                setSessionFundAdded(updatedSessionFundAdded);
-                              }
+                                // Variable funding percentage per click: between 1.5% and 3.5%
+                                const pct = 1.5 + Math.random() * 2.0;
+                                const deltaAmount = Math.max(100, Math.floor((pct / 100) * activeCar.price));
+                                const totalFund = currentCarFunded + sessionFundAdded + deltaAmount;
+                                
+                                let isUpgraded = false;
+                                let updatedSessionFundAdded = sessionFundAdded + deltaAmount;
 
-                              if (nextClicks >= 10) {
-                                if (!isUpgraded) {
-                                  const finalFund = currentCarFunded + updatedSessionFundAdded;
-                                  localStorage.setItem('ow_current_car_funded_v3', String(finalFund));
-                                  setCurrentCarFunded(finalFund);
-                                }
-                                setWoodenFishClicks(0);
-                                setSessionFundAdded(0);
+                                if (totalFund >= activeCar.price) {
+                                  // Instantly upgrade to next car!
+                                  isUpgraded = true;
+                                  const nextCarIdx = (currentCarIndex + 1) % CAR_LIST.length;
+                                  const overflow = totalFund - activeCar.price;
+                                  localStorage.setItem('ow_current_car_index_v3', String(nextCarIdx));
+                                  localStorage.setItem('ow_current_car_funded_v3', String(overflow));
+                                  setCurrentCarIndex(nextCarIdx);
+                                  setCurrentCarFunded(overflow);
+                                  setSessionFundAdded(0);
+                                  updatedSessionFundAdded = 0;
 
-                                try {
-                                  soundSynth.playWarningBuzz();
-                                } catch {}
-                                if (onEscapeOvertimeRef.current) {
-                                  onEscapeOvertimeRef.current(false); // ranAway = false (unpaid overtime continues)
+                                  // Trigger spectacular upgrade effects
+                                  setIsUpgradingCar(true);
+                                  setUpgradedCarName(CAR_LIST[nextCarIdx].name);
+                                  try {
+                                    soundSynth.playRewardJingle();
+                                    soundSynth.playOracleReveal();
+                                  } catch {}
+                                  
+                                  // Reset upgrading flag after 1.8 seconds
+                                  setTimeout(() => {
+                                    setIsUpgradingCar(false);
+                                  }, 1800);
+                                } else {
+                                  setSessionFundAdded(updatedSessionFundAdded);
                                 }
-                                onDismissRef.current();
-                              } else {
-                                setWoodenFishClicks(nextClicks);
-                                try {
-                                  soundSynth.playBlinkChime();
-                                } catch {}
 
                                 // Generate flying coins coordinates up to the car
                                 const distanceX = (Math.random() - 0.5) * 160;
                                 const distanceY = -90 - Math.random() * 50;
-                                const currencyEmojis = ['🪙', '💵', '💸', '🏎️', '🔥'];
+                                const currencyEmojis = ['🪙', '💵', '💸', '🏎️', '🔥', '✨'];
                                 const selectedEmoji = currencyEmojis[Math.floor(Math.random() * currencyEmojis.length)];
-                                
-                                // Show exact amount flying
                                 const text = `+$${deltaAmount.toLocaleString()} ${selectedEmoji}`;
                                 
                                 const newPart = {
@@ -2381,14 +2464,62 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                                   top: distanceY,
                                 };
                                 setFloatingTexts((prev) => [...prev, newPart]);
-                              }
-                            }}
-                            className="group relative px-4 py-2 sm:py-2.5 rounded-xl font-bold text-[11px] sm:text-xs transition flex items-center justify-center gap-1 select-none border border-red-500/40 bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white cursor-pointer hover:scale-105 active:scale-95 shadow-[0_0_12px_rgba(239,68,68,0.35)]"
-                          >
-                            <span>🙇‍♂️</span>
-                            <span>灌注跑車基金 ({woodenFishClicks}/10)</span>
-                          </button>
-                        </div>
+
+                                if (nextClicks >= 10) {
+                                  setWoodenFishClicks(10);
+                                  setIsCompletingFund(true);
+
+                                  try {
+                                    soundSynth.playRewardJingle();
+                                  } catch {}
+
+                                  // Spawn extra celebration bursts
+                                  setTimeout(() => {
+                                    setFloatingTexts((prev) => [
+                                      ...prev,
+                                      { id: Date.now() + 1, text: '🎉 感謝奉獻！', left: -40, top: -110 },
+                                      { id: Date.now() + 2, text: '🏎️ 圓夢基金 +1', left: 40, top: -120 },
+                                    ]);
+                                  }, 300);
+
+                                  // Linger for 5.0 seconds if upgraded (so user sees gold card), or 1.8 seconds normally
+                                  setTimeout(() => {
+                                    if (!isUpgraded) {
+                                      const finalFund = currentCarFunded + updatedSessionFundAdded;
+                                      localStorage.setItem('ow_current_car_funded_v3', String(finalFund));
+                                      setCurrentCarFunded(finalFund);
+                                    }
+                                    setWoodenFishClicks(0);
+                                    setSessionFundAdded(0);
+                                    setIsCompletingFund(false);
+
+                                    if (onEscapeOvertimeRef.current) {
+                                      onEscapeOvertimeRef.current(false); // ranAway = false (unpaid overtime continues)
+                                    }
+                                    onDismissRef.current();
+                                  }, 1800);
+                                } else {
+                                  setWoodenFishClicks(nextClicks);
+                                  try {
+                                    soundSynth.playBlinkChime();
+                                  } catch {}
+                                }
+                              }}
+                              className={`group relative w-full px-4 py-2 sm:py-2.5 rounded-xl font-bold text-[11px] sm:text-xs transition flex items-center justify-center gap-1 select-none border border-red-500/40 ${
+                                isCompletingFund
+                                  ? 'bg-gradient-to-r from-amber-600 via-yellow-500 to-emerald-600 text-white shadow-[0_0_20px_rgba(234,179,8,0.7)] animate-pulse'
+                                  : 'bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white cursor-pointer hover:scale-105 active:scale-95 shadow-[0_0_12px_rgba(239,68,68,0.35)]'
+                              }`}
+                            >
+                              <span>{isCompletingFund ? '🏎️' : '🙇‍♂️'}</span>
+                              <span>
+                                {isCompletingFund
+                                  ? '老闆感謝你的肝！🎉'
+                                  : `灌注跑車基金 (${woodenFishClicks}/10)`}
+                              </span>
+                            </button>
+                          </div>
+                        )}
                       </>
                     );
                   })()}
@@ -2432,7 +2563,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                   </span>
                 </div>
 
-                {/* Progress Bar Strip: Unified 10 seconds, single row with seconds on the right */}
+                {/* Progress Bar Strip: Unified 7 seconds, single row with seconds on the right */}
                 <div className="absolute bottom-0 inset-x-0 bg-[#0a0c10]/90 backdrop-blur-md px-3.5 py-2 border-t border-white/10 z-10">
                   <div className="flex items-center gap-3 w-full">
                     {/* Visual Progress Bar Track */}
@@ -2440,7 +2571,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-pink-500 via-rose-400 to-amber-300 shadow-[0_0_10px_rgba(244,114,182,0.4)] transition-all duration-75 ease-linear"
                         style={{
-                          width: `${Math.min(100, Math.max(0, (yawnElapsedSeconds / 10) * 100))}%`,
+                          width: `${Math.min(100, Math.max(0, (yawnElapsedSeconds / 7) * 100))}%`,
                         }}
                       />
                     </div>
@@ -2461,7 +2592,6 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
       <footer className="relative z-10 w-full pt-1.5 border-t border-white/10 flex items-center justify-between text-[9px] sm:text-[10px] text-slate-500 shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-[#00d8ff] font-bold">[OVERWATCH // BIOSURVEILLANCE]</span>
-          <span className="hidden md:inline">生理遙測常駐監測中</span>
         </div>
 
         <div className="flex items-center gap-2 font-mono">

@@ -334,6 +334,11 @@ Respond ONLY in valid JSON.`;
     }
   });
 
+  // Explicit favicon route ensuring both /favicon.ico and /favicon.svg serve public/favicon.svg
+  app.get(['/favicon.ico', '/favicon.svg'], (_req, res) => {
+    res.type('image/svg+xml').sendFile(path.join(process.cwd(), 'public', 'favicon.svg'));
+  });
+
   // Serve public static assets (including /memes/*)
   app.use(express.static(path.join(process.cwd(), 'public')));
 

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, Eye, VideoOff, Activity, ShieldAlert, Sparkles, UserCheck, UserX, Sliders, Zap, Smile } from 'lucide-react';
+import { Camera, Eye, VideoOff, Activity, ShieldAlert, Sparkles, UserCheck, UserX, Sliders, Zap, Smile, Coffee, Navigation, Clock } from 'lucide-react';
 import { TelemetryData, FaceCharismaScore } from '../types';
 
 interface CameraFeedProps {
@@ -20,6 +20,7 @@ interface CameraFeedProps {
   onTriggerFaceScan?: () => void;
   onOpenCandidGallery?: () => void;
   candidCount?: number;
+  isShutterFlashing?: boolean;
 }
 
 export const CameraFeed: React.FC<CameraFeedProps> = ({
@@ -40,6 +41,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
   onTriggerFaceScan,
   onOpenCandidGallery,
   candidCount = 0,
+  isShutterFlashing = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [filterMode, setFilterMode] = useState<'normal' | 'nightvision' | 'mono'>('normal');
@@ -66,7 +68,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
 
   const deskProgressPct = Math.min(
     100,
-    (telemetry.consecutiveDeskSeconds / (sedentaryLimitMinutes * 60)) * 100
+    (telemetry.consecutiveDeskSeconds / (Math.max(1, sedentaryLimitMinutes) * 60)) * 100
   );
 
   // Video filter style class
@@ -78,11 +80,11 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
       : '';
 
   return (
-    <div className="flex flex-col gap-2.5 h-full justify-between">
-      {/* CCTV Viewport Container */}
+    <div className="flex flex-col gap-2.5 w-full h-full min-h-0 justify-between">
+      {/* CCTV Viewport Container - Flex-1 dynamically adapts height to match right block */}
       <div
         ref={containerRef}
-        className="relative w-full flex-1 min-h-[280px] sm:min-h-[320px] bg-[#04060a] rounded-md overflow-hidden border border-slate-800 shadow-2xl group flex items-center justify-center cctv-brackets"
+        className="relative w-full flex-1 min-h-0 bg-[#04060a] rounded-md overflow-hidden border border-slate-800 shadow-2xl group flex items-center justify-center cctv-brackets"
       >
         {/* Real Video Element */}
         <video
@@ -100,6 +102,11 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
           ref={canvasRef}
           className="absolute inset-0 w-full h-full pointer-events-none transform -scale-x-100 z-10"
         />
+
+        {/* Shutter Flash Animation for Candid Snapshot / Peace Sign Easter Egg */}
+        {isShutterFlashing && (
+          <div className="absolute inset-0 bg-white/70 pointer-events-none z-30 animate-pulse transition-opacity duration-150" />
+        )}
 
         {/* Authentic CCTV Scanline & Vignette Overlay */}
         <div className="absolute inset-0 scanline-overlay pointer-events-none z-10 opacity-40" />
@@ -224,60 +231,35 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
           </div>
         )}
 
-        {/* Camera Permission or Init Error Fallback -> Tactical Sentry Cat Standby */}
+        {/* Camera Permission or Init Error Fallback -> Overwatch Tactical Standby */}
         {(!isCameraActive || cameraError || modelLoadError) && isModelLoaded && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#06080e]/95 backdrop-blur-md z-30 p-3 sm:p-5 text-center">
-            {/* Tactical Cat Monitor Panel */}
-            <div className="flex flex-col sm:flex-row items-center gap-3.5 max-w-lg w-full bg-[#030508]/90 border border-slate-700/80 rounded-lg p-3 sm:p-4 shadow-2xl relative overflow-hidden">
-              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-md overflow-hidden border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.25)] shrink-0 group">
-                <img
-                  src="/memes/cat-curious.jpg"
-                  alt="戰術督導小貓"
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute top-1 left-1 px-1 py-0.5 rounded bg-black/80 text-[8px] font-mono font-bold text-cyan-300 flex items-center gap-1 border border-cyan-500/40">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>SENTRY_CAT</span>
-                </div>
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 to-transparent py-0.5 text-[8px] font-mono text-slate-300 text-center">
-                  CAM-02 // 督導小貓
-                </div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#06080e]/95 backdrop-blur-md z-30 p-4 text-center font-mono">
+            <div className="max-w-md w-full bg-[#030508]/90 border border-slate-700/80 rounded-lg p-5 shadow-2xl relative overflow-hidden cctv-brackets flex flex-col items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-cyan-950/80 border border-cyan-500/50 flex items-center justify-center text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+                <Camera className="w-5 h-5 animate-pulse" />
               </div>
 
-              <div className="flex-1 text-center sm:text-left min-w-0">
-                <div className="flex items-center justify-center sm:justify-start gap-1.5 text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                  <span>[SENTRY_CAT // 戰術小貓已就位]</span>
-                </div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-100 mb-1 font-mono">
-                  「本喵正在盯著你的脊椎與坐姿！」
-                </h3>
-                <p className="text-[10px] sm:text-[11px] text-slate-400 mb-2.5 leading-relaxed font-mono">
-                  {cameraError || modelLoadError || '鏡頭待命中。點擊下方啟動即時視訊監控，或點擊迷因測試按鈕立即預覽哈欠抓包！'}
-                </p>
-
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <button
-                    onClick={onRetryCamera}
-                    className="px-3 py-1.5 rounded bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-[11px] font-mono shadow-[0_0_12px_rgba(6,182,212,0.3)] transition-all flex items-center gap-1.5 active:scale-95"
-                  >
-                    <Camera className="w-3.5 h-3.5" />
-                    <span>啟動攝影機</span>
-                  </button>
-
-                  {onTriggerYawn && (
-                    <button
-                      onClick={onTriggerYawn}
-                      className="px-3 py-1.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 hover:border-amber-400 font-bold text-[11px] font-mono transition-all flex items-center gap-1.5 active:scale-95"
-                      title="觸發大哈欠抓包全螢幕迷因"
-                    >
-                      <span>🐱</span>
-                      <span>測試打哈欠迷因</span>
-                    </button>
-                  )}
-                </div>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-cyan-400 uppercase tracking-widest">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                <span>[OPTICAL_FEED_STANDBY]</span>
               </div>
+
+              <h3 className="text-xs sm:text-sm font-bold text-slate-100">
+                CCTV 智慧身心健視器待命中
+              </h3>
+
+              <p className="text-[10px] sm:text-[11px] text-slate-400 max-w-sm leading-relaxed">
+                {cameraError || modelLoadError || '正在連線鏡頭。請點擊下方按鈕允許授權開啟鏡頭。'}
+              </p>
+
+              <button
+                type="button"
+                onClick={onRetryCamera}
+                className="mt-1 px-4 py-2 rounded bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all flex items-center gap-2 active:scale-95 cursor-pointer"
+              >
+                <Camera className="w-4 h-4" />
+                <span>允許授權開啟鏡頭</span>
+              </button>
             </div>
           </div>
         )}
@@ -293,12 +275,12 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
 
       {/* Streamlined Surveillance Telemetry Rack (Clean 3x2 Grid - Health & Fatigue Detection Metrics) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-2 text-xs font-mono shrink-0">
-        {/* 1. Hypoxia & Yawn Fatigue Indicator */}
-        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【大腦缺氧哈欠監測】嘴部持續張幅超過 0.48 達 1.5 秒將判定為大腦缺氧打哈欠並觸發醒腦提醒">
+        {/* 1. Drowsiness / Yawn Check */}
+        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【大腦缺氧哈欠監測】嘴部持續張幅超過 0.48 達 1.0 秒將判定為大腦缺氧打哈欠並觸發醒腦提醒">
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-            <span className="flex items-center gap-1 text-slate-300 font-bold truncate">
-              <Activity className="w-3 h-3 text-cyan-400 shrink-0" />
-              HYPOXIA (缺氧哈欠指數)
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
+              <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">bedtime</span>
+              <span>DROWSINESS ALERT</span>
             </span>
             <span className="font-bold text-cyan-400 shrink-0">{telemetry.mar.toFixed(2)}</span>
           </div>
@@ -310,56 +292,59 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
               style={{ width: `${Math.min(100, telemetry.mar * 180)}%` }}
             />
           </div>
-          <div className="text-[9px] text-slate-500 mt-1 flex justify-between items-center">
-            <span className="text-[8px] px-1 py-0.2 rounded bg-cyan-950/60 border border-cyan-500/30 text-cyan-300">缺氧監測</span>
+          <div className="text-[9px] text-slate-400 mt-1 flex justify-end items-center">
             <span className={telemetry.mar > 0.48 ? 'text-rose-400 font-bold' : 'text-slate-400'}>
               {telemetry.mar > 0.48 ? '缺氧超標' : '警戒線:0.48'}
             </span>
           </div>
         </div>
 
-        {/* 2. Stress & Tension Indicator */}
-        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【精神緊繃壓力監測】眉心張力超過 0.75 且持續 1.0 秒將判定為壓力緊繃並觸發心靈排解提醒">
+        {/* 2. Stress Level */}
+        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【精神緊繃壓力監測】眉心張力大於 0.07 且持續 5.0 秒將判定為壓力緊繃並觸發心靈排解提醒">
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-            <span className="flex items-center gap-1 text-slate-300 font-bold truncate">
-              <ShieldAlert className="w-3 h-3 text-cyan-400 shrink-0" />
-              STRESS (精神壓力指數)
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
+              <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">psychology</span>
+              <span>STRESS LEVEL</span>
             </span>
-            <span className={`font-bold shrink-0 ${telemetry.frown >= 0.75 ? 'text-amber-400' : 'text-cyan-400'}`}>
+            <span className={`font-bold shrink-0 tabular-nums ${telemetry.frown > 0.07 ? 'text-amber-400' : 'text-cyan-400'}`}>
               {telemetry.frown.toFixed(2)}
             </span>
           </div>
           <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
             <div
               className={`h-full transition-all duration-75 ${
-                telemetry.frown >= 0.75 ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]' : 'bg-cyan-400'
+                telemetry.frown > 0.07 ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]' : 'bg-cyan-400'
               }`}
-              style={{ width: `${Math.min(100, (telemetry.frown / 1.0) * 100)}%` }}
+              style={{ width: `${Math.min(100, (telemetry.frown / 0.12) * 100)}%` }}
             />
           </div>
-          <div className="text-[9px] text-slate-500 mt-1 flex justify-between items-center">
-            <span className="text-[8px] px-1 py-0.2 rounded bg-cyan-950/60 border border-cyan-500/30 text-cyan-300">張力整合</span>
-            <span className={telemetry.frown >= 0.75 ? 'text-amber-400 font-bold' : 'text-slate-400'}>
-              {telemetry.frown >= 0.75 ? '壓力超標 (>0.75)' : '正常區間:0.75'}
+          <div className="text-[9px] text-slate-400 mt-1 flex justify-between items-center">
+            <span className="text-slate-500">門檻 &gt; 0.07</span>
+            <span className={telemetry.frown > 0.07 ? 'text-amber-400 font-bold' : 'text-slate-400'}>
+              {telemetry.frown > 0.07
+                ? (telemetry.frownDurationSeconds && telemetry.frownDurationSeconds > 0.2
+                    ? `緊繃蓄力 ${telemetry.frownDurationSeconds.toFixed(1)}s / 5.0s`
+                    : '緊繃蓄力中 (>0.07)')
+                : '放鬆舒適'}
             </span>
           </div>
         </div>
 
-        {/* 3. Dry Eye & Blink Fatigue Ratio */}
-        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【乾眼疲勞監測】近 5 秒內頻繁眨眼達 3 次或沉重閉眼達 2.2 秒，判定乾眼過勞並啟動洗眼護眼提醒">
+        {/* 3. Eye Strain / Blink Rate (Dry Eye Index) */}
+        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【乾眼頻繁眨眼監測】4 秒內連續急促眨眼達 5 次或沉重閉眼達 3.0 秒，判定乾眼過勞並啟動護眼提醒">
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-            <span className="flex items-center gap-1 text-slate-300 font-bold truncate">
-              <Eye className="w-3 h-3 text-cyan-400 shrink-0" />
-              DRY_EYE (乾眼疲勞指數)
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
+              <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">visibility</span>
+              <span>DRY EYE INDEX</span>
             </span>
-            <span className="font-bold text-cyan-400 shrink-0">
-              {telemetry.isEyesClosed
-                ? (telemetry.prolongedCloseSeconds && telemetry.prolongedCloseSeconds > 0.3
-                    ? `閉眼 ${telemetry.prolongedCloseSeconds}s`
-                    : '閉眼中')
-                : (telemetry.blinkCountWindow && telemetry.blinkCountWindow > 0
-                    ? `眨眼 ${telemetry.blinkCountWindow}/3 次`
-                    : '正常開眼')}
+            <span className={`font-bold shrink-0 ${telemetry.isFrequentBlinking ? 'text-rose-400' : 'text-cyan-400'}`}>
+              {telemetry.isFrequentBlinking
+                ? '乾眼過勞'
+                : telemetry.isEyesClosed && telemetry.prolongedCloseSeconds && telemetry.prolongedCloseSeconds > 0.5
+                ? `閉眼 ${telemetry.prolongedCloseSeconds}s`
+                : (telemetry.blinkCountWindow || 0) >= 3
+                ? `頻繁眨眼 ${telemetry.blinkCountWindow}/5`
+                : '雙眼放鬆'}
             </span>
           </div>
           <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
@@ -371,28 +356,26 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
                 width: `${Math.min(
                   100,
                   Math.max(
-                    ((telemetry.blinkCountWindow || 0) / 3) * 100,
-                    ((telemetry.prolongedCloseSeconds || 0) / 2.2) * 100,
-                    telemetry.blinkScore * 100
+                    ((telemetry.blinkCountWindow || 0) / 5) * 100,
+                    ((telemetry.prolongedCloseSeconds || 0) / 3.0) * 100
                   )
                 )}%`,
               }}
             />
           </div>
-          <div className="text-[9px] text-slate-500 mt-1 flex justify-between items-center">
-            <span className="text-[8px] px-1 py-0.2 rounded bg-cyan-950/60 border border-cyan-500/30 text-cyan-300">5s乾眼窗口</span>
+          <div className="text-[9px] text-slate-400 mt-1 flex justify-end items-center">
             <span className={telemetry.isFrequentBlinking ? 'text-rose-400 font-bold' : 'text-slate-400'}>
-              {telemetry.isFrequentBlinking ? '[乾眼過勞!]' : `${telemetry.blinkCountWindow || 0}/3 次 (閥值:3)`}
+              {telemetry.isFrequentBlinking ? '乾眼過勞 (≥5次)' : `${telemetry.blinkCountWindow || 0} / 5 次`}
             </span>
           </div>
         </div>
 
-        {/* 4. Posture & Screen Distance */}
+        {/* 4. Screen Distance / Posture */}
         <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【近距駝背風險】≥35cm 為最佳姿勢視距，30-35cm 為過渡區，<30cm 判定為近距駝背風險">
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-            <span className="flex items-center gap-1 text-slate-300 font-bold truncate">
-              <Eye className="w-3 h-3 text-cyan-400 shrink-0" />
-              POSTURE (近距駝背風險)
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
+              <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">straighten</span>
+              <span>SCREEN DISTANCE</span>
             </span>
             <span className="font-bold text-cyan-400 shrink-0">{telemetry.proximity}%</span>
           </div>
@@ -408,8 +391,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
               style={{ width: `${Math.min(100, telemetry.proximity)}%` }}
             />
           </div>
-          <div className="text-[9px] text-slate-500 mt-1 flex justify-between items-center">
-            <span className="text-[8px] px-1 py-0.2 rounded bg-cyan-950/60 border border-cyan-500/30 text-cyan-300">視距姿態</span>
+          <div className="text-[9px] text-slate-400 mt-1 flex justify-end items-center">
             <span className={
               telemetry.proximity > 64
                 ? 'text-rose-400 font-bold'
@@ -422,37 +404,49 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
           </div>
         </div>
 
-        {/* 5. Sedentary & Spinal Load */}
-        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【久坐脊椎負擔】本輪伏案累積時長。連續久坐達時限（45~60分鐘）將強制鎖定並啟動站立體操">
+        {/* 5. Desk Time */}
+        <div
+          className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between"
+          title={`【久坐脊椎負擔】本輪伏案累積時長。連續久坐達設定上限（${sedentaryLimitMinutes}分鐘）將準時啟動 30 秒站立伸展體操！`}
+        >
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-            <span className="flex items-center gap-1 text-slate-300 font-bold truncate">
-              <span className="text-xs">⏱️</span>
-              SEDENTARY (久坐脊椎負擔)
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
+              <span className={`material-symbols-outlined text-[15px] shrink-0 ${telemetry.isFacePresent ? 'text-cyan-400' : 'text-amber-400'}`}>
+                {telemetry.isFacePresent ? 'timer' : 'pause_circle'}
+              </span>
+              <span>{telemetry.isFacePresent ? 'DESK TIME' : 'DESK PAUSED'}</span>
             </span>
-            <span className="font-bold text-cyan-400 shrink-0">{deskTimeStr}</span>
+            <span className={`font-bold shrink-0 ${telemetry.isFacePresent ? (deskProgressPct > 85 ? 'text-rose-400' : 'text-cyan-400') : 'text-amber-400'}`}>
+              {deskTimeStr}
+            </span>
           </div>
           <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
             <div
               className={`h-full transition-all duration-300 ${
-                deskProgressPct > 85 ? 'bg-rose-500 shadow-[0_0_6px_#f43f5e]' : 'bg-cyan-400'
+                deskProgressPct > 85
+                  ? 'bg-rose-500 shadow-[0_0_6px_#f43f5e]'
+                  : telemetry.isFacePresent
+                  ? 'bg-cyan-400'
+                  : 'bg-amber-400'
               }`}
               style={{ width: `${deskProgressPct}%` }}
             />
           </div>
-          <div className="text-[9px] text-slate-500 mt-1 flex justify-between items-center">
-            <span className="text-[8px] px-1 py-0.2 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-300">連續伏案進度</span>
-            <span className={deskProgressPct > 85 ? 'text-rose-400 font-bold' : 'text-slate-400'}>
-              {Math.round(deskProgressPct)}% / {sedentaryLimitMinutes}m
+          <div className="text-[9px] text-slate-400 mt-1 flex justify-end items-center">
+            <span className={deskProgressPct > 85 ? 'text-rose-400 font-bold' : telemetry.isFacePresent ? 'text-slate-400' : 'text-amber-400'}>
+              {telemetry.isFacePresent
+                ? `${Math.round(deskProgressPct)}% / ${sedentaryLimitMinutes}m`
+                : `離座暫停中 (${Math.round(deskProgressPct)}% / ${sedentaryLimitMinutes}m)`}
             </span>
           </div>
         </div>
 
-        {/* 6. Mental Vitality & Psychological Health */}
+        {/* 6. Mood & Vitality */}
         <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【職場心理活力】依 468 點面部微表情、嘴角上揚與眼神光彩即時評估精神活力">
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-            <span className="flex items-center gap-1 text-slate-300 font-bold truncate">
-              <Smile className="w-3 h-3 text-cyan-400 shrink-0" />
-              VITALITY (職場心理活力)
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
+              <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">sentiment_satisfied</span>
+              <span>MOOD & VITALITY</span>
             </span>
             <span className="font-bold text-cyan-400 truncate max-w-[85px] text-right shrink-0">
               {telemetry.isFacePresent && telemetry.emotion
@@ -480,8 +474,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
               }}
             />
           </div>
-          <div className="text-[9px] text-slate-500 mt-1 flex justify-between items-center">
-            <span className="text-[8px] px-1 py-0.2 rounded bg-cyan-950/60 border border-cyan-500/30 text-cyan-300">心靈能量</span>
+          <div className="text-[9px] text-slate-400 mt-1 flex justify-end items-center">
             <span className="text-cyan-400 font-bold">
               {telemetry.isFacePresent && telemetry.emotion
                 ? `${telemetry.emotion.score}%`

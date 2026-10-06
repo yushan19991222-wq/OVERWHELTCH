@@ -15,6 +15,7 @@ interface TacticalMemeImageProps {
     rotationDeg?: number;
   };
   showAnimeEyes?: boolean;
+  eyeFilterMode?: 'anime' | 'sunglasses' | 'alternate' | 'auto';
   style?: React.CSSProperties;
   onImageReady?: () => void;
 }
@@ -179,8 +180,142 @@ export const AnimeCartoonEye: React.FC<{
   );
 };
 
+/* 🕶️ Curved Cyberpunk Triangular Sunglasses Vector Component (圓弧底角潮酷極黑墨鏡) */
+export const CoolSunglasses: React.FC<{
+  className?: string;
+  style?: React.CSSProperties;
+}> = ({ className = '', style }) => {
+  return (
+    <div
+      className={`relative select-none pointer-events-none drop-shadow-[0_4px_20px_rgba(0,0,0,0.95)] ${className}`}
+      style={style}
+    >
+      <svg
+        viewBox="0 0 200 80"
+        className="w-full h-full overflow-visible"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <linearGradient id="triLensGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#27272a" />
+            <stop offset="35%" stopColor="#09090b" />
+            <stop offset="100%" stopColor="#000000" />
+          </linearGradient>
+
+          <linearGradient id="triGlare" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+            <stop offset="25%" stopColor="#ffffff" stopOpacity="0.4" />
+            <stop offset="55%" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+
+          <linearGradient id="triFrameGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#00d8ff" />
+            <stop offset="30%" stopColor="#ffffff" />
+            <stop offset="70%" stopColor="#ffffff" />
+            <stop offset="100%" stopColor="#00d8ff" />
+          </linearGradient>
+        </defs>
+
+        {/* Outer Frame - Left Lens (Wider Bridge & Soft Smooth Curved Bottom Apex) */}
+        <path
+          d="M 6 14 L 82 25 L 50 63 Q 43 74 36 63 Z"
+          fill="#000000"
+          stroke="url(#triFrameGrad)"
+          strokeWidth="3.2"
+          strokeLinejoin="round"
+        />
+
+        {/* Outer Frame - Right Lens (Wider Bridge & Soft Smooth Curved Bottom Apex) */}
+        <path
+          d="M 118 25 L 194 14 L 164 63 Q 157 74 150 63 Z"
+          fill="#000000"
+          stroke="url(#triFrameGrad)"
+          strokeWidth="3.2"
+          strokeLinejoin="round"
+        />
+
+        {/* Dark Inner Lens - Left */}
+        <path
+          d="M 11 18 L 77 25 L 48 60 Q 43 69 38 60 Z"
+          fill="url(#triLensGrad)"
+        />
+
+        {/* Dark Inner Lens - Right */}
+        <path
+          d="M 123 25 L 189 18 L 162 60 Q 157 69 152 60 Z"
+          fill="url(#triLensGrad)"
+        />
+
+        {/* Wider Nose Bridge Connection */}
+        <path
+          d="M 82 25 Q 100 19 118 25 L 114 30 Q 100 25 86 30 Z"
+          fill="#18181b"
+          stroke="#3f3f46"
+          strokeWidth="1.2"
+        />
+
+        {/* Mirror Glare Reflection - Left Lens */}
+        <path d="M 20 18 L 44 21 L 34 68 L 22 50 Z" fill="url(#triGlare)" opacity="0.75" />
+        <path d="M 50 22 L 62 23 L 48 68 L 40 68 Z" fill="url(#triGlare)" opacity="0.45" />
+
+        {/* Mirror Glare Reflection - Right Lens */}
+        <path d="M 124 24 L 148 22 L 136 68 L 124 68 Z" fill="url(#triGlare)" opacity="0.75" />
+        <path d="M 154 21 L 166 20 L 150 68 L 142 50 Z" fill="url(#triGlare)" opacity="0.45" />
+
+        {/* Cyber Glint Accents at outer wingtips */}
+        <circle cx="6" cy="14" r="2" fill="#ffffff" />
+        <circle cx="194" cy="14" r="2" fill="#ffffff" />
+      </svg>
+    </div>
+  );
+};
+
 // Global in-memory cache tracker for preloaded images
-const preloadedImageCache = new Set<string>();
+export const preloadedImageCache = new Set<string>();
+
+export const preloadImage = (url: string): Promise<void> => {
+  if (typeof window === 'undefined' || !url) return Promise.resolve();
+  if (preloadedImageCache.has(url)) return Promise.resolve();
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.referrerPolicy = 'no-referrer';
+    img.onload = () => {
+      preloadedImageCache.add(url);
+      resolve();
+    };
+    img.onerror = () => resolve();
+    img.src = url;
+
+    if (typeof img.decode === 'function') {
+      img
+        .decode()
+        .then(() => {
+          preloadedImageCache.add(url);
+          resolve();
+        })
+        .catch(() => {});
+    }
+  });
+};
+
+export const preloadImages = (urls: string[]): Promise<void[]> => {
+  return Promise.all(urls.map(preloadImage));
+};
+
+// Fair 50:50 randomized distribution queue
+let globalFilterQueue: Array<'anime' | 'sunglasses'> = [];
+
+const getNextRandom5050Filter = (): 'anime' | 'sunglasses' => {
+  if (globalFilterQueue.length === 0) {
+    const pair: Array<'anime' | 'sunglasses'> = ['anime', 'sunglasses'];
+    if (Math.random() < 0.5) {
+      pair.reverse();
+    }
+    globalFilterQueue = pair;
+  }
+  return globalFilterQueue.pop() || (Math.random() < 0.5 ? 'anime' : 'sunglasses');
+};
 
 export const TacticalMemeImage: React.FC<TacticalMemeImageProps> = ({
   src,
@@ -191,9 +326,26 @@ export const TacticalMemeImage: React.FC<TacticalMemeImageProps> = ({
   faceCenter,
   eyePositions,
   showAnimeEyes = false,
+  eyeFilterMode = 'auto',
   style = {},
   onImageReady,
 }) => {
+  const [activeStyle, setActiveStyle] = useState<'anime' | 'sunglasses'>(() => {
+    if (eyeFilterMode === 'anime') return 'anime';
+    if (eyeFilterMode === 'sunglasses') return 'sunglasses';
+    return getNextRandom5050Filter();
+  });
+
+  useEffect(() => {
+    if (eyeFilterMode === 'anime') {
+      setActiveStyle('anime');
+    } else if (eyeFilterMode === 'sunglasses') {
+      setActiveStyle('sunglasses');
+    } else {
+      // 50:50 fair randomized assignment whenever src or trigger changes
+      setActiveStyle(getNextRandom5050Filter());
+    }
+  }, [src, eyeFilterMode]);
   const [currentSrcIndex, setCurrentSrcIndex] = useState<number>(0);
   const [hasError, setHasError] = useState<boolean>(false);
   
@@ -204,9 +356,13 @@ export const TacticalMemeImage: React.FC<TacticalMemeImageProps> = ({
   }, [src, fallbackUrls]);
 
   const currentUrl = allUrls[currentSrcIndex] || src;
+  const isInstantUrl =
+    currentUrl.startsWith('/memes/') ||
+    currentUrl.startsWith('data:') ||
+    preloadedImageCache.has(currentUrl);
 
-  // If already in browser memory/cache, avoid loading spinner
-  const [isLoading, setIsLoading] = useState<boolean>(() => !preloadedImageCache.has(currentUrl));
+  // If already in browser memory/cache or local asset, avoid loading spinner
+  const [isLoading, setIsLoading] = useState<boolean>(() => !isInstantUrl);
   const [detectedFace, setDetectedFace] = useState<{ x: number; y: number }>(
     faceCenter || { x: 50, y: 26 }
   );
@@ -250,7 +406,13 @@ export const TacticalMemeImage: React.FC<TacticalMemeImageProps> = ({
   // Check cache and image completion when URL changes
   useEffect(() => {
     setHasError(false);
-    if (preloadedImageCache.has(currentUrl)) {
+    const isInstant =
+      currentUrl.startsWith('/memes/') ||
+      currentUrl.startsWith('data:') ||
+      preloadedImageCache.has(currentUrl);
+
+    if (isInstant) {
+      preloadedImageCache.add(currentUrl);
       setIsLoading(false);
       onImageReady?.();
     } else if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
@@ -624,8 +786,8 @@ export const TacticalMemeImage: React.FC<TacticalMemeImageProps> = ({
       ref={containerRef}
       className="relative w-full h-full overflow-hidden flex items-center justify-center bg-black/95"
     >
-      {/* Loading Skeleton */}
-      {isLoading && (
+      {/* Loading Skeleton - only for slow external network images */}
+      {isLoading && !isInstantUrl && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0a0c10] text-[#00d8ff] p-4">
           <RefreshCw className="w-5 h-5 sm:w-6 sm:h-6 animate-spin mb-1.5 text-[#00d8ff]" />
           <span className="text-[10px] sm:text-xs font-mono text-slate-400 tracking-wider">
@@ -634,17 +796,17 @@ export const TacticalMemeImage: React.FC<TacticalMemeImageProps> = ({
         </div>
       )}
 
-      {/* Real Image with No-Referrer and Error handling */}
+      {/* Real Image with No-Referrer, Sync decoding and High Priority for instant rendering */}
       <img
         ref={imgRef}
         src={currentUrl}
         alt={alt}
         loading="eager"
-        decoding="async"
+        decoding={isInstantUrl ? 'sync' : 'async'}
         referrerPolicy="no-referrer"
         onLoad={handleImageLoad}
         onError={handleImageError}
-        className={`${className} transition-opacity duration-150 ${isLoading ? 'opacity-30' : 'opacity-100'}`}
+        className={`${className} ${isLoading && !isInstantUrl ? 'opacity-30' : 'opacity-100'}`}
         style={{
           objectPosition: 'center center',
           maxHeight: '100%',
@@ -653,36 +815,55 @@ export const TacticalMemeImage: React.FC<TacticalMemeImageProps> = ({
         }}
       />
 
-      {/* Dynamic Anime Cartoon Eyes Filter Overlay */}
+      {/* Dynamic Anime Cartoon Eyes / Cool Sunglasses Filter Overlay */}
       {showAnimeEyes && !isLoading && (
         <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
-          {/* Left Eye */}
-          <div
-            className="absolute transition-all duration-150 pointer-events-none"
-            style={{
-              left: `${eyeRenderState.leftPos.x}%`,
-              top: `${eyeRenderState.leftPos.y}%`,
-              width: `${eyeRenderState.eyeW}px`,
-              height: `${eyeRenderState.eyeH}px`,
-              transform: `translate(-50%, -52.17%) rotate(${eyeRenderState.rotation}deg)`,
-            }}
-          >
-            <AnimeCartoonEye side="left" />
-          </div>
+          {activeStyle === 'sunglasses' ? (
+            /* Cool Sunglasses Overlay */
+            <div
+              className="absolute transition-all duration-150 pointer-events-none"
+              style={{
+                left: `${(eyeRenderState.leftPos.x + eyeRenderState.rightPos.x) / 2}%`,
+                top: `${(eyeRenderState.leftPos.y + eyeRenderState.rightPos.y) / 2}%`,
+                width: `${Math.max(64, eyeRenderState.eyeW * 2.85)}px`,
+                height: `${Math.max(28, eyeRenderState.eyeW * 2.85 * 0.45)}px`,
+                transform: `translate(-50%, -46%) rotate(${eyeRenderState.rotation}deg)`,
+              }}
+            >
+              <CoolSunglasses />
+            </div>
+          ) : (
+            /* Anime Cartoon Eyes Overlay */
+            <>
+              {/* Left Eye */}
+              <div
+                className="absolute transition-all duration-150 pointer-events-none"
+                style={{
+                  left: `${eyeRenderState.leftPos.x}%`,
+                  top: `${eyeRenderState.leftPos.y}%`,
+                  width: `${eyeRenderState.eyeW}px`,
+                  height: `${eyeRenderState.eyeH}px`,
+                  transform: `translate(-50%, -52.17%) rotate(${eyeRenderState.rotation}deg)`,
+                }}
+              >
+                <AnimeCartoonEye side="left" />
+              </div>
 
-          {/* Right Eye */}
-          <div
-            className="absolute transition-all duration-150 pointer-events-none"
-            style={{
-              left: `${eyeRenderState.rightPos.x}%`,
-              top: `${eyeRenderState.rightPos.y}%`,
-              width: `${eyeRenderState.eyeW}px`,
-              height: `${eyeRenderState.eyeH}px`,
-              transform: `translate(-50%, -52.17%) rotate(${eyeRenderState.rotation}deg)`,
-            }}
-          >
-            <AnimeCartoonEye side="right" />
-          </div>
+              {/* Right Eye */}
+              <div
+                className="absolute transition-all duration-150 pointer-events-none"
+                style={{
+                  left: `${eyeRenderState.rightPos.x}%`,
+                  top: `${eyeRenderState.rightPos.y}%`,
+                  width: `${eyeRenderState.eyeW}px`,
+                  height: `${eyeRenderState.eyeH}px`,
+                  transform: `translate(-50%, -52.17%) rotate(${eyeRenderState.rotation}deg)`,
+                }}
+              >
+                <AnimeCartoonEye side="right" />
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

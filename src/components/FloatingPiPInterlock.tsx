@@ -187,7 +187,7 @@ export const FloatingPiPInterlock: React.FC<FloatingPiPInterlockProps> = ({
               onClick={onDismissHazard}
               className="px-3 py-1 rounded bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 text-[10px] transition"
             >
-              [確認收到 // DISMISS]
+              [DISMISS]
             </button>
           )}
         </div>

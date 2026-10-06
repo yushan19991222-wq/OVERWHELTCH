@@ -19,7 +19,7 @@ const TITLES_AND_COMMENTS = [
     minScore: 92,
     rank: 'SSS' as const,
     title: 'K-POP 滿血社畜神顏 🌸',
-    tag: 'MAX_DOPAMINE_CENTER',
+    tag: '滿血氣色',
     comments: [
       '嘴角弧度完美上揚、雙眼晶亮透澈！零班味且能量滿載，如同韓團 C 位！',
       '無懈可擊的元氣光彩！眉頭舒展且神采飛揚，整個辦公室都因你而放晴！',
@@ -30,7 +30,7 @@ const TITLES_AND_COMMENTS = [
     minScore: 84,
     rank: 'SS' as const,
     title: '高智感元氣職場高光 ✨',
-    tag: 'METAVERSE_MODEL',
+    tag: '高光氣色',
     comments: [
       '嘴型帶有些許微笑弧度，雙眼炯炯有神！沉穩自信中帶有強烈感染力！',
       '專注度與神采完美平衡，眼神電力足夠，散發幹練菁英氣場！',
@@ -41,7 +41,7 @@ const TITLES_AND_COMMENTS = [
     minScore: 75,
     rank: 'S' as const,
     title: '頂級專注職場菁英態 💼',
-    tag: 'ELITE_PROFESSIONAL',
+    tag: '專注狀態',
     comments: [
       '專注自律，神采奕奕！眉頭舒展且散發從容自信的職場氣場！',
       '神情沉穩自信，雙眼明亮有力，充分展現頂級專注力與工作魅力！',
@@ -52,7 +52,7 @@ const TITLES_AND_COMMENTS = [
     minScore: 68,
     rank: 'A' as const,
     title: '穩健工位標準姿態 👔',
-    tag: 'STABLE_WORKER',
+    tag: '標準姿態',
     comments: [
       '狀態平穩專注，表情略為平靜，雖有正常辦公節奏但展現可靠態度！',
       '面部表情略顯嚴肅，建議嘴角適度放鬆並喝口溫水，顏值將即刻飆升！',
@@ -63,7 +63,7 @@ const TITLES_AND_COMMENTS = [
     minScore: 52,
     rank: 'B' as const,
     title: '微帶班味 // 輕微疲態現形 ☕',
-    tag: 'MILD_FATIGUE',
+    tag: '輕微班味',
     comments: [
       '嘴角趨於平淡、眼神稍顯疲累，50幾分展現真實社畜打拼痕跡！',
       '班味開始浮現，雙眼微感乾澀，建議立即大口喝水補水提提神！',
@@ -74,7 +74,7 @@ const TITLES_AND_COMMENTS = [
     minScore: 36,
     rank: 'C' as const,
     title: '班味超載 // 靈魂輕度飄離 😮‍💨',
-    tag: 'FATIGUE_OVERLOAD',
+    tag: '班味超載',
     comments: [
       '嘴型下垂平淡、雙眼睜眼弧度不足！累積打哈欠與久坐，班味明顯超標！',
       '眼神露出明顯疲態，急需離座喝水補充水分與做伸展操！',
@@ -85,7 +85,7 @@ const TITLES_AND_COMMENTS = [
     minScore: 15,
     rank: 'D' as const,
     title: '重度過勞 // 靈魂徹底出竅 💀',
-    tag: 'BURNOUT_CRITICAL',
+    tag: '重度過勞',
     comments: [
       '緊急危險！雙眼極度沉重半閉、頻繁打哈欠與久坐，靈魂已脫離肉體！',
       '喪失感與過勞感爆表！請立即站起來喝水、走動，挽救飄走的靈魂！',
@@ -105,100 +105,100 @@ export function computeLocalFaceScore(inputs: FaceEvaluationRawInputs): FaceChar
     healthScore = 100,
   } = inputs;
 
-  // STRICT BASELINE SCORING:
-  // Baseline for a standard expressionless/flat office face is ~48 - 52 PTS.
-  let score = 48;
+  // ENCOURAGING HIGH-PERFORMANCE NEURAL BASELINE:
+  // Baseline for a calm, attentive office face is ~86 PTS (Rank SS / 高智感元氣態).
+  let score = 86;
 
-  // 1. Mouth Curvature (Smile Arc) Impact
-  if (smile >= 0.5) {
-    // Big active smile: +30 ~ +40
-    score += Math.round(30 + (smile - 0.5) * 20);
-  } else if (smile >= 0.2) {
-    // Gentle smile arc: +12 ~ +25
-    score += Math.round(12 + (smile - 0.2) * 43);
-  } else if (smile < 0.08) {
-    // Unsmiling / flat mouth / drooping corners: -8 PTS penalty
-    score -= 8;
+  // 1. Mouth Curvature (Smile Arc) Impact: Encouraging bonus for smiles
+  if (smile >= 0.3) {
+    // Broad, radiant smile
+    score += Math.round(8 + Math.min(1, smile) * 5);
+  } else if (smile >= 0.08) {
+    // Gentle cheerful smile
+    score += Math.round(3 + (smile / 0.3) * 5);
   }
 
-  // 2. Eye Openness Arc Impact
-  if (eyeOpenness >= 0.8) {
-    // Bright, fully open alert eyes: +10 ~ +15
-    score += Math.round(10 + (eyeOpenness - 0.8) * 25);
-  } else if (eyeOpenness < 0.55) {
-    // Drooping eyelids / sleepy / narrow eye opening arc: -15 ~ -25
-    score -= Math.round((0.55 - eyeOpenness) * 45);
+  // 2. Eye Openness & Alertness Impact
+  if (eyeOpenness >= 0.7) {
+    // Bright, open, attentive eyes
+    score += Math.round(2 + (eyeOpenness - 0.7) * 10);
+  } else if (eyeOpenness < 0.45) {
+    // Sleepy or half-closed eyelids
+    score -= Math.round((0.45 - eyeOpenness) * 20);
   }
 
-  // 3. Eyebrow Relaxation Impact
-  if (browRelaxation >= 0.85) {
-    score += 5; // Relaxed brow
+  // 3. Eyebrow & Forehead Relaxation Impact
+  if (browRelaxation >= 0.8) {
+    score += 3;
   } else if (browRelaxation < 0.5) {
-    // Frowning / furrowed brow: -12 ~ -20
-    score -= Math.round((0.5 - browRelaxation) * 35);
+    // Tension / frowning
+    score -= Math.round((0.5 - browRelaxation) * 15);
   }
 
-  // 4. Fatigue History & Physical Penalties
+  // 4. Fatigue History & Gentle Physical Penalties
   let totalPenalty = 0;
 
-  // Yawns penalty (-10 per yawn)
-  totalPenalty += yawnsCount * 10;
+  // Yawns penalty (-3 per recent yawn, capped at 9)
+  totalPenalty += Math.min(9, yawnsCount * 3);
 
-  // Frowns penalty (-6 per frown)
-  totalPenalty += frownsCount * 6;
+  // Frowns penalty (-2 per recent frown, capped at 8)
+  totalPenalty += Math.min(8, frownsCount * 2);
 
-  // Prolonged Sitting / Desk Time penalty (-3 per 10 mins after 20m)
-  if (consecutiveDeskMinutes > 20) {
-    const extraMins = consecutiveDeskMinutes - 20;
-    totalPenalty += Math.min(22, Math.floor(extraMins / 10) * 4);
+  // Prolonged Sitting / Desk Time penalty
+  if (consecutiveDeskMinutes > 45) {
+    const extraMins = consecutiveDeskMinutes - 45;
+    totalPenalty += Math.min(8, Math.floor(extraMins / 20) * 2);
   }
 
   // Health Reserve Sync Penalty
-  if (healthScore < 70) {
-    totalPenalty += Math.round((70 - healthScore) * 0.3);
+  if (healthScore < 50) {
+    totalPenalty += Math.round((50 - healthScore) * 0.15);
   }
 
-  // Calculate final score bounded strictly between 15 and 98
-  const finalScore = Math.min(98, Math.max(15, Math.round(score - totalPenalty)));
+  // Calculate final score bounded strictly between 35 and 99
+  const finalScore = Math.min(99, Math.max(35, Math.round(score - totalPenalty)));
 
   // Match title template
   const matched =
     TITLES_AND_COMMENTS.find((t) => finalScore >= t.minScore) ||
     TITLES_AND_COMMENTS[TITLES_AND_COMMENTS.length - 1];
-  const randomComment = matched.comments[Math.floor(Math.random() * matched.comments.length)];
+  const randomComment = matched.comments[0];
 
   // 5-Axis Wellness & Facial State Metrics (身心健康、疲勞度與表情管理)
-  // 1. mentalEnergy (身心元氣精力): Based on health reserve & overall vitality
+  // 1. mentalEnergy (身心元氣精力)
   const mentalEnergy = Math.min(
     99,
     Math.max(
-      10,
-      Math.round(healthScore * 0.65 + browRelaxation * 20 + (1 - Math.min(1, yawnsCount / 2)) * 15)
+      15,
+      Math.round(healthScore * 0.7 + browRelaxation * 15 + Math.min(15, smile * 20))
     )
   );
 
-  // 2. eyeAlertness (眼神清醒專注度): High eye openness, penalized by yawning & sleepiness
+  // 2. eyeAlertness (眼神清醒專注度)
   const eyeAlertness = Math.min(
     99,
-    Math.max(10, Math.round(eyeOpenness * 90 - yawnsCount * 12 + (consecutiveDeskMinutes > 40 ? -10 : 5)))
+    Math.max(15, Math.round(eyeOpenness * 95 - Math.min(20, yawnsCount * 8)))
   );
 
-  // 3. smileHealing (治癒微表情管理): Smile arc & upward facial composure
-  const smileHealing = Math.min(99, Math.max(10, Math.round(smile * 88 + browRelaxation * 12)));
+  // 3. smileHealing (治癒微表情管理)
+  const smileHealing = Math.min(
+    99,
+    Math.max(15, Math.round(Math.min(1, smile * 1.5) * 80 + browRelaxation * 18))
+  );
 
-  // 4. browRelaxationScore (舒展減壓抗焦慮): Brow relaxation, no knotting/tension
+  // 4. browRelaxationScore (舒展減壓抗焦慮)
   const browRelaxationScore = Math.min(
     99,
-    Math.max(10, Math.round(browRelaxation * 80 + 15 - Math.min(25, frownsCount * 8)))
+    Math.max(15, Math.round(browRelaxation * 85 + 12 - Math.min(20, frownsCount * 5)))
   );
 
-  // 5. deskVitality (抗疲勞持久力): Inversely impacted by sedentary desk time & consecutive minutes
+  // 5. deskVitality (抗疲勞持久力)
   const deskVitality = Math.min(
     99,
     Math.max(
-      10,
+      15,
       Math.round(
-        Math.max(15, 100 - (consecutiveDeskMinutes > 15 ? (consecutiveDeskMinutes - 15) * 1.8 : 0) - yawnsCount * 6)
+        Math.max(20, 100 - (consecutiveDeskMinutes > 20 ? (consecutiveDeskMinutes - 20) * 1.5 : 0) - yawnsCount * 5)
       )
     )
   );

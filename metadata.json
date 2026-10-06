@@ -1,6 +1,6 @@
 {
   "name": "Office Health Guardian",
-  "description": "辦公室健康存摺 & 身體年齡惡搞監視器 - 利用鏡頭 AI 即時分析打哈欠、久坐、皺眉緊繃、螢幕貼太近與加班狀態，趣味換算生理年齡！",
+  "description": "WATCH BEFORE YOU OVERWHELM！OVERWHELTCH 是一款趣味辦公身心健康監視器，透過 AI 即時分析影像資訊，結合有趣的回饋機制提醒你工作之餘也要注意自己的身體！",
   "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

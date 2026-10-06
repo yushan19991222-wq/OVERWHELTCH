@@ -233,15 +233,15 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
         </div>
 
         {/* Title */}
-        <h1 className="text-lg sm:text-2xl md:text-3xl font-black text-[#ff3366] tracking-wider uppercase mb-1 font-mono">
-          &gt; SEDENTARY_LOCK // PROTOCOL_ENGAGED
+        <h1 className="text-xl sm:text-2xl font-semibold text-white tracking-wide uppercase mb-1 font-sans">
+          久坐強制鎖定
         </h1>
 
         <p className="text-slate-300 text-xs sm:text-sm max-w-lg mb-4 leading-relaxed">
-          連續久坐超時！工作已被強行中斷，椎間盤與下肢靜脈發出最高級警報。
+          連續久坐超時，工作台已暫時凍結。請起立活動放鬆。
           <br />
           <span className="text-[#ffaa00] font-bold">
-            &gt; 解鎖條件：請立刻起立離開座位，走動伸展喝水！
+            解鎖條件：請立刻起立離開座位，走動伸展喝水。
           </span>
         </p>
 
@@ -291,21 +291,18 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-2 w-full max-w-md mb-3 sm:mb-4 text-left">
           <div className="p-2 sm:p-2.5 rounded bg-[#10141c] border border-white/10 text-[11px] text-slate-300 backdrop-blur-md">
             <div className="text-[#ff3366] font-bold mb-0.5 sm:mb-1 flex items-center gap-1.5 text-xs">
-              <span className="animate-bounce">🙆</span>
               <span>雙手仰天拉伸</span>
             </div>
             <div className="text-slate-400 text-[9px] sm:text-[10px] leading-tight">十指緊扣向上推高，釋放頸椎重壓</div>
           </div>
           <div className="p-2 sm:p-2.5 rounded bg-[#10141c] border border-white/10 text-[11px] text-slate-300 backdrop-blur-md">
             <div className="text-[#ffaa00] font-bold mb-0.5 sm:mb-1 flex items-center gap-1.5 text-xs">
-              <span className="animate-pulse">🧘</span>
               <span>轉身活化脊椎</span>
             </div>
             <div className="text-slate-400 text-[9px] sm:text-[10px] leading-tight">踏平地面，腰部深呼吸向兩側輕轉</div>
           </div>
           <div className="p-2 sm:p-2.5 rounded bg-[#10141c] border border-white/10 text-[11px] text-slate-300 backdrop-blur-md">
             <div className="text-[#00ff87] font-bold mb-0.5 sm:mb-1 flex items-center gap-1.5 text-xs">
-              <span className="animate-bounce">🦵</span>
               <span>顛腳尖踢小腿</span>
             </div>
             <div className="text-slate-400 text-[9px] sm:text-[10px] leading-tight">活動足踝小腿肌群，促使靜脈回流</div>
@@ -319,7 +316,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
             className="w-full max-w-md py-2 px-3.5 rounded-md bg-[#00ff87] hover:bg-emerald-400 text-slate-950 font-bold text-xs tracking-wide shadow-[0_0_20px_rgba(0,255,135,0.4)] flex items-center justify-center gap-2 transform hover:scale-[1.01] transition mb-3 font-mono"
           >
             <Activity className="w-4 h-4 text-slate-950 animate-bounce" />
-            <span>&gt; 進入 30 秒全螢幕戰術伸展操 (立即解鎖)</span>
+            <span>進入 30 秒全螢幕伸展操 (即可解鎖)</span>
           </button>
         )}
 
@@ -338,7 +335,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
           }}
           className="text-[11px] text-slate-500 hover:text-slate-300 font-mono underline transition py-1 px-3 rounded hover:bg-white/5"
         >
-          [MANUAL_OVERRIDE // 手動喚醒] 我正在升降桌站立辦公或有緊急狀況
+          [MANUAL_OVERRIDE] 我正在升降桌站立辦公或有緊急狀況
         </button>
       </main>
 

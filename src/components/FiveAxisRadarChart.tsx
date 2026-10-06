@@ -22,8 +22,8 @@ export const FiveAxisRadarChart: React.FC<FiveAxisRadarChartProps> = ({
   data,
   size = 260,
   className = '',
-  fillColor = 'rgba(236, 72, 153, 0.25)',
-  strokeColor = '#ec4899',
+  fillColor = 'rgba(6, 182, 212, 0.22)',
+  strokeColor = '#06b6d4',
 }) => {
   const center = size / 2;
   const radius = size * 0.35; // optimal radius leaving ample margin for labels on all 5 sides
@@ -68,15 +68,15 @@ export const FiveAxisRadarChart: React.FC<FiveAxisRadarChartProps> = ({
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        className="overflow-visible select-none drop-shadow-[0_0_12px_rgba(236,72,153,0.25)]"
+        className="overflow-visible select-none drop-shadow-[0_0_12px_rgba(6,182,212,0.3)]"
       >
         {/* Background Pentagon Web Rings */}
         {rings.map((ringPct, idx) => (
           <polygon
             key={idx}
             points={getRingPoints(ringPct)}
-            fill={idx === rings.length - 1 ? 'rgba(6, 10, 20, 0.85)' : 'none'}
-            stroke="rgba(244, 114, 182, 0.18)"
+            fill={idx === rings.length - 1 ? 'rgba(4, 7, 14, 0.92)' : 'none'}
+            stroke="rgba(6, 182, 212, 0.25)"
             strokeWidth={idx === rings.length - 1 ? '1.5' : '1'}
             strokeDasharray={idx < rings.length - 1 ? '2 2' : 'none'}
           />
@@ -92,7 +92,7 @@ export const FiveAxisRadarChart: React.FC<FiveAxisRadarChartProps> = ({
               y1={center}
               x2={x}
               y2={y}
-              stroke="rgba(244, 114, 182, 0.28)"
+              stroke="rgba(6, 182, 212, 0.3)"
               strokeWidth="1"
             />
           );
@@ -129,7 +129,7 @@ export const FiveAxisRadarChart: React.FC<FiveAxisRadarChartProps> = ({
                 fill="#ffffff"
                 stroke={vertexColor}
                 strokeWidth="2"
-                className="drop-shadow-[0_0_6px_currentColor]"
+                className="drop-shadow-[0_0_8px_currentColor]"
               />
 
               {/* Axis Label & Score */}
@@ -138,7 +138,7 @@ export const FiveAxisRadarChart: React.FC<FiveAxisRadarChartProps> = ({
                 y={labelY - 5}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fill={item.color || '#f472b6'}
+                fill={item.color || '#38bdf8'}
                 fontSize="10"
                 fontFamily="monospace"
                 fontWeight="bold"
@@ -155,7 +155,7 @@ export const FiveAxisRadarChart: React.FC<FiveAxisRadarChartProps> = ({
                 fontSize="11"
                 fontFamily="monospace"
                 fontWeight="900"
-                className="select-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
+                className="select-none drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]"
               >
                 {item.value}%
               </text>
@@ -164,7 +164,7 @@ export const FiveAxisRadarChart: React.FC<FiveAxisRadarChartProps> = ({
         })}
 
         {/* Center Origin Mark */}
-        <circle cx={center} cy={center} r="2.5" fill="#f472b6" opacity="0.6" />
+        <circle cx={center} cy={center} r="2.5" fill="#38bdf8" opacity="0.8" />
       </svg>
     </div>
   );

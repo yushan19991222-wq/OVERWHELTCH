@@ -26,6 +26,7 @@ export interface EmotionData {
   emoji: string;
   score: number;
   colorClass: string;
+  primaryEmotion?: string;
 }
 
 export interface HealthTrendPoint {
@@ -33,6 +34,11 @@ export interface HealthTrendPoint {
   timestamp: number;
   score: number;
   fatigueIndex: number;
+  stressScore?: number;
+  fatigueScore?: number;
+  moodScore?: number;
+  bodyScore?: number;
+  recoveryScore?: number;
   emotionLabel?: string;
   emotionEmoji?: string;
   eventDelta: number;
@@ -54,13 +60,14 @@ export interface GuardianSettings {
   baseAge: number;
   offWorkTime: string;
   sedentaryLimitMinutes: number;
+  hydrationIntervalMinutes?: number;
   soundEnabled: boolean;
   desktopNotificationsEnabled: boolean;
   voiceAlertsEnabled: boolean;
 }
 
 export interface ActiveHazardAlert {
-  type: 'yawn' | 'frown' | 'sedentary' | 'proximity' | 'overtime' | 'slack' | 'blink' | 'beauty_score';
+  type: 'yawn' | 'frown' | 'sedentary' | 'proximity' | 'overtime' | 'slack' | 'blink' | 'beauty_score' | 'hydration';
   title: string;
   message: string;
   badge: string;
@@ -91,11 +98,13 @@ export interface FaceCharismaScore {
   timestamp: number;
   highlightTag: string;
   source?: string;
+  savedDate?: string;
 }
 
 export interface TelemetryData {
   mar: number;
   frown: number;
+  frownDurationSeconds?: number;
   proximity: number;
   blinkScore: number;
   ear?: number;
@@ -132,7 +141,7 @@ export interface CandidSnapshotItem {
   id: string;
   image: string;
   tag: string;
-  type: 'yawn' | 'frown' | 'blink' | 'candid' | 'scan';
+  type: 'yawn' | 'frown' | 'blink' | 'candid' | 'scan' | 'peace';
   time: string;
   timestamp: number;
   faceCenter?: { x: number; y: number };
