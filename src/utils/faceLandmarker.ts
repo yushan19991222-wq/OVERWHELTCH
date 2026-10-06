@@ -1,5 +1,4 @@
-import { FaceLandmarker } from '@mediapipe/tasks-vision';
-import { getSharedVisionFilesetResolver } from './sharedVisionResolver';
+import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 
 let landmarkerInstance: FaceLandmarker | null = null;
 let isLoadingInstance = false;
@@ -16,7 +15,9 @@ export async function getFaceLandmarker(): Promise<FaceLandmarker> {
 
   isLoadingInstance = true;
   try {
-    const filesetResolver = await getSharedVisionFilesetResolver();
+    const filesetResolver = await FilesetResolver.forVisionTasks(
+      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+    );
 
     try {
       // First attempt with GPU delegate for hardware acceleration
@@ -32,8 +33,7 @@ export async function getFaceLandmarker(): Promise<FaceLandmarker> {
         numFaces: 1,
       });
     } catch (gpuErr) {
-      console.warn('GPU delegate failed or WASM stream aborted, falling back to CPU delegate:', gpuErr);
-      // Gracefully fall back to CPU delegate
+      console.warn('GPU delegate failed, falling back to CPU delegate:', gpuErr);
       landmarkerInstance = await FaceLandmarker.createFromOptions(filesetResolver, {
         baseOptions: {
           modelAssetPath:
@@ -48,9 +48,6 @@ export async function getFaceLandmarker(): Promise<FaceLandmarker> {
     }
 
     return landmarkerInstance;
-  } catch (err) {
-    console.error('Failed to initialize FaceLandmarker:', err);
-    throw err;
   } finally {
     isLoadingInstance = false;
   }

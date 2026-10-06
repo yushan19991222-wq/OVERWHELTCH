@@ -1,20 +1,14 @@
 @import "tailwindcss";
 
-/* Hardware & Specialist Tool Design Theme Styles */
 @keyframes lifeDrainPulse {
   0%, 100% {
-    box-shadow: 0 0 15px rgba(244, 63, 94, 0.4), inset 0 0 15px rgba(244, 63, 94, 0.2);
+    box-shadow: 0 0 15px rgba(244, 63, 94, 0.4);
     border-color: rgba(244, 63, 94, 0.6);
   }
   50% {
-    box-shadow: 0 0 35px rgba(244, 63, 94, 0.9), inset 0 0 25px rgba(244, 63, 94, 0.4);
+    box-shadow: 0 0 35px rgba(244, 63, 94, 0.9);
     border-color: rgba(244, 63, 94, 1);
   }
-}
-
-@keyframes radarSweep {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(1000%); }
 }
 
 .animate-life-drain {
@@ -23,206 +17,8 @@
 
 body {
   font-family: 'Plus Jakarta Sans', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
-  background-color: #06090e;
-  color: #e2e8f0;
 }
 
 .font-mono {
   font-family: 'JetBrains Mono', monospace;
 }
-
-/* Hardware Specialist Grid Background */
-.hardware-grid-bg {
-  background-image: 
-    linear-gradient(to right, rgba(148, 163, 184, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-/* Technical Corner Reticles - Flush to outer border with inherited radius */
-.hardware-reticle {
-  position: relative;
-}
-.hardware-reticle::before {
-  content: '';
-  position: absolute;
-  top: -1px;
-  left: -1px;
-  width: 12px;
-  height: 12px;
-  border-top: 2px solid rgba(56, 189, 248, 0.75);
-  border-left: 2px solid rgba(56, 189, 248, 0.75);
-  border-top-left-radius: inherit;
-  pointer-events: none;
-  z-index: 20;
-}
-.hardware-reticle::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 12px;
-  height: 12px;
-  border-bottom: 2px solid rgba(56, 189, 248, 0.75);
-  border-right: 2px solid rgba(56, 189, 248, 0.75);
-  border-bottom-right-radius: inherit;
-  pointer-events: none;
-  z-index: 20;
-}
-
-/* Subtle CRT Scanline overlay */
-.scanline-overlay {
-  background: linear-gradient(
-    rgba(18, 16, 16, 0) 50%, 
-    rgba(0, 0, 0, 0.35) 50%
-  );
-  background-size: 100% 3px;
-  pointer-events: none;
-}
-
-/* Surveillance / CCTV Specific Styles (Overwatch Monitor) */
-.cctv-vignette {
-  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.85);
-}
-
-.cctv-filter-nightvision {
-  filter: contrast(1.25) brightness(1.1) hue-rotate(85deg) saturate(2.2);
-}
-
-.cctv-filter-mono {
-  filter: grayscale(1) contrast(1.35) brightness(0.92);
-}
-
-@keyframes cctvBlink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.2; }
-}
-
-.animate-cctv-blink {
-  animation: cctvBlink 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes cctvGlitch {
-  0% { transform: translate(0); }
-  20% { transform: translate(-2px, 1px); }
-  40% { transform: translate(2px, -1px); }
-  60% { transform: translate(-1px, 2px); }
-  80% { transform: translate(1px, -1px); }
-  100% { transform: translate(0); }
-}
-
-.animate-cctv-glitch {
-  animation: cctvGlitch 0.25s ease-in-out;
-}
-
-/* CCTV Corner Targeting Brackets - Flush to outer border with inherited radius */
-.cctv-brackets {
-  position: relative;
-}
-.cctv-brackets::before {
-  content: '';
-  position: absolute;
-  top: -1px;
-  left: -1px;
-  width: 14px;
-  height: 14px;
-  border-top: 2px solid rgba(56, 189, 248, 0.75);
-  border-left: 2px solid rgba(56, 189, 248, 0.75);
-  border-top-left-radius: inherit;
-  pointer-events: none;
-  z-index: 25;
-}
-.cctv-brackets::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 14px;
-  height: 14px;
-  border-bottom: 2px solid rgba(56, 189, 248, 0.75);
-  border-right: 2px solid rgba(56, 189, 248, 0.75);
-  border-bottom-right-radius: inherit;
-  pointer-events: none;
-  z-index: 25;
-}
-
-/* Book of Answers Delicacy & Micro-animations */
-@keyframes goldShimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-.animate-gold-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(245, 158, 11, 0.05) 0%,
-    rgba(251, 191, 36, 0.35) 50%,
-    rgba(245, 158, 11, 0.05) 100%
-  );
-  background-size: 200% 100%;
-  animation: goldShimmer 3s infinite linear;
-}
-
-@keyframes answerReveal {
-  0% {
-    opacity: 0;
-    transform: scale(0.97) translateY(8px);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.animate-answer-reveal {
-  animation: answerReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* Clean Terminal Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-::-webkit-scrollbar-track {
-  background: rgba(4, 6, 10, 0.6);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.3);
-  border-radius: 4px;
-  border: 1px solid rgba(56, 189, 248, 0.15);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(56, 189, 248, 0.6);
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
-}
-
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(56, 189, 248, 0.35) rgba(4, 6, 10, 0.6);
-}
-
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined';
-  font-weight: normal;
-  font-style: normal;
-  font-size: 16px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'liga';
-}
-
-
-

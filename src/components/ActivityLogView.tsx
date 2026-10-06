@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import { Terminal, Trash2 } from 'lucide-react';
+import React from 'react';
+import { ClipboardList, Trash2 } from 'lucide-react';
 import { HealthEvent } from '../types';
 
 interface ActivityLogViewProps {
@@ -7,89 +7,58 @@ interface ActivityLogViewProps {
   onClear: () => void;
 }
 
-// Helper to strip all emoji characters for clean Overwatch terminal log style
-const stripEmoji = (str: string) => {
-  return str
-    .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{FE0F}\u{200D}]/gu, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-};
-
 export const ActivityLogView: React.FC<ActivityLogViewProps> = ({ events, onClear }) => {
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to top when a new event is added
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [events.length]);
-
   return (
-    <div className="bg-[#06080e] border border-slate-800 rounded-md p-3.5 flex flex-col h-full min-h-[360px] max-h-full overflow-hidden backdrop-blur-md shadow-xl font-mono cctv-brackets">
-      {/* Unified Block Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-2.5 shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-2 h-2 rounded-full bg-[#00d8ff] animate-pulse shadow-[0_0_8px_#00d8ff] shrink-0" />
-          <h3 className="text-xs font-mono font-bold text-[#00d8ff] tracking-wider uppercase truncate">
-            [SURVEILLANCE_LOG]
-          </h3>
-          <span className="text-[9px] px-1.5 py-0.2 rounded bg-black/60 border border-slate-800 text-slate-400 font-bold">
-            {events.length} 筆
-          </span>
-        </div>
+    <div className="bg-slate-900/80 border border-slate-800/90 rounded-3xl p-5 flex flex-col flex-1 min-h-[300px] backdrop-blur-xl shadow-xl">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-3">
+        <h3 className="text-xs font-black tracking-wider text-slate-300 uppercase flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-cyan-400" />
+          <span>辦公即時事件日誌</span>
+        </h3>
         <button
           onClick={onClear}
-          className="text-[9px] text-slate-400 hover:text-slate-100 flex items-center gap-1 transition px-1.5 py-0.5 rounded border border-slate-800 hover:border-slate-700 bg-black/40 cursor-pointer"
+          className="text-[11px] text-slate-500 hover:text-slate-300 flex items-center gap-1 transition"
         >
-          <Trash2 className="w-2.5 h-2.5" />
-          <span>清除紀錄</span>
+          <Trash2 className="w-3 h-3" />
+          <span>清空</span>
         </button>
       </div>
 
-      <div
-        ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1.5 text-xs custom-scrollbar"
-      >
+      <div className="space-y-2 overflow-y-auto max-h-[320px] pr-1 text-xs">
         {events.length === 0 ? (
-          <div className="h-full min-h-[220px] flex items-center justify-center p-8 text-center text-slate-500 text-[11px]">
-            &gt; [待命中] 鏡頭健康監控運作中，尚無異常事件...
+          <div className="p-6 text-center text-slate-500 text-xs">
+            目前尚無健康存摺異動事件，請保持良好坐姿與表情！
           </div>
         ) : (
           events.map((ev) => {
-            let badgeBg = 'bg-black/80 border-slate-800 text-slate-400';
-            let tag = 'INFO';
-            let tagColor = 'text-slate-400';
+            let badgeBg = 'bg-slate-800 text-slate-300';
+            let borderClass = 'border-slate-800/80';
 
             if (ev.delta < 0) {
-              badgeBg = 'bg-rose-950/70 border-rose-500/50 text-rose-300';
-              tag = 'HAZARD';
-              tagColor = 'text-rose-400';
+              badgeBg = 'bg-rose-950/70 border border-rose-500/40 text-rose-300';
+              borderClass = 'border-rose-900/30';
             } else if (ev.delta > 0) {
-              badgeBg = 'bg-cyan-950/70 border-cyan-500/50 text-cyan-300';
-              tag = 'RECOVER';
-              tagColor = 'text-cyan-400';
+              badgeBg = 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300';
+              borderClass = 'border-emerald-900/30';
             }
 
             return (
               <div
                 key={ev.id}
-                className="p-1.5 rounded bg-[#040609] border border-slate-900 hover:border-slate-700/80 flex items-center justify-between gap-2 transition-all font-mono shrink-0"
+                className={`p-2.5 rounded-xl bg-slate-950/60 border ${borderClass} flex items-center justify-between gap-2.5 transition-all hover:border-slate-700`}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[9px] text-slate-500 shrink-0">[{ev.timestamp}]</span>
-                  <span className={`text-[9px] font-bold px-1 py-0.2 rounded border border-slate-800 shrink-0 ${tagColor}`}>
-                    {tag}
-                  </span>
-                  <span className="text-slate-200 text-[11px] truncate">{stripEmoji(ev.message)}</span>
+                  <span className="text-base shrink-0">{ev.icon}</span>
+                  <span className="text-slate-300 truncate">{ev.message}</span>
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   {ev.delta !== 0 && (
-                    <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${badgeBg}`}>
+                    <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md ${badgeBg}`}>
                       {ev.delta > 0 ? `+${ev.delta}` : ev.delta}
                     </span>
                   )}
+                  <span className="text-[10px] font-mono text-slate-500">{ev.timestamp}</span>
                 </div>
               </div>
             );
