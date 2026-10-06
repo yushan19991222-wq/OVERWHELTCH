@@ -72,9 +72,74 @@ body {
 .scanline-overlay {
   background: linear-gradient(
     rgba(18, 16, 16, 0) 50%, 
-    rgba(0, 0, 0, 0.25) 50%
+    rgba(0, 0, 0, 0.35) 50%
   );
-  background-size: 100% 4px;
+  background-size: 100% 3px;
   pointer-events: none;
+}
+
+/* Surveillance / CCTV Specific Styles (Overwatch Monitor) */
+.cctv-vignette {
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+}
+
+.cctv-filter-nightvision {
+  filter: contrast(1.25) brightness(1.1) hue-rotate(85deg) saturate(2.2);
+}
+
+.cctv-filter-mono {
+  filter: grayscale(1) contrast(1.35) brightness(0.92);
+}
+
+@keyframes cctvBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.animate-cctv-blink {
+  animation: cctvBlink 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes cctvGlitch {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 1px); }
+  40% { transform: translate(2px, -1px); }
+  60% { transform: translate(-1px, 2px); }
+  80% { transform: translate(1px, -1px); }
+  100% { transform: translate(0); }
+}
+
+.animate-cctv-glitch {
+  animation: cctvGlitch 0.25s ease-in-out;
+}
+
+/* CCTV Corner Targeting Brackets */
+.cctv-brackets {
+  position: relative;
+}
+.cctv-brackets::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 16px;
+  height: 16px;
+  border-top: 2px solid rgba(6, 182, 212, 0.85);
+  border-left: 2px solid rgba(6, 182, 212, 0.85);
+  pointer-events: none;
+  z-index: 25;
+}
+.cctv-brackets::after {
+  content: '';
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 16px;
+  height: 16px;
+  border-bottom: 2px solid rgba(6, 182, 212, 0.85);
+  border-right: 2px solid rgba(6, 182, 212, 0.85);
+  pointer-events: none;
+  z-index: 25;
 }
 

@@ -143,13 +143,15 @@ export function stopTitleFlashing() {
   }
 }
 
+const tabInstanceId = Math.random().toString(36).substring(2, 9);
+
 /**
  * Broadcast event across multiple browser tabs
  */
 export function broadcastCrossTabEvent(type: string, payload: unknown) {
   if (alertBroadcastChannel) {
     try {
-      alertBroadcastChannel.postMessage({ type, payload, timestamp: Date.now() });
+      alertBroadcastChannel.postMessage({ type, payload, senderId: tabInstanceId, timestamp: Date.now() });
     } catch {
       // ignore
     }
@@ -160,7 +162,7 @@ export function subscribeCrossTabEvents(handler: (event: { type: string; payload
   if (!alertBroadcastChannel) return () => {};
 
   const listener = (event: MessageEvent) => {
-    if (event.data) {
+    if (event.data && event.data.senderId !== tabInstanceId) {
       handler(event.data);
     }
   };

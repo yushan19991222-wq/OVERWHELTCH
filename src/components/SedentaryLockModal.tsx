@@ -17,6 +17,7 @@ interface SedentaryLockModalProps {
   remainingSeconds: number;
   isFacePresent: boolean;
   onEmergencyOverride: () => void;
+  onStartStretchWorkout?: () => void;
 }
 
 export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
@@ -24,6 +25,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
   remainingSeconds,
   isFacePresent,
   onEmergencyOverride,
+  onStartStretchWorkout,
 }) => {
   // Current real-time clock for screensaver feel
   const [currentTime, setCurrentTime] = useState<string>('');
@@ -118,7 +120,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
   return (
     <div
       id="sedentary-screensaver-interlock"
-      className="fixed inset-0 z-[999999] bg-[#03060c] text-slate-100 flex flex-col justify-between p-4 sm:p-6 select-none overflow-hidden font-mono cursor-default animate-in fade-in duration-300"
+      className="fixed inset-0 z-[999999] bg-[#090a0f] text-slate-100 flex flex-col justify-between p-4 sm:p-6 select-none overflow-hidden font-mono cursor-default animate-in fade-in duration-300 cctv-vignette"
       onClick={() => {
         setKeyPressAttempted(true);
         if (keyPressTimeoutRef.current) clearTimeout(keyPressTimeoutRef.current);
@@ -126,53 +128,71 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
           setKeyPressAttempted(false);
         }, 2200);
       }}
+      style={{
+        backgroundImage:
+          'radial-gradient(ellipse at center, rgba(255, 51, 102, 0.12) 0%, rgba(9, 10, 15, 0.98) 75%)',
+      }}
     >
+      {/* Tactical HUD Corner Crosshairs */}
+      <div className="pointer-events-none absolute top-3 left-3 text-slate-600 text-xs z-20 select-none">
+        + [OVERWATCH:SECURITY_LOCK]
+      </div>
+      <div className="pointer-events-none absolute top-3 right-3 text-slate-600 text-xs z-20 select-none">
+        [SPINE_SHIELD_ACTIVE] +
+      </div>
+      <div className="pointer-events-none absolute bottom-3 left-3 text-slate-600 text-xs z-20 select-none">
+        + [AI_VISION_INTERLOCK]
+      </div>
+      <div className="pointer-events-none absolute bottom-3 right-3 text-slate-600 text-xs z-20 select-none">
+        [STATUS: CRITICAL] +
+      </div>
+
       {/* Screensaver Scanline & Grid Effect */}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,24,38,0)_50%,rgba(0,0,0,0.4)_50%)] bg-[length:100%_4px] opacity-70 z-0" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(225,29,72,0.15)_0%,rgba(3,6,12,0.95)_75%)] z-0" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,51,102,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,51,102,0.02)_1px,transparent_1px)] bg-[size:40px_40px] z-0" />
 
-      {/* TOP SCREENSAVER BANNER BAR */}
-      <header className="relative z-10 w-full flex items-center justify-between pb-3 border-b border-rose-900/60 text-xs">
+      {/* TOP SCREENSAVER BANNER BAR - Overwatch Command Strip */}
+      <header className="relative z-10 w-full flex items-center justify-between pb-3 border-b border-white/10 text-xs">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-rose-950/80 border border-rose-600/80 text-rose-400 font-bold tracking-wider animate-pulse">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_10px_#f43f5e]" />
-            <span>[SCREENSAVER INTERRUPT // 工作已強制凍結]</span>
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#ff3366]/15 border border-[#ff3366]/60 text-[#ff3366] font-bold tracking-wider shadow-[0_0_15px_rgba(255,51,102,0.3)] animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-[#ff3366] shadow-[0_0_8px_#ff3366]" />
+            <span>&gt; OVERWATCH // SEDENTARY_INTERLOCK</span>
           </div>
-          <span className="hidden md:inline text-slate-500 text-[11px]">
-            辦公室健康防護螢幕保護程式
+          <span className="hidden md:inline text-slate-400 text-[11px] tracking-wide">
+            &gt; PROTOCOL: 工作台強制凍結中 // 椎間盤健康防護
           </span>
         </div>
 
-        <div className="flex items-center gap-4 text-xs">
-          {/* Digital Clock */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded bg-[#090d18] border border-slate-800 text-slate-300">
-            <Clock className="w-3.5 h-3.5 text-cyan-400" />
+        <div className="flex items-center gap-2.5 text-xs">
+          {/* Digital Clock Pill */}
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0a0c10]/90 border border-white/10 text-slate-300">
+            <Clock className="w-3.5 h-3.5 text-[#00d8ff]" />
             <span className="font-bold tracking-widest">{currentTime}</span>
           </div>
 
-          {/* Fullscreen Button */}
+          {/* Fullscreen Button Pill */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               toggleFullscreen();
             }}
-            className="p-1.5 rounded bg-slate-900 border border-slate-800 hover:border-cyan-500/70 text-slate-400 hover:text-white transition"
+            className="p-1.5 rounded-full bg-[#10141c] border border-white/10 hover:border-[#00d8ff] text-slate-400 hover:text-white transition"
             title="進入/退出全螢幕"
           >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
         </div>
       </header>
 
       {/* FLOATING BOUNCING SCREENSAVER MEME ELEMENT (Classic DVD Logo Style Drift) */}
       <div
-        className="absolute z-10 pointer-events-none transition-transform duration-75 hidden sm:flex items-center gap-3 p-3 rounded-xl bg-[#0b1120]/90 border border-rose-500/50 shadow-[0_0_30px_rgba(244,63,94,0.3)] backdrop-blur-md"
+        className="absolute z-10 pointer-events-none transition-transform duration-75 hidden sm:flex items-center gap-3 p-3 rounded-xl bg-[#0a0c10]/95 border border-white/15 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] backdrop-blur-md cctv-brackets"
         style={{
           left: `${bouncingPos.x}%`,
           top: `${bouncingPos.y}%`,
         }}
       >
-        <div className="w-14 h-14 rounded-lg overflow-hidden border border-rose-400 shrink-0">
+        <div className="w-12 h-12 rounded-lg overflow-hidden border border-[#ff3366]/60 shrink-0">
           <img
             src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&auto=format&fit=crop&q=80"
             alt="Meme Judge Cat"
@@ -180,64 +200,64 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
           />
         </div>
         <div>
-          <div className="text-rose-400 font-bold text-xs flex items-center gap-1">
-            <Flame className="w-3.5 h-3.5 text-rose-500" />
-            <span>屁股黏在椅子上了？</span>
+          <div className="text-[#ff3366] font-bold text-xs flex items-center gap-1">
+            <Flame className="w-3.5 h-3.5 text-[#ff3366]" />
+            <span>&gt; SENTRY: 屁股黏住了？</span>
           </div>
-          <div className="text-[10px] text-slate-400">連貓咪都在螢幕上飄移監督你</div>
-          <div className="text-[9px] text-cyan-400 font-mono mt-0.5">狀態: 強制中斷休息中</div>
+          <div className="text-[10px] text-slate-400">連戰術小貓都在監視螢幕飄移</div>
+          <div className="text-[9px] text-[#00d8ff] font-mono mt-0.5">&gt; STATUS: 強制中斷休息中</div>
         </div>
       </div>
 
       {/* CENTERPIECE: GIANT WORKSTATION SCREENSAVER LOCK */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 max-w-2xl mx-auto my-auto">
         {/* Animated Emergency Beacon */}
-        <div className="relative mb-4 flex items-center justify-center">
-          <div className="absolute w-28 h-28 rounded-full bg-rose-600/20 animate-ping" />
-          <div className="w-20 h-20 rounded-2xl bg-rose-950/90 border-2 border-rose-500 flex items-center justify-center shadow-[0_0_40px_rgba(244,63,94,0.6)]">
-            <AlertOctagon className="w-10 h-10 text-rose-400 animate-pulse" />
+        <div className="relative mb-3 flex items-center justify-center">
+          <div className="absolute w-24 h-24 rounded-full bg-[#ff3366]/20 animate-ping" />
+          <div className="w-16 h-16 rounded-xl bg-[#ff3366]/15 border border-[#ff3366] flex items-center justify-center shadow-[0_0_30px_rgba(255,51,102,0.5)]">
+            <AlertOctagon className="w-8 h-8 text-[#ff3366] animate-pulse" />
           </div>
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl sm:text-4xl font-black text-rose-400 tracking-wider uppercase mb-2">
-          [SEDENTARY_SCREENSAVER_LOCK]
+        <h1 className="text-xl sm:text-3xl font-black text-[#ff3366] tracking-wider uppercase mb-1 font-mono">
+          &gt; SEDENTARY_LOCK // PROTOCOL_ENGAGED
         </h1>
 
-        <p className="text-slate-300 text-xs sm:text-sm max-w-lg mb-6 leading-relaxed">
+        <p className="text-slate-300 text-xs sm:text-sm max-w-lg mb-5 leading-relaxed">
           連續久坐超時！工作已被強行中斷，椎間盤與下肢靜脈發出最高級警報。
           <br />
-          <span className="text-rose-300 font-bold">
-            【解鎖條件】：請立刻起立離開座位，走動伸展喝水！
+          <span className="text-[#ffaa00] font-bold">
+            &gt; 解鎖條件：請立刻起立離開座位，走動伸展喝水！
           </span>
         </p>
 
         {/* Giant Countdown Clock */}
-        <div className="relative p-6 rounded-2xl bg-[#090e1a]/95 border-2 border-rose-500/80 shadow-[0_0_50px_rgba(225,29,72,0.4)] mb-5 w-full max-w-md backdrop-blur-xl">
-          <div className="text-[11px] text-slate-400 uppercase tracking-widest font-bold mb-1">
-            起立離座倒數解鎖
+        <div className="relative p-5 rounded-xl bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] mb-4 w-full max-w-md backdrop-blur-xl cctv-brackets">
+          <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">
+            &gt; UNLOCK_TIMER // 起立離座倒數解鎖
           </div>
-          <div className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-amber-300 to-rose-400 font-mono tracking-widest my-1">
+          <div className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#ff3366] via-amber-300 to-[#ff3366] font-mono tracking-widest my-1">
             {countdownStr}
           </div>
 
           {/* Sensor Detection Live Status */}
           <div
-            className={`mt-4 p-3 rounded-lg border flex items-center justify-between text-left transition-all ${
+            className={`mt-3 p-2.5 rounded-lg border flex items-center justify-between text-left transition-all ${
               isFacePresent
-                ? 'bg-rose-950/90 border-rose-500 text-rose-200'
-                : 'bg-emerald-950/90 border-emerald-400 text-emerald-200 animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.3)]'
+                ? 'bg-[#ff3366]/10 border-[#ff3366]/50 text-rose-200'
+                : 'bg-[#00ff87]/10 border-[#00ff87]/50 text-emerald-200 animate-pulse shadow-[0_0_15px_rgba(0,255,135,0.2)]'
             }`}
           >
             <div className="flex items-center gap-2">
               {isFacePresent ? (
-                <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0 animate-bounce" />
+                <ShieldAlert className="w-4 h-4 text-[#ff3366] shrink-0 animate-bounce" />
               ) : (
-                <UserX className="w-5 h-5 text-emerald-400 shrink-0" />
+                <UserX className="w-4 h-4 text-[#00ff87] shrink-0" />
               )}
               <div>
-                <div className="text-xs font-bold font-mono">
-                  {isFacePresent ? 'SENSOR: 鏡頭前仍有人臉 (坐著)' : 'SENSOR: 離座成功 (USER_ABSENT)'}
+                <div className="text-[11px] font-bold font-mono">
+                  {isFacePresent ? '> SENSOR: 人臉依然在席 (仍在座)' : '> SENSOR: 離座成功 (USER_ABSENT)'}
                 </div>
                 <div className="text-[10px] opacity-80">
                   {isFacePresent ? '屁股尚未離開椅子，倒數暫停中' : '偵測到已成功離座，倒數進行中...'}
@@ -245,44 +265,55 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
               </div>
             </div>
             <span
-              className={`text-xs font-bold px-2 py-1 rounded font-mono ${
-                isFacePresent ? 'bg-rose-900 text-rose-300' : 'bg-emerald-900 text-emerald-300'
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
+                isFacePresent ? 'bg-[#ff3366]/30 text-[#ff3366] border border-[#ff3366]/50' : 'bg-[#00ff87]/30 text-[#00ff87] border border-[#00ff87]/50'
               }`}
             >
-              {isFacePresent ? 'LOCKED' : 'UNLOCKING'}
+              {isFacePresent ? '[LOCKED]' : '[UNLOCKING]'}
             </span>
           </div>
         </div>
 
         {/* Dynamic 3-Step Animated Stretch Guide */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 w-full max-w-md mb-4 text-left">
-          <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 backdrop-blur-md">
-            <div className="text-rose-400 font-bold mb-1 flex items-center gap-1.5">
-              <span className="text-lg animate-bounce">🙆</span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full max-w-md mb-4 text-left">
+          <div className="p-2.5 rounded-lg bg-[#10141c] border border-white/10 text-[11px] text-slate-300 backdrop-blur-md">
+            <div className="text-[#ff3366] font-bold mb-1 flex items-center gap-1.5 text-xs">
+              <span className="animate-bounce">🙆</span>
               <span>雙手仰天拉伸</span>
             </div>
-            <div className="text-slate-400 text-[10px] leading-tight">十指緊扣向上推高，釋放頸椎與腰部重壓</div>
+            <div className="text-slate-400 text-[10px] leading-tight">十指緊扣向上推高，釋放頸椎重壓</div>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 backdrop-blur-md">
-            <div className="text-amber-400 font-bold mb-1 flex items-center gap-1.5">
-              <span className="text-lg animate-pulse">🧘</span>
+          <div className="p-2.5 rounded-lg bg-[#10141c] border border-white/10 text-[11px] text-slate-300 backdrop-blur-md">
+            <div className="text-[#ffaa00] font-bold mb-1 flex items-center gap-1.5 text-xs">
+              <span className="animate-pulse">🧘</span>
               <span>轉身活化脊椎</span>
             </div>
-            <div className="text-slate-400 text-[10px] leading-tight">雙腳踏平地面，腰部深呼吸向兩側輕轉</div>
+            <div className="text-slate-400 text-[10px] leading-tight">踏平地面，腰部深呼吸向兩側輕轉</div>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 backdrop-blur-md">
-            <div className="text-emerald-400 font-bold mb-1 flex items-center gap-1.5">
-              <span className="text-lg animate-bounce">🦵</span>
+          <div className="p-2.5 rounded-lg bg-[#10141c] border border-white/10 text-[11px] text-slate-300 backdrop-blur-md">
+            <div className="text-[#00ff87] font-bold mb-1 flex items-center gap-1.5 text-xs">
+              <span className="animate-bounce">🦵</span>
               <span>顛腳尖踢小腿</span>
             </div>
-            <div className="text-slate-400 text-[10px] leading-tight">活動足踝小腿肌群，促使下肢靜脈血液回流</div>
+            <div className="text-slate-400 text-[10px] leading-tight">活動足踝小腿肌群，促使靜脈回流</div>
           </div>
         </div>
 
+        {/* 30-Second Stickman Calisthenics Screensaver Launcher - Pill Button */}
+        {onStartStretchWorkout && (
+          <button
+            onClick={onStartStretchWorkout}
+            className="w-full max-w-md py-3 px-4 rounded-full bg-[#00ff87] hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm tracking-wide shadow-[0_0_25px_rgba(0,255,135,0.4)] flex items-center justify-center gap-2 transform hover:scale-[1.02] transition mb-3 font-mono"
+          >
+            <Activity className="w-4 h-4 text-slate-950 animate-bounce" />
+            <span>&gt; 進入 30 秒全螢幕戰術伸展操 (立即解鎖)</span>
+          </button>
+        )}
+
         {/* Screensaver Input Intercept Flash Prompt */}
         {keyPressAttempted && (
-          <div className="mb-4 px-4 py-2.5 rounded-lg bg-amber-500/20 border border-amber-500 text-amber-300 text-xs font-bold animate-bounce shadow-[0_0_20px_rgba(245,158,11,0.4)]">
-            ⚠️ 螢幕保護程式鎖定中！敲擊鍵盤或滑鼠無效，請真正起立離開座位！
+          <div className="mb-3 px-3 py-1.5 rounded-full bg-[#ffaa00]/15 border border-[#ffaa00]/60 text-[#ffaa00] text-xs font-bold animate-bounce shadow-[0_0_15px_rgba(255,170,0,0.3)]">
+            &gt; ALERT: 螢幕保護程式鎖定中！請真正起立離開座位！
           </div>
         )}
 
@@ -292,22 +323,22 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
             e.stopPropagation();
             onEmergencyOverride();
           }}
-          className="text-xs text-slate-500 hover:text-slate-300 font-mono underline transition py-1.5 px-3 rounded hover:bg-slate-900/60"
+          className="text-[11px] text-slate-500 hover:text-slate-300 font-mono underline transition py-1 px-3 rounded-full hover:bg-white/5"
         >
-          [MANUAL_WAKE // 手動喚醒] 我正在升降桌站立辦公或有緊急狀況
+          [MANUAL_OVERRIDE // 手動喚醒] 我正在升降桌站立辦公或有緊急狀況
         </button>
       </main>
 
-      {/* BOTTOM TICKER / PHILOSOPHY STRIP */}
-      <footer className="relative z-10 w-full pt-3 border-t border-slate-900 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-2">
+      {/* BOTTOM TICKER / PHILOSOPHY STRIP - Overwatch Strip */}
+      <footer className="relative z-10 w-full pt-3 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-500 gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-rose-400 font-bold">[HEALTH_ADVISORY]</span>
+          <span className="text-[#ff3366] font-bold">[OVERWATCH // HEALTH_INTERLOCK]</span>
           <span>身體只有一個，工作永遠做不完。現在起立喝杯水，椎間盤感謝你。</span>
         </div>
         <div className="flex items-center gap-3 font-mono">
           <span>AI VISION INTERLOCK</span>
           <span>•</span>
-          <span className="text-cyan-400">STAND_UP_NOW</span>
+          <span className="text-[#00d8ff]">&gt; STAND_UP_NOW</span>
         </div>
       </footer>
     </div>

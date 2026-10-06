@@ -33,6 +33,7 @@ import { DemoSimulationBar } from './components/DemoSimulationBar';
 import { FloatingPiPInterlock } from './components/FloatingPiPInterlock';
 import { CrossTabControlBar } from './components/CrossTabControlBar';
 import { ScreensaverMemeTakeover } from './components/ScreensaverMemeTakeover';
+import { StretchStickmanScreensaver } from './components/StretchStickmanScreensaver';
 import { requestPiPWindow } from './utils/pipManager';
 import {
   fireDesktopNotification,
@@ -64,11 +65,13 @@ export default function App() {
   const [activeHazard, setActiveHazard] = useState<ActiveHazardAlert | null>(null);
   const activeHazardTimeoutRef = useRef<number | null>(null);
 
-  // Modals
+  // Modals & Screensavers
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isReceiptOpen, setIsReceiptOpen] = useState<boolean>(false);
   const [isSedentaryLocked, setIsSedentaryLocked] = useState<boolean>(false);
   const [sedentaryRemainingSeconds, setSedentaryRemainingSeconds] = useState<number>(15);
+  const [isStretchScreensaverOpen, setIsStretchScreensaverOpen] = useState<boolean>(false);
+  const [stretchScreensaverReason, setStretchScreensaverReason] = useState<'yawn' | 'sedentary' | 'manual'>('sedentary');
 
   const [isEyeStrainActive, setIsEyeStrainActive] = useState<boolean>(false);
   const [eyeStrainProgress, setEyeStrainProgress] = useState<number>(0);
@@ -693,7 +696,9 @@ export default function App() {
           setSedentaryRemainingSeconds((sec) => {
             const next = sec - 1;
             if (next <= 0) {
-              handleSedentaryUnlock();
+              setTimeout(() => {
+                handleSedentaryUnlock();
+              }, 0);
               return 0;
             }
             return next;
@@ -705,14 +710,15 @@ export default function App() {
       if (isEyeStrainActive) {
         setEyeStrainRemaining((rem) => {
           const next = rem - 1;
-          const pct = ((5 - next) / 5) * 100;
-          setEyeStrainProgress(pct);
-          if (next <= 0) {
-            setIsEyeStrainActive(false);
-            logEvent('眼部放鬆完成，畫面模糊已解除', 0, 'info', '👀');
-            return 0;
-          }
-          return next;
+          const pct = Math.min(100, Math.max(0, ((5 - next) / 5) * 100));
+          setTimeout(() => {
+            setEyeStrainProgress(pct);
+            if (next <= 0) {
+              setIsEyeStrainActive(false);
+              logEvent('眼部放鬆完成，畫面模糊已解除', 0, 'info', '👀');
+            }
+          }, 0);
+          return Math.max(0, next);
         });
       }
 
@@ -789,6 +795,100 @@ export default function App() {
     };
   };
 
+  // Memoized handlers to ensure stable references across 60fps renders
+  const handleDismissHazard = useCallback(() => {
+    setActiveHazard(null);
+  }, []);
+
+  const handleStartStretchFromYawn = useCallback(() => {
+    setActiveHazard(null);
+    setStretchScreensaverReason('yawn');
+    setIsStretchScreensaverOpen(true);
+  }, []);
+
+  const handleStartStretchFromSedentary = useCallback(() => {
+    setStretchScreensaverReason('sedentary');
+    setIsStretchScreensaverOpen(true);
+  }, []);
+
+  const handleEmergencyOverride = useCallback(() => {
+    setIsSedentaryLocked(false);
+    detectionRef.current.consecutiveDeskSecs = 0;
+    logEvent('已手動覆蓋久坐鎖定：站立辦公中', 0, 'info', '🧍');
+  }, [logEvent]);
+
+  const handleDismissEyeStrain = useCallback(() => {
+    setIsEyeStrainActive(false);
+    logEvent('已手動解除眼肌放鬆模糊', 0, 'info', '👀');
+  }, [logEvent]);
+
+  const handleStretchComplete = useCallback(() => {
+    setIsStretchScreensaverOpen(false);
+    setHealthScore((prev) => Math.min(100, prev + 15));
+    setIsSedentaryLocked(false);
+    detectionRef.current.consecutiveDeskSecs = 0;
+    logEvent(
+      '【30秒暖身操完成】動態小人引導脊椎減壓成功！健康存摺 +15 BP',
+      15,
+      'reward',
+      '🧘'
+    );
+  }, [logEvent]);
+
+  const handleStretchDismiss = useCallback(() => {
+    setIsStretchScreensaverOpen(false);
+  }, []);
+
+  const handleDismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const handleTriggerManualStretch = useCallback(() => {
+    setStretchScreensaverReason('manual');
+    setIsStretchScreensaverOpen(true);
+  }, []);
+
+  const handleTriggerDemoSlack = useCallback(() => {
+    handleSlackReward(5);
+  }, [handleSlackReward]);
+
+  const handleClearEvents = useCallback(() => {
+    setEvents([]);
+  }, []);
+
+  const handleCloseSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+  }, []);
+
+  const handleCloseReceipt = useCallback(() => {
+    setIsReceiptOpen(false);
+  }, []);
+
+  const handleSaveSettings = useCallback(
+    (newSettings: GuardianSettings) => {
+      setSettings(newSettings);
+      logEvent(
+        `守護參數已更新：基礎年齡 ${newSettings.baseAge}歲 / 下班時間 ${newSettings.offWorkTime}`,
+        0,
+        'info',
+        '⚙️'
+      );
+    },
+    [logEvent]
+  );
+
+  const handleClosePiP = useCallback(() => {
+    if (pipWindow) {
+      try {
+        pipWindow.close();
+      } catch {
+        // ignore
+      }
+    }
+    setPipWindow(null);
+    setIsPiPActive(false);
+  }, [pipWindow]);
+
   return (
     <div className="min-h-screen bg-[#070a0f] text-slate-200 hardware-grid-bg flex flex-col selection:bg-cyan-500 selection:text-black">
       {/* Full-Screen Overlays */}
@@ -796,76 +896,78 @@ export default function App() {
         isOpen={isSedentaryLocked}
         remainingSeconds={sedentaryRemainingSeconds}
         isFacePresent={telemetry.isFacePresent}
-        onEmergencyOverride={() => {
-          setIsSedentaryLocked(false);
-          detectionRef.current.consecutiveDeskSecs = 0;
-          logEvent('已手動覆蓋久坐鎖定：站立辦公中', 0, 'info', '🧍');
-        }}
+        onStartStretchWorkout={handleStartStretchFromSedentary}
+        onEmergencyOverride={handleEmergencyOverride}
       />
 
       <EyeStrainBlurOverlay
         isOpen={isEyeStrainActive}
         progressPct={eyeStrainProgress}
         remainingSeconds={eyeStrainRemaining}
-        onDismiss={() => {
-          setIsEyeStrainActive(false);
-          logEvent('已手動解除眼肌放鬆模糊', 0, 'info', '👀');
-        }}
+        onDismiss={handleDismissEyeStrain}
       />
 
       {/* Screensaver Full-Screen Meme Takeover (Yawn, Frown, Slack, Overtime) */}
       <ScreensaverMemeTakeover
         alert={activeHazard}
-        onDismiss={() => setActiveHazard(null)}
+        onDismiss={handleDismissHazard}
+        onStartStretchWorkout={handleStartStretchFromYawn}
+      />
+
+      {/* 30-Second Stickman Calisthenics Warm-Up Screensaver */}
+      <StretchStickmanScreensaver
+        isOpen={isStretchScreensaverOpen}
+        reason={stretchScreensaverReason}
+        onComplete={handleStretchComplete}
+        onDismiss={handleStretchDismiss}
       />
 
       {/* Meme Floating Toasts */}
       <MemeToastContainer
         toasts={toasts}
-        onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
+        onDismiss={handleDismissToast}
       />
 
       {/* Main Hardware Instrument Header */}
-      <header className="sticky top-0 z-30 px-4 sm:px-6 py-3 border-b border-slate-800 bg-[#0a0e17]/95 backdrop-blur-md flex items-center justify-between shadow-lg shadow-black/40">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-slate-900 border border-cyan-500/40 flex items-center justify-center text-lg shadow-[0_0_12px_rgba(6,182,212,0.2)]">
-            🛡️
+      <header className="sticky top-0 z-30 px-3 sm:px-6 py-2.5 border-b border-slate-800 bg-[#06080e]/95 backdrop-blur-md flex items-center justify-between shadow-lg font-mono">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded bg-[#030508] border border-cyan-500/50 flex items-center justify-center text-sm shadow-[0_0_10px_rgba(6,182,212,0.25)]">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-sm sm:text-base font-black tracking-wider text-slate-100 uppercase font-mono">
-                OHG-2026 // HEALTH GUARDIAN
+              <h1 className="text-xs sm:text-sm font-black tracking-wider text-slate-100 uppercase">
+                OVERWATCH // BIOSURVEILLANCE OS
               </h1>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/70 border border-cyan-500/50 text-cyan-400 hidden sm:inline-block tracking-widest">
-                [AI_VISION_PRO]
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 hidden sm:inline-block tracking-widest">
+                AI_VISION_PRO
               </span>
             </div>
-            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
-              <span className="flex items-center gap-1.5 text-emerald-400">
+            <div className="flex items-center gap-2 text-[10px] text-slate-400">
+              <span className="flex items-center gap-1 text-emerald-400 font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                SYS_ONLINE
+                CAM_REC [ACTIVE]
               </span>
               <span>•</span>
-              <span className="hidden md:inline text-slate-400">辦公室健康存摺 & 身體年齡惡搞監視器</span>
+              <span className="hidden md:inline text-slate-500">辦公室久坐與健康存摺監控網絡</span>
             </div>
           </div>
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-xs">
           {/* PiP Always-on-top Interceptor Quick Toggle */}
           <button
             onClick={handleTogglePiP}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
               isPiPActive
-                ? 'bg-cyan-950/90 border-cyan-400 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.4)]'
-                : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:border-cyan-500/70 hover:text-white'
+                ? 'bg-cyan-950/90 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                : 'bg-[#030508] border-slate-800 text-slate-300 hover:border-slate-700'
             }`}
             title="開啟永遠置頂浮動視窗：無論使用任何分頁或程式，警報與鎖定直接在最上層彈出"
           >
             <AppWindow className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{isPiPActive ? 'PiP: 置頂中' : 'PiP: 跨桌面置頂'}</span>
-            <span className="sm:hidden">{isPiPActive ? 'PiP中' : 'PiP'}</span>
+            <span className="hidden sm:inline">{isPiPActive ? 'PIP_ACTIVE' : 'PIP_DOCK'}</span>
           </button>
 
           {/* Meeting Mode Switch */}
@@ -880,37 +982,37 @@ export default function App() {
                 next ? '🤫' : '🔔'
               );
             }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
               isMeetingMode
-                ? 'bg-amber-950/80 border-amber-500 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
-                : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:border-slate-500 hover:text-white'
+                ? 'bg-amber-950/80 border-amber-500 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                : 'bg-[#030508] border-slate-800 text-slate-400 hover:border-slate-700'
             }`}
             title="開啟會議模式：靜音所有彈窗與警報，但仍默默記錄健康分數"
           >
             <span
-              className={`w-2 h-2 rounded-full ${
-                isMeetingMode ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_#f59e0b]' : 'bg-slate-600'
+              className={`w-1.5 h-1.5 rounded-full ${
+                isMeetingMode ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'
               }`}
             />
-            <span>{isMeetingMode ? 'MEETING: ON' : 'MEETING: OFF'}</span>
+            <span>{isMeetingMode ? 'MTG: ON' : 'MTG: OFF'}</span>
           </button>
 
           {/* Settings Button */}
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 rounded-lg bg-slate-900 border border-slate-700/80 hover:border-cyan-500/60 text-slate-300 hover:text-cyan-400 transition"
+            className="p-1.5 rounded bg-[#030508] border border-slate-800 hover:border-cyan-500/60 text-slate-400 hover:text-cyan-400 transition"
             title="守護者儀器參數設定"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-3.5 h-3.5" />
           </button>
 
           {/* Clock-Out Summary Card Button */}
           <button
             onClick={() => setIsReceiptOpen(true)}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black font-mono px-3.5 py-1.5 rounded-lg text-xs shadow-[0_0_15px_rgba(16,185,129,0.25)] transition transform active:scale-95 border border-emerald-400/40"
+            className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black px-2.5 py-1 rounded text-[11px] transition transform active:scale-95 shadow-[0_0_10px_rgba(16,185,129,0.25)]"
           >
-            <Clock className="w-3.5 h-3.5" />
-            <span>[結算收據]</span>
+            <Clock className="w-3 h-3" />
+            <span>[RECEIPT]</span>
           </button>
         </div>
       </header>
@@ -955,9 +1057,10 @@ export default function App() {
               onTriggerYawn={handleYawnPenalty}
               onTriggerFrown={handleFrownPenalty}
               onTriggerSedentary={handleSedentaryLock}
-              onTriggerSlack={() => handleSlackReward(5)}
+              onTriggerSlack={handleTriggerDemoSlack}
               onTriggerProximity={handleProximityBlur}
               onTriggerOvertime={handleOvertimeDeduction}
+              onTriggerStretch={handleTriggerManualStretch}
             />
           </div>
 
@@ -971,7 +1074,7 @@ export default function App() {
               overtimeMinutes={overtimeMinutes}
             />
 
-            <ActivityLogView events={events} onClear={() => setEvents([])} />
+            <ActivityLogView events={events} onClear={handleClearEvents} />
           </div>
         </div>
       </main>
@@ -998,22 +1101,14 @@ export default function App() {
       {/* Modals */}
       <SettingsModal
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={handleCloseSettings}
         settings={settings}
-        onSave={(newSettings) => {
-          setSettings(newSettings);
-          logEvent(
-            `守護參數已更新：基礎年齡 ${newSettings.baseAge}歲 / 下班時間 ${newSettings.offWorkTime}`,
-            0,
-            'info',
-            '⚙️'
-          );
-        }}
+        onSave={handleSaveSettings}
       />
 
       <DailyReceiptModal
         isOpen={isReceiptOpen}
-        onClose={() => setIsReceiptOpen(false)}
+        onClose={handleCloseReceipt}
         stats={getSummaryStats()}
         events={events}
       />
@@ -1033,21 +1128,9 @@ export default function App() {
             eyeStrainRemaining={eyeStrainRemaining}
             isOvertime={isOvertime}
             overtimeMinutes={overtimeMinutes}
-            onDismissHazard={() => setActiveHazard(null)}
-            onEmergencyOverride={() => {
-              setIsSedentaryLocked(false);
-              detectionRef.current.consecutiveDeskSecs = 0;
-              logEvent('已手動覆蓋久坐鎖定：站立辦公中', 0, 'info', '🧍');
-            }}
-            onClosePiP={() => {
-              try {
-                pipWindow.close();
-              } catch {
-                // ignore
-              }
-              setPipWindow(null);
-              setIsPiPActive(false);
-            }}
+            onDismissHazard={handleDismissHazard}
+            onEmergencyOverride={handleEmergencyOverride}
+            onClosePiP={handleClosePiP}
           />,
           pipWindow.document.body
         )}
