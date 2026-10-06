@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Shield, Crosshair, Sparkles, CheckCircle2, AlertTriangle, Radio, Navigation } from 'lucide-react';
+import { Shield, Crosshair, Sparkles, CheckCircle2, AlertTriangle, Radio, Navigation, Lock, UserX, Clock } from 'lucide-react';
 import { soundSynth } from '../utils/audioSynth';
 
 interface EyeStrainBlurOverlayProps {
@@ -17,100 +17,167 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
   onDismiss,
   onCalibrationSuccess,
 }) => {
-  // Simulated or real distance in cm
-  // Proximity 75% -> 33cm; 65% -> 38cm; 50% -> 50cm; 40% -> 62cm; 30% -> 83cm
-  const [simulatedOffset, setSimulatedOffset] = useState<number>(0);
-  const [isSimulatingSafe, setIsSimulatingSafe] = useState<boolean>(false);
+  const HOLD_DURATION = 3.0; // 3 seconds hold time when qualified
+  const STANDARD_MIN_CM = 35; // Optimal posture safe zone: >= 35cm
+
+  const [currentTime, setCurrentTime] = useState<string>('');
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
-  const [holdTimer, setHoldTimer] = useState<number>(3.5); // 3.5 seconds required
-  const [lastBeepSec, setLastBeepSec] = useState<number>(4);
+  const [holdTimer, setHoldTimer] = useState<number>(HOLD_DURATION);
+  const [refusalAttempt, setRefusalAttempt] = useState<boolean>(false);
+  const [simulatedCmOverride, setSimulatedCmOverride] = useState<number | null>(null);
 
-  const HOLD_DURATION = 3.5;
+  const holdTimerRef = useRef<number>(HOLD_DURATION);
+  const isCompletedRef = useRef<boolean>(false);
+  const refusalTimeoutRef = useRef<number | null>(null);
 
-  // Calculate live estimated distance (cm)
-  const rawPct = isSimulatingSafe ? 38 : Math.max(10, proximityPct - simulatedOffset);
-  const estimatedCm = Math.round(2500 / Math.max(15, rawPct));
+  // Digital clock for topbar sync
+  useEffect(() => {
+    if (!isOpen) return;
+    const updateTime = () => {
+      setCurrentTime(new Date().toLocaleTimeString('zh-TW', { hour12: false }));
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [isOpen]);
 
-  // Thresholds:
-  // Safe zone: >= 55cm (rawPct <= 45)
-  // Warning zone: 48cm - 54cm (rawPct 46 - 52)
-  // Danger zone: < 48cm (rawPct >= 53)
-  const isSafe = estimatedCm >= 55 || (isFacePresent && rawPct <= 45) || isSimulatingSafe;
-  const isWarning = !isSafe && estimatedCm >= 48;
+  const outOfBoundsBufferRef = useRef<number>(0);
+
+  // Calculate live estimated distance (cm) from camera with calibrated optical focal mapping
+  const rawPct = Math.max(10, proximityPct);
+  const cameraEstimatedCm = Math.round(1950 / Math.max(12, rawPct));
+  const currentCm = simulatedCmOverride !== null ? simulatedCmOverride : cameraEstimatedCm;
+  const currentFacePresent = simulatedCmOverride !== null ? true : isFacePresent;
+
+  // Hysteresis & Grace Buffer:
+  // Requires >= 35cm to start countdown (Optimal posture).
+  // Once countdown starts (holdTimer < 5.0), allows >= 30cm (transition zone) so minor movements don't reset timer.
+  const minRequiredCm = holdTimer < HOLD_DURATION ? 30 : STANDARD_MIN_CM;
+  const isSafe = currentFacePresent && currentCm >= minRequiredCm;
+  const isWarning = currentFacePresent && currentCm >= 30 && currentCm < minRequiredCm;
   const isDanger = !isSafe && !isWarning;
 
-  // Track holding time
-  useEffect(() => {
-    if (!isOpen || isCompleted) return;
+  const isSafeRef = useRef<boolean>(isSafe);
+  isSafeRef.current = isSafe;
 
-    let intervalId: number;
+  const onCalibrationSuccessRef = useRef(onCalibrationSuccess);
+  onCalibrationSuccessRef.current = onCalibrationSuccess;
 
-    if (isSafe) {
-      intervalId = window.setInterval(() => {
-        setHoldTimer((prev) => {
-          const next = Math.max(0, prev - 0.1);
-          const currentCeil = Math.ceil(next);
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
 
-          if (currentCeil !== lastBeepSec && next > 0) {
-            setLastBeepSec(currentCeil);
-            soundSynth.playRadarLockBeep(880 + (HOLD_DURATION - next) * 120);
-          }
-
-          if (next <= 0) {
-            setIsCompleted(true);
-            soundSynth.playTargetAcquired();
-            window.setTimeout(() => {
-              if (onCalibrationSuccess) {
-                onCalibrationSuccess();
-              } else {
-                onDismiss();
-              }
-            }, 2400);
-          }
-          return next;
-        });
-      }, 100);
-    } else {
-      // Reset timer if user breaks safe distance
-      if (holdTimer < HOLD_DURATION && !isCompleted) {
-        setHoldTimer(HOLD_DURATION);
-        setLastBeepSec(4);
-      }
-    }
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [isOpen, isSafe, isCompleted, holdTimer, lastBeepSec, onCalibrationSuccess, onDismiss]);
+  // Trigger refusal feedback if user tries to close/escape while distance not compliant
+  const triggerRefusalNotice = () => {
+    if (isCompletedRef.current) return;
+    try {
+      soundSynth.playWarningBuzz();
+    } catch {}
+    setRefusalAttempt(true);
+    if (refusalTimeoutRef.current) clearTimeout(refusalTimeoutRef.current);
+    refusalTimeoutRef.current = window.setTimeout(() => {
+      setRefusalAttempt(false);
+    }, 2500);
+  };
 
   // Reset states when opened
   useEffect(() => {
     if (isOpen) {
       setIsCompleted(false);
+      isCompletedRef.current = false;
+      holdTimerRef.current = HOLD_DURATION;
       setHoldTimer(HOLD_DURATION);
-      setIsSimulatingSafe(false);
-      setSimulatedOffset(0);
-      setLastBeepSec(4);
-      soundSynth.playRadarLockBeep(520);
+      setRefusalAttempt(false);
+      setSimulatedCmOverride(null);
+      try {
+        soundSynth.playRadarLockBeep(520);
+      } catch {}
     }
   }, [isOpen]);
 
-  // Keyboard shortcut listener (ESC to dismiss)
+  // Hidden ESC Key dismiss mechanism (Pressing ESC closes overlay immediately)
   useEffect(() => {
     if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
+
+    const handleKeyDownCapture = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onDismiss();
+        e.preventDefault();
+        e.stopPropagation();
+        onDismissRef.current();
+        return;
+      }
+
+      if (isCompletedRef.current) return;
+
+      if (e.key === ' ' || e.key === 'Enter' || e.key === 'Backspace') {
+        e.preventDefault();
+        e.stopPropagation();
+        triggerRefusalNotice();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onDismiss]);
+
+    window.addEventListener('keydown', handleKeyDownCapture, { capture: true });
+    return () => {
+      window.removeEventListener('keydown', handleKeyDownCapture, { capture: true });
+    };
+  }, [isOpen]);
+
+  // Track holding time reliably: counts down when distance meets standard; allows 0.8s grace buffer for blinks/eye closure
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const intervalId = window.setInterval(() => {
+      if (isCompletedRef.current) return;
+
+      if (isSafeRef.current) {
+        outOfBoundsBufferRef.current = 0; // reset grace buffer on safe frame
+        holdTimerRef.current = Math.max(0, holdTimerRef.current - 0.1);
+        setHoldTimer(holdTimerRef.current);
+
+        if (holdTimerRef.current <= 0 && !isCompletedRef.current) {
+          isCompletedRef.current = true;
+          setIsCompleted(true);
+          try {
+            soundSynth.playTargetAcquired();
+          } catch {}
+
+          window.setTimeout(() => {
+            if (onCalibrationSuccessRef.current) {
+              onCalibrationSuccessRef.current();
+            } else {
+              onDismissRef.current();
+            }
+          }, 900);
+        }
+      } else {
+        // Allow a 0.8s grace buffer for natural blinks, eye closure, or minor pose shifts
+        outOfBoundsBufferRef.current += 0.1;
+        if (outOfBoundsBufferRef.current >= 0.8) {
+          if (holdTimerRef.current < HOLD_DURATION) {
+            holdTimerRef.current = HOLD_DURATION;
+            setHoldTimer(HOLD_DURATION);
+          }
+        }
+      }
+    }, 100);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const progressPct = ((HOLD_DURATION - holdTimer) / HOLD_DURATION) * 100;
-  const gaugePercent = Math.min(100, Math.max(10, ((estimatedCm - 25) / 60) * 100));
+  
+  // Piecewise gauge needle mapping aligned with 3-segment bar (0-35%: <30cm, 35-50%: 30-35cm, 50-100%: >=35cm)
+  let gaugePercent = 50;
+  if (currentCm < 30) {
+    gaugePercent = Math.max(5, Math.min(34, 5 + ((currentCm - 15) / 15) * 29));
+  } else if (currentCm < 35) {
+    gaugePercent = 35 + ((currentCm - 30) / 5) * 14;
+  } else {
+    gaugePercent = Math.min(98, 50 + ((currentCm - 35) / 30) * 45);
+  }
 
   // Determine theme color
   const statusColor = isCompleted
@@ -124,165 +191,111 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
   return (
     <div
       id="proximity-tactical-radar-overlay"
-      className="fixed inset-0 z-[999999] bg-[#050508]/98 backdrop-blur-3xl flex flex-col justify-between p-3 sm:p-5 text-center font-mono select-none overflow-y-auto"
+      onClick={() => {
+        // If clicking anywhere on backdrop while distance is not compliant, trigger refusal
+        if (!isSafe && !isCompleted) {
+          triggerRefusalNotice();
+        }
+      }}
+      className={`fixed inset-0 z-[999990] bg-[#07090e] text-slate-100 flex flex-col justify-between p-2 sm:p-4 select-none overflow-hidden font-mono cursor-default animate-in fade-in duration-300 pointer-events-auto h-[100dvh] max-h-[100dvh] w-full transition-transform ${
+        refusalAttempt ? 'animate-[shake_0.4s_ease-in-out]' : ''
+      }`}
       style={{
-        backgroundImage: `radial-gradient(circle at center, ${
-          isSafe ? 'rgba(6, 182, 212, 0.15)' : 'rgba(239, 68, 68, 0.16)'
-        } 0%, rgba(5, 5, 8, 0.98) 75%)`,
+        backgroundImage: `radial-gradient(ellipse at center, ${
+          isSafe ? 'rgba(6, 182, 212, 0.18)' : 'rgba(239, 68, 68, 0.16)'
+        } 0%, rgba(7, 9, 14, 0.98) 75%)`,
       }}
     >
-      {/* Tactical Corner Brackets */}
-      <div className="pointer-events-none absolute top-3 left-3 text-slate-500 text-[10px] z-20">
-        ┌─ [OVERWATCH // OPTICAL_RANGE_FINDER]
-      </div>
-      <div className="pointer-events-none absolute top-3 right-3 text-slate-500 text-[10px] z-20">
-        [TARGET_ACQUISITION_SYS] ─┐
-      </div>
-      <div className="pointer-events-none absolute bottom-3 left-3 text-slate-500 text-[10px] z-20">
-        └─ [RETINA_PRESERVATION_RADAR]
-      </div>
-      <div className="pointer-events-none absolute bottom-3 right-3 text-slate-500 text-[10px] z-20">
-        [PRESS_ESC_TO_OVERRIDE] ─┘
-      </div>
+      {/* Retro CRT Scanline overlay */}
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,24,38,0)_50%,rgba(0,0,0,0.4)_50%)] bg-[length:100%_4px] opacity-70 z-0" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(6,182,212,0.06)_1px,transparent_1px)] [background-size:24px_24px] opacity-60 z-0" />
 
-      {/* Cybernetic Dot Grid and Scanlines */}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:32px_32px] opacity-60 z-0" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.5)_50%)] bg-[length:100%_4px] opacity-70 z-0 pointer-events-none" />
-
-      {/* Top Header Command Bar */}
-      <header className="relative z-10 w-full flex items-center justify-between pb-2.5 border-b border-white/10 text-xs">
-        <div className="flex items-center gap-2">
+      {/* TOP HEADER STATUS BAR - Identical to ScreensaverMemeTakeover & SedentaryLockModal */}
+      <header className="relative z-20 w-full flex items-center justify-between pb-2 sm:pb-2.5 border-b border-white/10 text-xs shrink-0 gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
           <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold border transition-colors shadow-lg"
+            className="flex items-center gap-1.5 sm:gap-2 px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded border text-[10px] sm:text-[11px] font-bold tracking-wider truncate"
             style={{
               backgroundColor: `${statusColor}18`,
               borderColor: `${statusColor}60`,
               color: statusColor,
             }}
           >
-            <Radio className="w-3.5 h-3.5 animate-pulse" />
-            <span>&gt; PROXIMITY_RADAR // 護眼視距校準</span>
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-current shadow-[0_0_8px_currentColor] shrink-0" />
+            <span className="truncate">&gt; OVERWATCH // INTERCEPT</span>
           </div>
-          <span className="hidden sm:inline text-[11px] text-slate-400">
+          <span className="hidden md:inline text-slate-400 text-[10px] sm:text-[11px] tracking-wide truncate">
             {isCompleted
-              ? '校準成功！視網膜防護啟動'
+              ? '> STATUS: CALIBRATION_COMPLETE // 視距校準成功'
+              : !currentFacePresent
+              ? '> WARNING: FACE_OFFLINE // 請面向鏡頭並拉開距離'
               : isSafe
-              ? '最佳距離已鎖定，維持中...'
-              : '距離過近！請向後退以放鬆睫狀肌'}
+              ? '> STATUS: OPTIMAL_DISTANCE // 最佳姿勢維持中'
+              : isWarning
+              ? `> STATUS: TRANSITION_ZONE // 過渡區 (當前 ${currentCm} cm，請稍微後靠至 ≥ 35cm)`
+              : `> ALERT: PROXIMITY_VIOLATION // 當前距離 ${currentCm} cm (過近！需 ≥ 35cm)`}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-500 px-2 py-0.5 rounded bg-black/60 border border-white/5">
-            ESC: 退出
-          </span>
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {currentTime && (
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#0a0c10]/90 border border-white/10 text-slate-300 text-[10px] sm:text-xs shadow-inner">
+              <Clock className="w-3 h-3 text-[#00d8ff] shrink-0" />
+              <span className="font-bold tracking-widest">{currentTime}</span>
+            </div>
+          )}
         </div>
       </header>
 
-      {/* Center Tactical Range Finder Display */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto my-auto py-2 w-full">
-        {/* Radar Sonar & Cyber Reticle */}
-        <div className="relative w-56 h-56 sm:w-64 sm:h-64 mb-3 flex items-center justify-center">
-          {/* Outer Sonar Ring */}
-          <div
-            className="absolute inset-0 rounded-full border border-dashed transition-colors duration-300"
-            style={{ borderColor: `${statusColor}40` }}
-          />
-
-          {/* Radar Sweep Rotating Beam */}
-          <div
-            className="absolute inset-0 rounded-full animate-spin pointer-events-none opacity-40"
-            style={{
-              animationDuration: isSafe ? '2s' : '1.2s',
-              background: `conic-gradient(from 0deg, transparent 0deg, transparent 270deg, ${statusColor} 360deg)`,
-            }}
-          />
-
-          {/* Safe Zone Target Ring (55cm - 70cm) */}
-          <div
-            className={`absolute w-36 h-36 sm:w-40 sm:h-40 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
-              isSafe
-                ? 'border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.4)] bg-cyan-950/20'
-                : 'border-slate-700 bg-black/40'
-            }`}
-          >
-            {/* Inner Danger Zone Ring (< 48cm) */}
-            <div
-              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full border transition-all duration-300 flex items-center justify-center ${
-                isDanger
-                  ? 'border-rose-500 bg-rose-950/30 shadow-[0_0_15px_rgba(239,68,68,0.5)] animate-pulse'
-                  : 'border-slate-800'
-              }`}
-            />
+      {/* MAIN HERO CARD - Signature Overwatch Framed Card with high-tech glowing border & corner brackets */}
+      <main className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center text-center px-1 sm:px-2 max-w-4xl lg:max-w-5xl mx-auto my-auto py-2 w-full">
+        
+        {/* Dismissal Refusal Banner */}
+        {refusalAttempt && (
+          <div className="mb-2 px-4 py-2 rounded-xl bg-red-950/95 border-2 border-red-500 text-red-200 text-xs font-bold shadow-[0_0_30px_rgba(239,68,68,0.8)] flex items-center gap-2 animate-bounce z-30">
+            <Lock className="w-4 h-4 text-red-400 shrink-0" />
+            <span>🚫 距離未達最佳標準（當前 {currentCm} cm，需 ≥ 35cm）！請稍向後靠拉開距離</span>
           </div>
+        )}
 
-          {/* Radar Crosshairs */}
-          <div className="absolute inset-x-0 h-px bg-white/10 pointer-events-none" />
-          <div className="absolute inset-y-0 w-px bg-white/10 pointer-events-none" />
-
-          {/* Cardinal Marks */}
-          <span className="absolute top-1 text-[8px] text-slate-500">000°</span>
-          <span className="absolute bottom-1 text-[8px] text-slate-500">180°</span>
-          <span className="absolute left-1 text-[8px] text-slate-500">270°</span>
-          <span className="absolute right-1 text-[8px] text-slate-500">090°</span>
-
-          {/* Dynamic Target Blip / Face Marker */}
+        {/* The Outer Frame Box (Consistent with Overwatch Frown / Blink cards) */}
+        <div
+          className="relative w-full rounded-2xl bg-[#0a0c10]/95 border-2 shadow-[0_0_40px_rgba(6,182,212,0.22)] backdrop-blur-2xl p-4 sm:p-6 overflow-hidden transition-all duration-300"
+          style={{ borderColor: `${statusColor}70` }}
+        >
+          {/* Overwatch Signature 4-Corner Targeting Brackets */}
           <div
-            className="absolute transition-all duration-300 flex flex-col items-center justify-center"
-            style={{
-              transform: `scale(${Math.max(0.7, rawPct / 45)})`,
-            }}
-          >
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors duration-300 shadow-xl"
-              style={{
-                borderColor: statusColor,
-                backgroundColor: `${statusColor}25`,
-                boxShadow: `0 0 16px ${statusColor}`,
-              }}
-            >
-              <Crosshair
-                className={`w-5 h-5 transition-transform ${
-                  isSafe ? 'rotate-90 text-cyan-300' : 'animate-spin text-rose-400'
-                }`}
-              />
+            className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 pointer-events-none z-20"
+            style={{ borderColor: statusColor }}
+          />
+          <div
+            className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 pointer-events-none z-20"
+            style={{ borderColor: statusColor }}
+          />
+          <div
+            className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 pointer-events-none z-20"
+            style={{ borderColor: statusColor }}
+          />
+          <div
+            className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 pointer-events-none z-20"
+            style={{ borderColor: statusColor }}
+          />
+          {/* Inner Accent Line */}
+          <div
+            className="absolute inset-1.5 rounded-xl border pointer-events-none z-10"
+            style={{ borderColor: `${statusColor}20` }}
+          />
+
+          {/* Inner Card Top Header */}
+          <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3 w-full text-xs shrink-0 relative z-20">
+            <div className="flex items-center gap-2">
+              <Radio className="w-4 h-4 animate-pulse" style={{ color: statusColor }} />
+              <span className="font-black text-white tracking-wider uppercase text-xs sm:text-sm font-mono">
+                [OPTICAL_RANGE_FINDER] // 護眼視距雷達校準
+              </span>
             </div>
-            <span
-              className="text-[9px] font-bold mt-1 px-1 rounded bg-black/80 border"
-              style={{ borderColor: `${statusColor}80`, color: statusColor }}
-            >
-              {estimatedCm} cm
-            </span>
-          </div>
-
-          {/* Circular Countdown Ring when in Safe Zone */}
-          {isSafe && !isCompleted && (
-            <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none">
-              <circle
-                cx="50%"
-                cy="50%"
-                r="46%"
-                fill="none"
-                stroke="#06b6d4"
-                strokeWidth="3"
-                strokeDasharray="600"
-                strokeDashoffset={600 - (600 * progressPct) / 100}
-                className="transition-all duration-100"
-                style={{ filter: 'drop-shadow(0 0 6px #06b6d4)' }}
-              />
-            </svg>
-          )}
-        </div>
-
-        {/* Digital Telemetry Readout & Status Header */}
-        <div className="w-full max-w-md bg-[#090d16]/90 border border-white/10 p-3.5 sm:p-4 rounded-md shadow-2xl backdrop-blur-xl mb-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-              <Navigation className="w-3 h-3 text-cyan-400" />
-              即時距離偵測 (OPTICAL_RADAR)
-            </span>
-            <span
-              className="text-[10px] px-2 py-0.5 rounded font-bold uppercase border"
+            <div
+              className="text-[9px] sm:text-[10px] px-2.5 py-0.5 rounded font-bold uppercase border tracking-wider"
               style={{
                 backgroundColor: `${statusColor}20`,
                 borderColor: `${statusColor}60`,
@@ -291,154 +304,335 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
             >
               {isCompleted
                 ? 'LOCKED_SUCCESS'
+                : !currentFacePresent
+                ? 'FACE_NOT_DETECTED'
                 : isSafe
-                ? 'OPTIMAL_SAFE_ZONE'
+                ? 'OPTIMAL_SAFE_ZONE (≥35cm)'
                 : isWarning
-                ? 'APPROACHING'
-                : 'TOO_CLOSE_DANGER'}
-            </span>
-          </div>
-
-          {/* Giant Distance Meter Display */}
-          <div className="flex items-baseline justify-between py-1 border-b border-white/5">
-            <div className="flex items-baseline gap-2">
-              <span
-                className="text-3xl sm:text-4xl font-black tracking-tight"
-                style={{ color: statusColor }}
-              >
-                {estimatedCm}
-              </span>
-              <span className="text-xs text-slate-400 font-bold">cm / 公分</span>
-            </div>
-
-            <div className="text-right">
-              <div className="text-[10px] text-slate-500">標準人體工學護眼距離</div>
-              <div className="text-xs font-bold text-emerald-400">55 ~ 70 cm</div>
+                ? 'TRANSITION_ZONE (30-35cm)'
+                : 'TOO_CLOSE_DANGER (<30cm)'}
             </div>
           </div>
 
-          {/* Interactive Range Slider Visualization */}
-          <div className="mt-3">
-            <div className="flex justify-between text-[9px] text-slate-500 mb-1">
-              <span className="text-rose-400">過近 (&lt;48cm)</span>
-              <span className="text-amber-400">接近中 (48-54cm)</span>
-              <span className="text-emerald-400 font-bold">最佳安全區 (55-70cm)</span>
-            </div>
-
-            <div className="relative w-full h-3 bg-black/60 rounded border border-white/10 overflow-hidden flex">
-              {/* Danger Zone Segment */}
-              <div className="w-[35%] h-full bg-rose-950/70 border-r border-rose-500/30" />
-              {/* Warning Zone Segment */}
-              <div className="w-[15%] h-full bg-amber-950/70 border-r border-amber-500/30" />
-              {/* Optimal Zone Segment */}
-              <div className="w-[50%] h-full bg-emerald-950/70 relative">
-                <div className="absolute inset-0 bg-emerald-500/20 animate-pulse" />
-              </div>
-
-              {/* Dynamic Position Needle Indicator */}
-              <div
-                className="absolute top-0 bottom-0 w-1.5 -ml-0.5 transition-all duration-200 shadow-[0_0_8px_white]"
-                style={{
-                  left: `${gaugePercent}%`,
-                  backgroundColor: statusColor,
-                }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Action / Hold Guidance Banner */}
-        <div
-          className="w-full max-w-md p-3.5 rounded-md border text-left shadow-lg backdrop-blur-md transition-all duration-300"
-          style={{
-            backgroundColor: `${statusColor}12`,
-            borderColor: `${statusColor}50`,
-          }}
-        >
-          {isCompleted ? (
-            <div className="flex items-center gap-2.5 text-emerald-300">
-              <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
-              <div>
-                <div className="text-xs font-bold">🎯 最佳護眼距離校準完成！(DISTANCE_OK)</div>
-                <div className="text-[10px] text-emerald-400/90 mt-0.5">
-                  已恢復安全視距，獎勵健康存摺 +3 點！正在解除鎖定...
-                </div>
-              </div>
-            </div>
-          ) : isSafe ? (
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-cyan-400 animate-spin" />
-                  🎯 最佳護眼距離已鎖定！請維持這個距離
-                </span>
-                <span className="text-sm font-black text-cyan-400 font-mono">
-                  {holdTimer.toFixed(1)}s
-                </span>
-              </div>
-              <p className="text-[10px] text-cyan-200/80 mb-2">
-                請保持此坐姿，倒數結束後系統將自動關閉彈窗並恢復背景監測。
-              </p>
-              {/* Hold Progress Bar */}
-              <div className="w-full bg-black/60 rounded h-2 overflow-hidden border border-cyan-500/40 p-0.5">
+          {/* 2-Column Responsive Body for Clean Single-Screen Presentation */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 lg:gap-6 items-center w-full relative z-20">
+            
+            {/* Left Column: Radar Sonar Scanner with 100% Concentric Circles */}
+            <div className="md:col-span-5 flex flex-col items-center justify-center py-1">
+              <div className="relative w-44 h-44 sm:w-48 sm:h-48 md:w-52 md:h-52 flex items-center justify-center">
+                {/* Ring 1: Outer Sonar Ring */}
                 <div
-                  className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded transition-all duration-100 shadow-[0_0_10px_#06b6d4]"
-                  style={{ width: `${progressPct}%` }}
+                  className="absolute inset-0 rounded-full border border-dashed transition-colors duration-300 pointer-events-none"
+                  style={{ borderColor: `${statusColor}40` }}
                 />
+
+                {/* Ring 2: Radar Sweep Rotating Beam */}
+                <div
+                  className="absolute inset-0 rounded-full animate-spin pointer-events-none opacity-40"
+                  style={{
+                    animationDuration: isSafe ? '2s' : '1.2s',
+                    background: `conic-gradient(from 0deg, transparent 0deg, transparent 270deg, ${statusColor} 360deg)`,
+                  }}
+                />
+
+                {/* Ring 3: Middle Safe Zone Target Ring (70% size, concentric) */}
+                <div
+                  className={`absolute w-32 h-32 sm:w-36 sm:h-36 rounded-full border-2 transition-all duration-300 pointer-events-none ${
+                    isSafe
+                      ? 'border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.4)] bg-cyan-950/20'
+                      : 'border-slate-800 bg-black/40'
+                  }`}
+                />
+
+                {/* Ring 4: Inner Warning Zone Ring (45% size, concentric) */}
+                <div
+                  className={`absolute w-20 h-20 sm:w-22 sm:h-22 rounded-full border transition-all duration-300 pointer-events-none ${
+                    isWarning
+                      ? 'border-amber-400 bg-amber-950/30 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                      : 'border-slate-800'
+                  }`}
+                />
+
+                {/* Radar Crosshairs Lines */}
+                <div className="absolute inset-x-0 h-px bg-white/10 pointer-events-none" />
+                <div className="absolute inset-y-0 w-px bg-white/10 pointer-events-none" />
+
+                {/* Ring 5: Innermost Target Circle (EXACT 50% 50% Concentric Center) */}
+                <div
+                  className="absolute w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border-2 transition-all duration-200 shadow-xl pointer-events-none z-10"
+                  style={{
+                    borderColor: statusColor,
+                    backgroundColor: `${statusColor}25`,
+                    boxShadow: `0 0 16px ${statusColor}`,
+                  }}
+                >
+                  {!currentFacePresent ? (
+                    <UserX className="w-5 h-5 text-rose-400 animate-pulse" />
+                  ) : (
+                    <Crosshair
+                      className={`w-5 h-5 transition-transform ${
+                        isSafe ? 'rotate-90 text-cyan-300' : 'animate-spin text-rose-400'
+                      }`}
+                    />
+                  )}
+                </div>
+
+                {/* Distance Indicator Pill: Positioned cleanly at the bottom without shifting the concentric center */}
+                <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 pointer-events-none z-20">
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/90 border shadow-md font-mono whitespace-nowrap"
+                    style={{ borderColor: `${statusColor}80`, color: statusColor }}
+                  >
+                    {!currentFacePresent ? '人臉未感應' : `${currentCm} cm`}
+                  </span>
+                </div>
+
+                {/* Circular Countdown Ring when in Safe Zone */}
+                {isSafe && !isCompleted && (
+                  <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none">
+                    <circle
+                      cx="50%"
+                      cy="50%"
+                      r="46%"
+                      fill="none"
+                      stroke="#06b6d4"
+                      strokeWidth="3"
+                      strokeDasharray="600"
+                      strokeDashoffset={600 - (600 * progressPct) / 100}
+                      className="transition-all duration-100"
+                      style={{ filter: 'drop-shadow(0 0 6px #06b6d4)' }}
+                    />
+                  </svg>
+                )}
+              </div>
+
+              <div className="mt-2 text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: statusColor }} />
+                <span>RADAR_SONAR_SCANNER</span>
               </div>
             </div>
-          ) : isWarning ? (
-            <div className="flex items-start gap-2 text-amber-300">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 animate-bounce" />
-              <div>
-                <div className="text-xs font-bold">🟡 接近安全範圍（當前 {estimatedCm} cm）</div>
-                <div className="text-[10px] text-amber-200/90 mt-0.5">
-                  請稍微再往後退約 5~10 公分，進入 55cm 以上之最佳護眼安全綠區！
+
+            {/* Right Column: Distance Telemetry Readout & Non-Colliding Zone Slider */}
+            <div className="md:col-span-7 flex flex-col gap-3 w-full max-w-lg mx-auto md:mx-0">
+              {/* Digital Telemetry Readout Box */}
+              <div className="w-full bg-[#070b12]/95 border border-white/10 p-3 sm:p-4 rounded-xl shadow-xl backdrop-blur-xl">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                    <Navigation className="w-3 h-3 text-cyan-400" />
+                    即時距離感測
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-bold">
+                    最佳姿勢視距: <span className="text-emerald-400">≥ 35 cm</span>
+                  </span>
+                </div>
+
+                {/* Giant Distance Meter Display */}
+                <div className="flex items-baseline justify-between py-1 border-b border-white/5">
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      className="text-3xl sm:text-4xl font-black tracking-tight font-mono"
+                      style={{ color: statusColor }}
+                    >
+                      {!currentFacePresent ? '--' : currentCm}
+                    </span>
+                    <span className="text-xs text-slate-400 font-bold">cm / 公分</span>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-[9px] text-slate-500">判定狀態</div>
+                    <div className="text-xs font-bold" style={{ color: statusColor }}>
+                      {isCompleted
+                        ? '校準成功'
+                        : isSafe
+                        ? '最佳姿勢 (合格)'
+                        : isWarning
+                        ? '過渡區 (30-35cm)'
+                        : '過近警告 (<30cm)'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visual Zone Bar with 3-Column Grid Labels */}
+                <div className="mt-3">
+                  <div className="grid grid-cols-3 text-[9px] text-slate-400 mb-1 font-mono text-center font-bold">
+                    <span className="text-rose-400 text-left">過近 (&lt;30cm)</span>
+                    <span className="text-amber-400 text-center">過渡區 (30-35cm)</span>
+                    <span className="text-emerald-400 text-right">最佳姿勢 (≥35cm)</span>
+                  </div>
+
+                  <div className="relative w-full h-3 bg-black/70 rounded-full border border-white/10 overflow-hidden flex">
+                    {/* Danger Zone Segment */}
+                    <div className="w-[35%] h-full bg-rose-950/80 border-r border-rose-500/30" />
+                    {/* Warning Zone Segment */}
+                    <div className="w-[15%] h-full bg-amber-950/80 border-r border-amber-500/30" />
+                    {/* Optimal Zone Segment */}
+                    <div className="w-[50%] h-full bg-emerald-950/80 relative">
+                      <div className="absolute inset-0 bg-emerald-500/20 animate-pulse" />
+                    </div>
+
+                    {/* Dynamic Position Needle Indicator */}
+                    <div
+                      className="absolute top-0 bottom-0 w-2 -ml-1 transition-all duration-200 shadow-[0_0_10px_white] rounded-full"
+                      style={{
+                        left: `${gaugePercent}%`,
+                        backgroundColor: statusColor,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Simulation / Testing Assistant Bar */}
+                <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
+                  <span className="text-slate-500 text-[9px]">⚡ 距離校準模擬:</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSimulatedCmOverride(25);
+                      }}
+                      className={`px-2 py-0.5 rounded text-[9px] font-bold border transition cursor-pointer ${
+                        simulatedCmOverride === 25
+                          ? 'bg-rose-900/60 border-rose-500 text-rose-300'
+                          : 'bg-black/40 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      太近 25cm (&lt;30)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSimulatedCmOverride(32);
+                      }}
+                      className={`px-2 py-0.5 rounded text-[9px] font-bold border transition cursor-pointer ${
+                        simulatedCmOverride === 32
+                          ? 'bg-amber-900/60 border-amber-500 text-amber-300'
+                          : 'bg-black/40 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      過渡 32cm (30-35)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSimulatedCmOverride(42);
+                      }}
+                      className={`px-2 py-0.5 rounded text-[9px] font-bold border transition cursor-pointer ${
+                        simulatedCmOverride === 42
+                          ? 'bg-cyan-900/60 border-cyan-400 text-cyan-200 shadow-[0_0_8px_rgba(6,182,212,0.4)]'
+                          : 'bg-black/40 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      最佳 42cm (≥35)
+                    </button>
+                    {simulatedCmOverride !== null && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSimulatedCmOverride(null);
+                        }}
+                        className="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                      >
+                        即時鏡頭
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex items-start gap-2 text-rose-300">
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
-              <div>
-                <div className="text-xs font-bold">🔴 距離螢幕過近警告（當前 {estimatedCm} cm）</div>
-                <div className="text-[10px] text-rose-200/90 mt-0.5 leading-relaxed">
-                  請將頭部向後靠上椅背，將視距拉開至 <span className="font-bold text-white">55 公分</span> 以上，即可啟動自動解鎖倒數！
-                </div>
+
+              {/* Action / Hold Guidance Banner */}
+              <div
+                className="w-full p-3 sm:p-3.5 rounded-xl border text-left shadow-lg backdrop-blur-md transition-all duration-300"
+                style={{
+                  backgroundColor: `${statusColor}14`,
+                  borderColor: `${statusColor}50`,
+                }}
+              >
+                {isCompleted ? (
+                  <div className="flex items-center gap-2.5 text-emerald-300">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold">🎯 最佳護眼距離校準完成！(DISTANCE_OK)</div>
+                      <div className="text-[10px] text-emerald-400/90 mt-0.5">
+                        已維持最佳姿勢視距 (≥35cm)，獎勵健康存摺 +3 點！正在解除鎖定...
+                      </div>
+                    </div>
+                  </div>
+                ) : !currentFacePresent ? (
+                  <div className="flex items-start gap-2 text-rose-300">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-xs font-bold">🔴 鏡頭未感應到人臉 (FACE_OFFLINE)</div>
+                      <div className="text-[10px] text-rose-200/90 mt-0.5 leading-relaxed">
+                        請坐正面向相機鏡頭，保持最佳工作距離 <span className="font-bold text-white">35cm 以上</span>。
+                      </div>
+                    </div>
+                  </div>
+                ) : isSafe ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                        🎯 最佳姿勢已達標！維持 3 秒即自動解鎖
+                      </span>
+                      <span className="text-sm font-black text-cyan-400 font-mono">
+                        {holdTimer.toFixed(1)}s
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-cyan-200/80 mb-1.5">
+                      請保持此最佳坐姿 (≥35cm)，若中途靠近至 30cm 以下將重置計時。
+                    </p>
+                    {/* Hold Progress Bar */}
+                    <div className="w-full bg-black/60 rounded-full h-1.5 overflow-hidden border border-cyan-500/40 p-[1px]">
+                      <div
+                        className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all duration-100 shadow-[0_0_10px_#06b6d4]"
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : isWarning ? (
+                  <div className="flex items-start gap-2 text-amber-300">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-xs font-bold">🟡 處於過渡區（當前 {currentCm} cm，範圍 30-35cm）</div>
+                      <div className="text-[10px] text-amber-200/90 mt-0.5">
+                        請稍微再往後退約 2~5 公分，達到 <span className="font-bold text-white">35cm 以上最佳姿勢區</span> 即可啟動解鎖倒數！
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 text-rose-300">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-xs font-bold">🔴 距離螢幕過近警告（當前 {currentCm} cm，低於 30cm）</div>
+                      <div className="text-[10px] text-rose-200/90 mt-0.5 leading-relaxed">
+                        ⚠️ 距離低於 30cm 過近！請將腰背後靠至椅背，拉開至最佳姿勢標準（<span className="font-bold text-white">35 公分以上</span>）！
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Quick Simulator Override Button (for manual test or calibration) */}
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-          {!isSafe && (
-            <button
-              onClick={() => {
-                setIsSimulatingSafe(true);
-                soundSynth.playRadarLockBeep(980);
-              }}
-              className="px-3 py-1 rounded bg-cyan-950/60 hover:bg-cyan-900/80 text-cyan-300 border border-cyan-500/50 text-[10px] font-bold transition flex items-center gap-1 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
-            >
-              <span>🕹️ 模擬往後坐至 60cm 安全距離</span>
-            </button>
-          )}
-
-          <button
-            onClick={onDismiss}
-            className="px-3 py-1 rounded bg-black/60 hover:bg-white/10 text-slate-400 hover:text-slate-200 border border-white/10 text-[10px] transition"
-          >
-            [ESC // 手動解除] 我已調整完畢
-          </button>
+          </div>
         </div>
       </main>
 
-      {/* Footer Tactical Strip */}
-      <footer className="relative z-10 w-full pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-500">
-        <span className="text-cyan-400 font-bold">[OVERWATCH // OPTICAL_SAFEGUARD]</span>
-        <span className="hidden sm:inline">20-20-20 原則：每 20 分鐘遠眺 20 英呎（6 公尺）20 秒</span>
-        <span className="text-emerald-400 font-mono">&gt; RADAR_ACTIVE</span>
+      {/* FOOTER - Identical to ScreensaverMemeTakeover */}
+      <footer className="relative z-10 w-full pt-1.5 border-t border-white/10 flex items-center justify-between text-[9px] sm:text-[10px] text-slate-500 shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[#00d8ff] font-bold">[OVERWATCH // OPTICAL_SAFEGUARD]</span>
+          <span className="hidden md:inline">20-20-20 原則：每 20 分鐘遠眺 20 英呎（6 公尺）20 秒</span>
+        </div>
+
+        <div className="flex items-center gap-2 font-mono">
+          <span className="text-emerald-400 font-mono">&gt; RADAR_LOCKED_UNTIL_COMPLIANT</span>
+        </div>
       </footer>
     </div>
   );
 };
+

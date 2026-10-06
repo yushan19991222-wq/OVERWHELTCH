@@ -83,7 +83,6 @@ body {
 /* Surveillance / CCTV Specific Styles (Overwatch Monitor) */
 .cctv-vignette {
   box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.85);
-  pointer-events: none;
 }
 
 .cctv-filter-nightvision {
@@ -146,4 +145,42 @@ body {
   pointer-events: none;
   z-index: 25;
 }
+
+/* Book of Answers Delicacy & Micro-animations */
+@keyframes goldShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-gold-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(245, 158, 11, 0.05) 0%,
+    rgba(251, 191, 36, 0.35) 50%,
+    rgba(245, 158, 11, 0.05) 100%
+  );
+  background-size: 200% 100%;
+  animation: goldShimmer 3s infinite linear;
+}
+
+@keyframes answerReveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-answer-reveal {
+  animation: answerReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+
 

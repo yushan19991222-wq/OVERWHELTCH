@@ -94,7 +94,7 @@ Return a JSON object with:
 Respond ONLY in valid JSON format.`;
 
           const response = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.6-flash',
             contents: prompt,
             config: {
               responseMimeType: 'application/json',
@@ -103,13 +103,17 @@ Respond ONLY in valid JSON format.`;
 
           const rawText = response.text?.trim() || '';
           if (rawText) {
-            const parsed = JSON.parse(rawText);
-            memeData = {
-              keyword: parsed.keyword || memeData.keyword,
-              punchline: parsed.punchline || memeData.punchline,
-              advice: parsed.advice || memeData.advice,
-              imagePrompt: parsed.imagePrompt || memeData.imagePrompt,
-            };
+            const cleaned = rawText.replace(/```json\s*|\s*```/gi, '').trim();
+            const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              memeData = {
+                keyword: parsed.keyword || memeData.keyword,
+                punchline: parsed.punchline || memeData.punchline,
+                advice: parsed.advice || memeData.advice,
+                imagePrompt: parsed.imagePrompt || memeData.imagePrompt,
+              };
+            }
           }
         } catch (geminiErr) {
           console.warn('Gemini content generation failed, using fallback:', geminiErr);
@@ -208,22 +212,28 @@ The user is sitting in front of the webcam. Biometric Telemetry:
 - Health Reserve: ${healthScore}/100
 
 STRICT SCORING RULES (NOT physical appearance, but mental vitality, smile arc & eye alertness):
-- Baseline for a flat, unsmiling expression (Smile Arc < 15%) is 45 - 58 PTS (Rank S or B).
-- If Smile Arc < 10% AND Eye Openness Arc < 60% or Yawns > 0, score MUST drop to 20 - 42 PTS (Rank C or D, lost soul/exhausted).
-- ONLY award 75+ PTS (Rank SS or SSS) if Smile Arc >= 35% (visible upward mouth arc/smile) AND Eye Openness Arc >= 75%!
+- Rank scale: SSS (92-100), SS (84-91), S (75-83), A (68-74), B (52-67), C (36-51), D (<36).
+- Baseline for a flat, unsmiling expression (Smile Arc < 15%) is 48 - 58 PTS (Rank B: 微帶班味/輕微疲態). 58 points is strictly Rank B.
+- If Smile Arc < 10% AND Eye Openness Arc < 60% or Yawns > 0, score MUST drop to 20 - 45 PTS (Rank C or D, lost soul/exhausted).
+- ONLY award 75+ PTS (Rank S, SS or SSS) if Smile Arc >= 35% (visible upward mouth arc/smile) AND Eye Openness Arc >= 75%!
 
 Generate a fun evaluation in JSON format with:
 1. "score": integer between 15 and 98 according to the strict rules above.
-2. "rank": "SSS" | "SS" | "S" | "A+" | "B" | "C" | "D".
+2. "rank": "SSS" | "SS" | "S" | "A" | "B" | "C" | "D".
 3. "title": a humorous Taiwanese title (max 20 characters).
 4. "comment": a witty 1-2 sentence remark about their current expression/vitality (max 45 characters, in Traditional Chinese).
 5. "highlightTag": short tag.
-6. "metrics": object with integer percentage values for { "radiance", "sparkle", "smilePower", "symmetry", "charisma" }.
+6. "metrics": object with integer percentage values (0-100) reflecting:
+   - "radiance": 面色氣色紅潤 (vitality & facial energy, based on health reserve)
+   - "sparkle": 眼神聚焦清澈 (eye alertness & clear gaze, lower if drowsy/yawning)
+   - "smilePower": 嘴角自然舒展 (smile arc & positive facial aura)
+   - "symmetry": 眉心舒展放鬆 (brow relaxation, lower if frowning/stressed)
+   - "charisma": 神態清爽無倦 (anti-fatigue resilience, lower if sitting prolonged time)
 
 Respond ONLY in valid JSON.`;
 
           const response = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.6-flash',
             contents: prompt,
             config: {
               responseMimeType: 'application/json',
@@ -232,22 +242,26 @@ Respond ONLY in valid JSON.`;
 
           const rawText = response.text?.trim() || '';
           if (rawText) {
-            const parsed = JSON.parse(rawText);
-            return res.json({
-              success: true,
-              score: parsed.score || 88,
-              rank: parsed.rank || 'S',
-              title: parsed.title || '高智感元氣職場高光 ✨',
-              comment: parsed.comment || '狀態平穩，眼神有光，繼續保持優雅辦公！',
-              highlightTag: parsed.highlightTag || 'STABLE_WORKER',
-              metrics: parsed.metrics || {
-                radiance: 85,
-                sparkle: 88,
-                smilePower: 80,
-                symmetry: 85,
-                charisma: 82,
-              },
-            });
+            const cleaned = rawText.replace(/```json\s*|\s*```/gi, '').trim();
+            const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              return res.json({
+                success: true,
+                score: parsed.score || 88,
+                rank: parsed.rank || 'S',
+                title: parsed.title || '高智感元氣職場高光 ✨',
+                comment: parsed.comment || '狀態平穩，眼神有光，繼續保持優雅辦公！',
+                highlightTag: parsed.highlightTag || 'STABLE_WORKER',
+                metrics: parsed.metrics || {
+                  radiance: 85,
+                  sparkle: 88,
+                  smilePower: 80,
+                  symmetry: 85,
+                  charisma: 82,
+                },
+              });
+            }
           }
         } catch (geminiErr) {
           console.warn('Gemini face-score call failed, using local fallback:', geminiErr);

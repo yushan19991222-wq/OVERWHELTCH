@@ -32,8 +32,8 @@ export async function getFaceLandmarker(): Promise<FaceLandmarker> {
         runningMode: 'VIDEO',
         numFaces: 1,
       });
-    } catch (gpuErr) {
-      console.warn('GPU delegate failed, falling back to CPU delegate:', gpuErr);
+    } catch {
+      // Gracefully fall back to CPU delegate
       landmarkerInstance = await FaceLandmarker.createFromOptions(filesetResolver, {
         baseOptions: {
           modelAssetPath:

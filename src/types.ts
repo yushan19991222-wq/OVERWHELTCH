@@ -7,11 +7,34 @@ export interface HealthEvent {
   icon: string;
 }
 
+export type EmotionType =
+  | 'laugh'
+  | 'smile'
+  | 'subtle_smile'
+  | 'pout'
+  | 'gasp'
+  | 'yawn'
+  | 'frown'
+  | 'pressed'
+  | 'blank'
+  | 'focused'
+  | 'neutral';
+
+export interface EmotionData {
+  type: EmotionType;
+  label: string;
+  emoji: string;
+  score: number;
+  colorClass: string;
+}
+
 export interface HealthTrendPoint {
   time: string;
   timestamp: number;
   score: number;
   fatigueIndex: number;
+  emotionLabel?: string;
+  emotionEmoji?: string;
   eventDelta: number;
   eventName?: string;
   eventType?: 'penalty' | 'reward' | 'info';
@@ -43,6 +66,13 @@ export interface ActiveHazardAlert {
   badge: string;
   severity: 'critical' | 'warning' | 'reward';
   image?: string;
+  faceCenter?: { x: number; y: number };
+  eyePositions?: {
+    leftEye: { x: number; y: number };
+    rightEye: { x: number; y: number };
+    eyeDistance: number;
+    rotationDeg: number;
+  };
   timestamp: number;
 }
 
@@ -68,7 +98,13 @@ export interface TelemetryData {
   frown: number;
   proximity: number;
   blinkScore: number;
+  ear?: number;
+  isEyesClosed?: boolean;
+  blinkCountWindow?: number;
+  prolongedCloseSeconds?: number;
   blinkRatePerMin?: number;
+  smileScore?: number;
+  emotion?: EmotionData;
   isFacePresent: boolean;
   consecutiveDeskSeconds: number;
   consecutiveAwaySeconds: number;
@@ -90,6 +126,22 @@ export interface DailySummaryStats {
   overtimeMinutes: number;
   title: string;
   quote: string;
+}
+
+export interface CandidSnapshotItem {
+  id: string;
+  image: string;
+  tag: string;
+  type: 'yawn' | 'frown' | 'blink' | 'candid' | 'scan';
+  time: string;
+  timestamp: number;
+  faceCenter?: { x: number; y: number };
+  eyePositions?: {
+    leftEye: { x: number; y: number };
+    rightEye: { x: number; y: number };
+    eyeDistance: number;
+    rotationDeg: number;
+  };
 }
 
 declare global {

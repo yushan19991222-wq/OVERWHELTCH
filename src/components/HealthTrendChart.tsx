@@ -12,126 +12,79 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { TrendingUp, Activity, ShieldAlert, Zap, Filter, Clock } from 'lucide-react';
-import { HealthTrendPoint, HealthEvent } from '../types';
+import { HealthTrendPoint, HealthEvent, EmotionData } from '../types';
 
 interface HealthTrendChartProps {
   trendHistory: HealthTrendPoint[];
   events: HealthEvent[];
   currentScore: number;
+  currentEmotion?: EmotionData;
 }
+
+// Helper to format any time string or timestamp into 24-hour format
+export const formatTo24Hour = (timeStr: string | number | undefined, withSeconds = false): string => {
+  if (!timeStr) return '';
+  if (typeof timeStr === 'number') {
+    const d = new Date(timeStr);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return withSeconds ? `${hh}:${mm}:${ss}` : `${hh}:${mm}`;
+  }
+  const parts = String(timeStr).split(':');
+  if (parts.length >= 3) {
+    // HH:mm:ss
+    return withSeconds
+      ? `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}:${parts[2].padStart(2, '0')}`
+      : `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+  }
+  if (parts.length === 2) {
+    // HH:mm
+    return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+  }
+  return String(timeStr);
+};
+
+export const formatToMinSec = (t: string | number | undefined) => formatTo24Hour(t, false);
 
 export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
   trendHistory,
   events,
   currentScore,
+  currentEmotion,
 }) => {
   const [viewMode, setViewMode] = useState<'all' | 'score' | 'fatigue'>('all');
 
-  // Generate initial simulated today timeline data if trendHistory is short
+  // Pure 100% real measured trend points
   const chartData = useMemo(() => {
-    if (trendHistory && trendHistory.length >= 5) {
-      return trendHistory;
+    const now = Date.now();
+    const nowDate = new Date(now);
+    const fmt = (d: Date) =>
+      `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+
+    if (trendHistory && trendHistory.length > 0) {
+      // Sort strictly chronologically by timestamp
+      const sorted = [...trendHistory].sort((a, b) => a.timestamp - b.timestamp);
+      return sorted.map((pt) => ({
+        ...pt,
+        displayTime: pt.time || fmt(new Date(pt.timestamp || now)),
+      }));
     }
 
-    // Default simulated timeline starting from 09:00 AM today
-    const now = new Date();
-    const currentHour = now.getHours();
-    const points: HealthTrendPoint[] = [];
-
-    // Helper to format 2-digit hour/min
-    const fmt = (h: number, m: number) =>
-      `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-
-    let runningScore = 100;
-    const startHour = 9;
-    const totalHours = Math.max(1, currentHour >= startHour ? currentHour - startHour : 4);
-
-    // Initial 09:00 point
-    points.push({
-      time: '09:00',
-      timestamp: Date.now() - totalHours * 3600 * 1000,
-      score: 100,
-      fatigueIndex: 1,
-      eventDelta: 0,
-      eventName: '上班簽到',
-      eventType: 'info',
-    });
-
-    // Generate points along the timeline
-    for (let i = 1; i <= Math.min(totalHours * 2, 12); i++) {
-      const pastMins = i * 30;
-      const t = new Date(Date.now() - (totalHours * 60 - pastMins) * 60 * 1000);
-      const timeLabel = fmt(t.getHours(), t.getMinutes());
-
-      // Simulate slight fatigue variation and hydration boosts
-      let delta = 0;
-      let fatigue = 1;
-      let name = '定時健康監控';
-      let type: 'penalty' | 'reward' | 'info' = 'info';
-
-      if (i === 2) {
-        delta = -5;
-        fatigue = 6;
-        name = '打哈欠抓包';
-        type = 'penalty';
-      } else if (i === 4) {
-        delta = +5;
-        fatigue = 2;
-        name = '整點補水加分';
-        type = 'reward';
-      } else if (i === 6) {
-        delta = -3;
-        fatigue = 5;
-        name = '緊皺眉頭警戒';
-        type = 'penalty';
-      } else if (i === 8) {
-        delta = +3;
-        fatigue = 2;
-        name = '伸展操解鎖';
-        type = 'reward';
-      } else if (i === 10) {
-        delta = -5;
-        fatigue = 7;
-        name = '久坐超時提醒';
-        type = 'penalty';
-      }
-
-      runningScore = Math.max(20, Math.min(120, runningScore + delta));
-      fatigue = Math.max(1, Math.min(10, fatigue + (runningScore < 80 ? 2 : -1)));
-
-      points.push({
-        time: timeLabel,
-        timestamp: t.getTime(),
-        score: runningScore,
-        fatigueIndex: fatigue,
-        eventDelta: delta,
-        eventName: name,
-        eventType: type,
-      });
-    }
-
-    // Append latest event data if available
-    if (events && events.length > 0) {
-      const lastEv = events[0];
-      const exist = points.some((p) => p.time === lastEv.timestamp);
-      if (!exist) {
-        points.push({
-          time: lastEv.timestamp.slice(0, 5),
-          timestamp: Date.now(),
-          score: currentScore,
-          fatigueIndex: lastEv.delta < 0 ? 8 : 2,
-          eventDelta: lastEv.delta,
-          eventName: lastEv.message.slice(0, 10),
-          eventType: lastEv.delta < 0 ? 'penalty' : lastEv.delta > 0 ? 'reward' : 'info',
-        });
-      }
-    } else if (points.length > 0) {
-      // Ensure last point reflects current actual score
-      points[points.length - 1].score = currentScore;
-    }
-
-    return points;
-  }, [trendHistory, events, currentScore]);
+    // Single initial real point at current exact time
+    return [
+      {
+        time: fmt(nowDate),
+        timestamp: now,
+        score: currentScore,
+        fatigueIndex: currentScore < 80 ? 4 : 1,
+        eventDelta: 0,
+        eventName: '即時監控',
+        eventType: 'info' as const,
+        displayTime: fmt(nowDate),
+      },
+    ];
+  }, [trendHistory, currentScore]);
 
   // Calculate high-level summary metrics
   const minScore = useMemo(
@@ -174,6 +127,10 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
           <h3 className="text-[11px] font-bold tracking-wider text-slate-200 uppercase">
             [健康狀態與疲勞波動趨勢圖]
           </h3>
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-cyan-500/40 text-cyan-300 bg-cyan-950/40 hidden sm:inline-flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            5分鐘單位真實感測
+          </span>
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${statusBadgeClass}`}>
             {statusBadgeText}
           </span>
@@ -214,44 +171,44 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
         </div>
       </div>
 
-      {/* Metrics Summary Strip */}
+      {/* Metrics Summary Strip (4 Cards Grid) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-        <div className="bg-[#030509] border border-slate-850 p-2 rounded flex flex-col justify-center">
-          <div className="text-[9px] text-slate-500 flex items-center gap-1 uppercase">
+        <div className="bg-[#030508] border border-slate-800 hover:border-slate-700 transition p-2.5 rounded flex flex-col justify-center">
+          <div className="text-[9px] text-slate-400 flex items-center gap-1 uppercase font-bold tracking-wider">
             <Activity className="w-2.5 h-2.5 text-cyan-400" />
             <span>目前健康分</span>
           </div>
-          <div className="text-sm font-bold text-cyan-300 font-mono mt-0.5">
-            {currentScore} <span className="text-[9px] text-slate-500">PTS</span>
+          <div className="text-sm font-bold text-cyan-300 font-mono mt-1">
+            {currentScore} <span className="text-[9px] text-slate-500 font-normal">PTS</span>
           </div>
         </div>
 
-        <div className="bg-[#030509] border border-slate-850 p-2 rounded flex flex-col justify-center">
-          <div className="text-[9px] text-slate-500 flex items-center gap-1 uppercase">
+        <div className="bg-[#030508] border border-slate-800 hover:border-slate-700 transition p-2.5 rounded flex flex-col justify-center">
+          <div className="text-[9px] text-slate-400 flex items-center gap-1 uppercase font-bold tracking-wider">
             <ShieldAlert className="w-2.5 h-2.5 text-rose-400" />
             <span>今日疲勞警告</span>
           </div>
-          <div className="text-sm font-bold text-rose-400 font-mono mt-0.5">
-            {totalPenalties} <span className="text-[9px] text-slate-500">次次數</span>
+          <div className="text-sm font-bold text-rose-400 font-mono mt-1">
+            {totalPenalties} <span className="text-[9px] text-slate-500 font-normal">次</span>
           </div>
         </div>
 
-        <div className="bg-[#030509] border border-slate-850 p-2 rounded flex flex-col justify-center">
-          <div className="text-[9px] text-slate-500 flex items-center gap-1 uppercase">
+        <div className="bg-[#030508] border border-slate-800 hover:border-slate-700 transition p-2.5 rounded flex flex-col justify-center">
+          <div className="text-[9px] text-slate-400 flex items-center gap-1 uppercase font-bold tracking-wider">
             <Zap className="w-2.5 h-2.5 text-emerald-400" />
             <span>補水/舒展修復</span>
           </div>
-          <div className="text-sm font-bold text-emerald-400 font-mono mt-0.5">
-            {totalRewards} <span className="text-[9px] text-slate-500">次加分</span>
+          <div className="text-sm font-bold text-emerald-400 font-mono mt-1">
+            {totalRewards} <span className="text-[9px] text-slate-500 font-normal">次加分</span>
           </div>
         </div>
 
-        <div className="bg-[#030509] border border-slate-850 p-2 rounded flex flex-col justify-center">
-          <div className="text-[9px] text-slate-500 flex items-center gap-1 uppercase">
+        <div className="bg-[#030508] border border-slate-800 hover:border-slate-700 transition p-2.5 rounded flex flex-col justify-center">
+          <div className="text-[9px] text-slate-400 flex items-center gap-1 uppercase font-bold tracking-wider">
             <Clock className="w-2.5 h-2.5 text-amber-400" />
             <span>最高/最低紀錄</span>
           </div>
-          <div className="text-xs font-bold text-slate-300 font-mono mt-0.5">
+          <div className="text-xs font-bold text-slate-300 font-mono mt-1">
             <span className="text-cyan-400">{maxScore}</span> /{' '}
             <span className="text-rose-400">{minScore}</span>
           </div>
@@ -287,8 +244,10 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
 
             <XAxis
               dataKey="time"
+              tickFormatter={formatToMinSec}
               tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'monospace' }}
               stroke="rgba(255, 255, 255, 0.1)"
+              minTickGap={20}
               dy={5}
             />
 
@@ -319,7 +278,7 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
                   return (
                     <div className="bg-[#03060d] border border-cyan-500/70 p-2.5 rounded shadow-2xl font-mono text-xs max-w-[220px]">
                       <div className="text-[10px] text-slate-400 pb-1 border-b border-slate-800 flex justify-between">
-                        <span>時間: {label}</span>
+                        <span>時間: {data.time || formatTo24Hour(data.timestamp, false)}</span>
                         <span className="text-cyan-400 font-bold">
                           {data.eventName || '趨勢節點'}
                         </span>

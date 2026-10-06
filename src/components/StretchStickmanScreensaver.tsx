@@ -213,9 +213,10 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
     }
   }, [isOpen]);
 
-  // Current stage calculation (0: 0-10s, 1: 10-20s, 2: 20-30s)
-  const currentStageIndex = Math.min(2, Math.floor((30 - totalSecondsRemaining) / 10));
-  const currentStage = activeStages[currentStageIndex] || activeStages[0];
+  // Automatic flow stage index (0: 0-10s, 1: 10-20s, 2: 20-30s)
+  const autoStageIndex = Math.min(2, Math.floor((30 - totalSecondsRemaining) / 10));
+  const effectiveStageIndex = autoStageIndex;
+  const currentStage = activeStages[effectiveStageIndex] || activeStages[0];
   const stageElapsed = (30 - totalSecondsRemaining) % 10;
   const totalProgressPct = ((30 - totalSecondsRemaining) / 30) * 100;
 
@@ -335,13 +336,6 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
       document.exitFullscreen().catch(() => {});
       setIsFullscreen(false);
     }
-  };
-
-  // Jump to specific stage
-  const handleJumpStage = (stageIdx: number) => {
-    const newRemaining = 30 - stageIdx * 10;
-    setTotalSecondsRemaining(newRemaining);
-    soundSynth.playRadarLockBeep(880);
   };
 
   /* ====================================================================
@@ -936,7 +930,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         └─ [VENOUS_RETURN_OPTIMAL]
       </div>
       <div className="pointer-events-none absolute bottom-3 right-3 text-slate-500 text-[10px] sm:text-xs z-20 select-none hidden xs:block">
-        [PRESS_ESC_TO_EXIT] ─┘
+        [RECOVERY_STATION] ─┘
       </div>
 
       {/* Cybernetic Dot Grid and CRT Scanlines */}
@@ -997,24 +991,14 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
               <Maximize2 className="w-3.5 h-3.5" />
             )}
           </button>
-
-          {/* Dismiss Button */}
-          <button
-            onClick={onDismiss}
-            className="flex items-center gap-1 px-2.5 py-1 rounded bg-rose-950/80 border border-rose-500/70 hover:border-rose-400 text-rose-200 hover:text-white transition shadow text-xs font-mono font-bold cursor-pointer"
-            title="關閉退出伸展畫面 (ESC)"
-          >
-            <X className="w-3.5 h-3.5" />
-            <span>ESC 退出</span>
-          </button>
         </div>
       </header>
 
       {/* MAIN EXERCISE STAGE */}
-      <main className="relative z-10 flex-1 flex flex-col lg:flex-row items-center justify-between gap-4 sm:gap-6 px-2 sm:px-4 py-2 max-w-6xl mx-auto my-auto w-full">
+      <main className="relative z-10 flex-1 flex flex-col lg:flex-row items-stretch justify-center gap-4 sm:gap-6 px-2 sm:px-4 py-2 max-w-6xl mx-auto my-auto w-full">
         {/* LEFT COLUMN: ANIMATED BIOMECHANICAL STICKMAN COACH */}
-        <div className="flex-1 w-full flex flex-col items-center justify-center">
-          <div className="relative w-full max-w-lg h-60 sm:h-80 lg:h-96 rounded-md bg-[#080b12]/95 border border-white/15 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center backdrop-blur-xl">
+        <div className="flex-1 w-full flex flex-col justify-between">
+          <div className="relative w-full flex-1 min-h-[260px] sm:min-h-[320px] lg:min-h-[380px] rounded-md bg-[#080b12]/95 border border-white/15 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center backdrop-blur-xl">
             <canvas ref={canvasRef} className="w-full h-full block" />
 
             {/* Stage Indicator Badge */}
@@ -1024,7 +1008,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
                 style={{ backgroundColor: currentStage.accentColor }}
               />
               <span style={{ color: currentStage.accentColor }}>
-                PHASE 0{currentStageIndex + 1} / 03: {currentStage.name}
+                PHASE 0{effectiveStageIndex + 1} / 03: {currentStage.name}
               </span>
             </div>
 
@@ -1078,28 +1062,58 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
             )}
           </div>
 
-          {/* Quick Stage Selectors for the 3 Active Exercises */}
-          <div className="grid grid-cols-3 gap-2 w-full max-w-lg mt-2.5">
-            {activeStages.map((stg, idx) => {
-              const isCurrent = currentStageIndex === idx;
-              return (
-                <button
-                  key={stg.id + idx}
-                  onClick={() => handleJumpStage(idx)}
-                  className={`p-1.5 sm:p-2 rounded border text-left transition ${
-                    isCurrent
-                      ? 'bg-cyan-950/40 border-cyan-400 text-white shadow-[0_0_12px_rgba(6,182,212,0.3)]'
-                      : 'bg-[#0a0d14]/80 border-white/10 text-slate-400 hover:border-white/30'
-                  }`}
-                >
-                  <div className="text-[9px] text-slate-500 font-bold">階段 0{idx + 1} (10s)</div>
-                  <div className="text-[11px] font-bold truncate flex items-center gap-1">
-                    <span>{stg.icon}</span>
-                    <span className="truncate">{stg.name}</span>
+          {/* Integrated Segmented 3-Stage Progress Bar (No clickable cards, pure pipeline bar) */}
+          <div className="w-full mt-3 flex flex-col gap-1.5 select-none">
+            {/* 3-Segment Stepper Progress Bar */}
+            <div className="grid grid-cols-3 gap-2 w-full">
+              {activeStages.map((stg, idx) => {
+                const isActive = effectiveStageIndex === idx;
+                const isPassed = effectiveStageIndex > idx;
+                const segmentProgressPct = isPassed
+                  ? 100
+                  : isActive
+                  ? (stageElapsed / 10) * 100
+                  : 0;
+
+                return (
+                  <div key={stg.id + idx} className="flex flex-col gap-1.5">
+                    {/* Continuous Fill Track */}
+                    <div className="w-full h-2 bg-black/60 rounded-full border border-white/10 overflow-hidden p-0.5 relative">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          isPassed
+                            ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]'
+                            : isActive
+                            ? 'bg-gradient-to-r from-cyan-500 to-teal-400 shadow-[0_0_10px_rgba(6,182,212,0.8)]'
+                            : 'bg-transparent'
+                        }`}
+                        style={{ width: `${segmentProgressPct}%` }}
+                      />
+                    </div>
+
+                    {/* Subtitle / Action Label */}
+                    <div className="flex items-center justify-between px-0.5 text-[10px] font-mono">
+                      <span className={`flex items-center gap-1 font-bold truncate ${
+                        isActive
+                          ? 'text-cyan-300 drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]'
+                          : isPassed
+                          ? 'text-emerald-400/90'
+                          : 'text-slate-500'
+                      }`}>
+                        <span>{stg.icon}</span>
+                        <span className="truncate">{stg.name}</span>
+                      </span>
+
+                      <span className={`text-[9px] font-bold ${
+                        isActive ? 'text-cyan-400' : isPassed ? 'text-emerald-400' : 'text-slate-600'
+                      }`}>
+                        {isPassed ? '✓' : isActive ? `${Math.round(stageElapsed)}s` : '10s'}
+                      </span>
+                    </div>
                   </div>
-                </button>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -1205,7 +1219,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
                 setIsPaused(false);
                 setHasFinished(false);
               }}
-              className="px-4 py-2.5 rounded bg-[#10141c] hover:bg-slate-800 border border-white/10 hover:border-cyan-400 text-slate-300 hover:text-white transition flex items-center gap-1.5 text-xs font-bold"
+              className="px-4 py-2.5 rounded bg-[#10141c] hover:bg-slate-800 border border-white/10 hover:border-cyan-400 text-slate-300 hover:text-white transition flex items-center gap-1.5 text-xs font-bold cursor-pointer"
               title="重置 30 秒計時"
             >
               <RotateCcw className="w-3.5 h-3.5" />

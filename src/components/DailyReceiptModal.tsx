@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Download, Share2, Check, X, Sparkles, Trophy } from 'lucide-react';
+import { Download, Share2, Check, Sparkles, Trophy, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { DailySummaryStats, HealthEvent } from '../types';
 import { soundSynth } from '../utils/audioSynth';
@@ -19,6 +19,18 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Close modal on ESC key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -136,11 +148,20 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
 
     ctx.fillStyle = '#38bdf8';
     ctx.font = 'bold 17px sans-serif';
-    ctx.fillText(`社畜評級：${stats.title}`, 60, 342);
+    ctx.fillText(`社畜評級：${stats.title}`, 60, 338);
 
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '13px sans-serif';
-    ctx.fillText(`「${stats.quote}」`, 60, 378);
+    const quoteStr = `「${stats.quote}」`;
+    const maxQuoteWidth = w - 120;
+    if (ctx.measureText(quoteStr).width > maxQuoteWidth) {
+      // Split into two lines
+      let mid = Math.floor(quoteStr.length / 2);
+      ctx.fillText(quoteStr.slice(0, mid), 60, 368);
+      ctx.fillText(quoteStr.slice(mid), 60, 388);
+    } else {
+      ctx.fillText(quoteStr, 60, 372);
+    }
 
     // Key stats breakdown
     ctx.fillStyle = '#94a3b8';
@@ -241,8 +262,10 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
             </span>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition"
+            className="p-1 sm:p-1.5 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition cursor-pointer flex items-center justify-center"
+            title="關閉"
           >
             <X className="w-4 h-4" />
           </button>

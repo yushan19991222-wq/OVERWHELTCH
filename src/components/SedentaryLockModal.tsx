@@ -316,7 +316,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
         {onStartStretchWorkout && (
           <button
             onClick={onStartStretchWorkout}
-            className="w-full max-w-md py-2.5 px-4 rounded-md bg-[#00ff87] hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm tracking-wide shadow-[0_0_25px_rgba(0,255,135,0.4)] flex items-center justify-center gap-2 transform hover:scale-[1.01] transition mb-3 font-mono"
+            className="w-full max-w-md py-2 px-3.5 rounded-md bg-[#00ff87] hover:bg-emerald-400 text-slate-950 font-bold text-xs tracking-wide shadow-[0_0_20px_rgba(0,255,135,0.4)] flex items-center justify-center gap-2 transform hover:scale-[1.01] transition mb-3 font-mono"
           >
             <Activity className="w-4 h-4 text-slate-950 animate-bounce" />
             <span>&gt; 進入 30 秒全螢幕戰術伸展操 (立即解鎖)</span>

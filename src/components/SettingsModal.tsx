@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Settings, X, Volume2, VolumeX, Clock, Calendar, Armchair, Bell, BellOff, MessageSquare } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, Volume2, VolumeX, Clock, Calendar, Armchair, Bell, BellOff, MessageSquare, AppWindow, X } from 'lucide-react';
 import { GuardianSettings } from '../types';
+import { requestNotificationPermission, isNotificationSupported } from '../utils/crossTabAlert';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -27,6 +28,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState(
     settings.voiceAlertsEnabled ?? true
   );
+
+  // Close modal on ESC key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -58,8 +71,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </h3>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition"
+            className="p-1 rounded-md bg-slate-900 hover:bg-slate-850 border border-slate-700 text-slate-400 hover:text-white transition cursor-pointer flex items-center justify-center"
+            title="關閉"
           >
             <X className="w-4 h-4" />
           </button>
@@ -148,8 +163,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <button
               type="button"
-              onClick={() => setDesktopNotificationsEnabled(!desktopNotificationsEnabled)}
-              className={`p-2 rounded-md border transition-all ${
+              onClick={async () => {
+                if (!desktopNotificationsEnabled && isNotificationSupported()) {
+                  const perm = await requestNotificationPermission();
+                  if (perm === 'granted') {
+                    setDesktopNotificationsEnabled(true);
+                  } else {
+                    setDesktopNotificationsEnabled(false);
+                  }
+                } else {
+                  setDesktopNotificationsEnabled(!desktopNotificationsEnabled);
+                }
+              }}
+              className={`p-2 rounded-md border transition-all cursor-pointer ${
                 desktopNotificationsEnabled
                   ? 'bg-cyan-950/70 border-cyan-500/60 text-cyan-300'
                   : 'bg-slate-900 border-slate-800 text-slate-500'
@@ -168,7 +194,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               type="button"
               onClick={() => setVoiceAlertsEnabled(!voiceAlertsEnabled)}
-              className={`p-2 rounded-md border transition-all ${
+              className={`p-2 rounded-md border transition-all cursor-pointer ${
                 voiceAlertsEnabled
                   ? 'bg-cyan-950/70 border-cyan-500/60 text-cyan-300'
                   : 'bg-slate-900 border-slate-800 text-slate-500'
@@ -179,18 +205,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        <div className="mt-5 pt-3 border-t border-slate-800 flex justify-end gap-2">
+        <div className="mt-5 pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
           <button
+            type="button"
             onClick={onClose}
-            className="px-3.5 py-1.5 rounded-md bg-slate-900 hover:bg-slate-850 text-slate-300 text-xs border border-slate-700/80 transition"
+            className="px-3.5 py-1.5 rounded-md bg-slate-900 hover:bg-slate-850 text-slate-300 text-xs border border-slate-750 transition cursor-pointer"
           >
-            CANCEL
+            CANCEL (取消)
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-1.5 rounded-md bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition transform active:scale-95 border border-cyan-400/80 shadow-[0_0_8px_rgba(56,189,248,0.25)]"
+            className="px-4 py-1.5 rounded-md bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition transform active:scale-95 border border-cyan-400/80 shadow-[0_0_8px_rgba(56,189,248,0.25)] cursor-pointer"
           >
-            SAVE_CONFIG
+            SAVE_CONFIG (儲存設定)
           </button>
         </div>
       </div>

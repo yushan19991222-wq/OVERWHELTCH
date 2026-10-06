@@ -132,6 +132,95 @@ class SoundSynthEngine {
   }
 
   /**
+   * Mystical chime when opening the Book of Answers
+   */
+  public playMysticBookFlip() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      // Arpeggiated mystical harp/celesta: E5, G#5, B5, E6
+      const freqs = [659.25, 830.61, 987.77, 1318.5];
+      freqs.forEach((freq, idx) => {
+        const time = now + idx * 0.08;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, time);
+
+        gain.gain.setValueAtTime(0.12, time);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.6);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + 0.6);
+      });
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
+   * Divine oracle reveal chord for the Book of Answers
+   */
+  public playOracleReveal() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      // Warm golden shimmer chord
+      const chord = [392.0, 493.88, 587.33, 783.99, 987.77]; // G major 9th sparkle
+      chord.forEach((freq) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 1.2);
+      });
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
+   * Uplifting completion chime/fanfare when eye rest is completed
+   */
+  public playEyeRestCompleteFanfare() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+      notes.forEach((freq, idx) => {
+        const noteTime = now + idx * 0.1;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, noteTime);
+
+        gain.gain.setValueAtTime(0.18, noteTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.25);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(noteTime);
+        osc.stop(noteTime + 0.25);
+      });
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
    * Shutter snap sound for downloading card
    */
   public playSnapSound() {

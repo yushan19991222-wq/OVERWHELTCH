@@ -16,7 +16,7 @@ export interface FaceEvaluationRawInputs {
 
 const TITLES_AND_COMMENTS = [
   {
-    minScore: 88,
+    minScore: 92,
     rank: 'SSS' as const,
     title: 'K-POP 滿血社畜神顏 🌸',
     tag: 'MAX_DOPAMINE_CENTER',
@@ -27,7 +27,7 @@ const TITLES_AND_COMMENTS = [
     ],
   },
   {
-    minScore: 75,
+    minScore: 84,
     rank: 'SS' as const,
     title: '高智感元氣職場高光 ✨',
     tag: 'METAVERSE_MODEL',
@@ -38,42 +38,53 @@ const TITLES_AND_COMMENTS = [
     ],
   },
   {
-    minScore: 58,
+    minScore: 75,
     rank: 'S' as const,
-    title: '標準工位專注姿態 💼',
+    title: '頂級專注職場菁英態 💼',
+    tag: 'ELITE_PROFESSIONAL',
+    comments: [
+      '專注自律，神采奕奕！眉頭舒展且散發從容自信的職場氣場！',
+      '神情沉穩自信，雙眼明亮有力，充分展現頂級專注力與工作魅力！',
+      '眼神聚焦且氣定神閒，狀態保持極佳，兼具專業度與親和光彩！',
+    ],
+  },
+  {
+    minScore: 68,
+    rank: 'A' as const,
+    title: '穩健工位標準姿態 👔',
     tag: 'STABLE_WORKER',
     comments: [
-      '狀態平穩專注，表情略為平淡無笑意，雖有殘存班味但展現可靠態度！',
-      '面部表情略顯嚴肅，建議嘴角上揚並多喝口水，顏值將即刻飆升！',
+      '狀態平穩專注，表情略為平靜，雖有正常辦公節奏但展現可靠態度！',
+      '面部表情略顯嚴肅，建議嘴角適度放鬆並喝口溫水，顏值將即刻飆升！',
       '沉穩專注於螢幕前，深呼吸放鬆眉頭能讓你氣場大幅提振！',
     ],
   },
   {
-    minScore: 42,
+    minScore: 52,
     rank: 'B' as const,
-    title: '班味重度超載 // 靈魂輕度飄離 😮‍💨',
-    tag: 'FATIGUE_OVERLOAD',
+    title: '微帶班味 // 輕微疲態現形 ☕',
+    tag: 'MILD_FATIGUE',
     comments: [
-      '嘴型下垂平淡、雙眼睜眼弧度不足！累積打哈欠與久坐，班味明顯超標！',
-      '眼神露出疲態，雙眼半閉，急需離座喝水補充水分與做伸展操！',
-      '久坐與疲勞累積中，表情僵硬缺乏生氣，靈魂開始微幅飄離！',
+      '嘴角趨於平淡、眼神稍顯疲累，50幾分展現真實社畜打拼痕跡！',
+      '班味開始浮現，雙眼微感乾澀，建議立即大口喝水補水提提神！',
+      '平淡辦公表情，略帶疲態，起來走動喝杯水可讓肌膚氣場重回高光！',
     ],
   },
   {
-    minScore: 25,
+    minScore: 36,
     rank: 'C' as const,
-    title: '眼神呆滯 // 靈魂抽離失神態 🧟',
-    tag: 'SOUL_DISCONNECTED',
+    title: '班味超載 // 靈魂輕度飄離 😮‍💨',
+    tag: 'FATIGUE_OVERLOAD',
     comments: [
-      '警報！雙眼睜眼弧度極低、嘴唇呆滯無表情且抓包打哈欠！靈魂已抽離！',
-      '眼神失去焦點、嘴唇微張呆滯，面部疲憊感極度濃厚，喪失生气！',
-      '偵測到嚴重過勞與失神！這不是外貌問題，而是你的靈魂已經飄走了！',
+      '嘴型下垂平淡、雙眼睜眼弧度不足！累積打哈欠與久坐，班味明顯超標！',
+      '眼神露出明顯疲態，急需離座喝水補充水分與做伸展操！',
+      '久坐與疲勞累積中，表情僵硬缺乏生氣，靈魂開始微幅飄離！',
     ],
   },
   {
     minScore: 15,
     rank: 'D' as const,
-    title: '重度過勞 // 靈魂徹底出竅崩壞態 💀',
+    title: '重度過勞 // 靈魂徹底出竅 💀',
     tag: 'BURNOUT_CRITICAL',
     comments: [
       '緊急危險！雙眼極度沉重半閉、頻繁打哈欠與久坐，靈魂已脫離肉體！',
@@ -156,15 +167,41 @@ export function computeLocalFaceScore(inputs: FaceEvaluationRawInputs): FaceChar
     TITLES_AND_COMMENTS[TITLES_AND_COMMENTS.length - 1];
   const randomComment = matched.comments[Math.floor(Math.random() * matched.comments.length)];
 
-  // 5-Axis Metrics calculated strictly from real biometric inputs
-  const radiance = Math.min(99, Math.max(10, Math.round(finalScore * 0.75 + smile * 25)));
-  const sparkle = Math.min(
+  // 5-Axis Wellness & Facial State Metrics (身心健康、疲勞度與表情管理)
+  // 1. mentalEnergy (身心元氣精力): Based on health reserve & overall vitality
+  const mentalEnergy = Math.min(
     99,
-    Math.max(10, Math.round(eyeOpenness * 85 - yawnsCount * 8 + (healthScore > 80 ? 10 : 0)))
+    Math.max(
+      10,
+      Math.round(healthScore * 0.65 + browRelaxation * 20 + (1 - Math.min(1, yawnsCount / 2)) * 15)
+    )
   );
-  const smilePower = Math.min(99, Math.max(10, Math.round(smile * 92 + 8)));
-  const symmetry = Math.min(99, Math.max(10, Math.round(browRelaxation * 75 + 20)));
-  const charisma = Math.min(99, Math.max(10, Math.round(finalScore * 0.85 - frownsCount * 6)));
+
+  // 2. eyeAlertness (眼神清醒專注度): High eye openness, penalized by yawning & sleepiness
+  const eyeAlertness = Math.min(
+    99,
+    Math.max(10, Math.round(eyeOpenness * 90 - yawnsCount * 12 + (consecutiveDeskMinutes > 40 ? -10 : 5)))
+  );
+
+  // 3. smileHealing (治癒微表情管理): Smile arc & upward facial composure
+  const smileHealing = Math.min(99, Math.max(10, Math.round(smile * 88 + browRelaxation * 12)));
+
+  // 4. browRelaxationScore (舒展減壓抗焦慮): Brow relaxation, no knotting/tension
+  const browRelaxationScore = Math.min(
+    99,
+    Math.max(10, Math.round(browRelaxation * 80 + 15 - Math.min(25, frownsCount * 8)))
+  );
+
+  // 5. deskVitality (抗疲勞持久力): Inversely impacted by sedentary desk time & consecutive minutes
+  const deskVitality = Math.min(
+    99,
+    Math.max(
+      10,
+      Math.round(
+        Math.max(15, 100 - (consecutiveDeskMinutes > 15 ? (consecutiveDeskMinutes - 15) * 1.8 : 0) - yawnsCount * 6)
+      )
+    )
+  );
 
   return {
     score: finalScore,
@@ -172,11 +209,11 @@ export function computeLocalFaceScore(inputs: FaceEvaluationRawInputs): FaceChar
     rank: matched.rank,
     comment: randomComment,
     metrics: {
-      radiance,
-      sparkle,
-      smilePower,
-      symmetry,
-      charisma,
+      radiance: mentalEnergy, // 面色氣色紅潤
+      sparkle: eyeAlertness, // 眼神聚焦清澈
+      smilePower: smileHealing, // 嘴角自然舒展
+      symmetry: browRelaxationScore, // 眉心舒展放鬆
+      charisma: deskVitality, // 神態清爽無倦
     },
     timestamp: Date.now(),
     highlightTag: matched.tag,
