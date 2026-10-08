@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -10,13 +10,7 @@ import {
   Tooltip,
   ReferenceLine,
 } from 'recharts';
-import {
-  TrendingUp,
-  Activity,
-  Zap,
-  ShieldAlert,
-  Brain,
-} from 'lucide-react';
+import { HeartPulse, Zap, Moon, BatteryCharging } from 'lucide-react';
 import { HealthTrendPoint, HealthEvent, EmotionData, TelemetryData } from '../types';
 
 interface HealthTrendChartProps {
@@ -74,14 +68,6 @@ export const alignToSlot = (
   }
 };
 
-export interface PeriodicCardSnapshot {
-  lastSlotKey: string;
-  healthScore: number;
-  stressScore: number;
-  fatigueScore: number;
-  recoveryScore: number;
-}
-
 export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
   trendHistory,
   events,
@@ -91,74 +77,22 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
   statsSummary,
   sedentaryLimitMinutes = 45,
 }) => {
-  // ─── 1. 根據圖表解析度與時間區間進行累加平均計算 ───
-  // 統計從打卡上班（或初次成功進入頁面）起到當前更新時間點的所有數據點累加後之平均值
-  const calculateCumulativeAverages = useCallback(() => {
-    if (!trendHistory || trendHistory.length === 0) {
-      const defaultHealth = currentScore || 100;
-      return {
-        healthScore: defaultHealth,
-        stressScore: 15,
-        fatigueScore: 10,
-        recoveryScore: Math.min(100, Math.max(15, Math.round(defaultHealth * 0.65 + 20))),
-      };
-    }
-
-    const totalPoints = trendHistory.length;
-    let sumHealth = 0;
-    let sumStress = 0;
-    let sumFatigue = 0;
-    let sumRecovery = 0;
-
-    trendHistory.forEach((pt) => {
-      sumHealth += typeof pt.score === 'number' ? pt.score : 100;
-      
-      const ptStress = typeof pt.stressScore === 'number'
-        ? pt.stressScore
-        : 20;
-      sumStress += ptStress;
-
-      const ptFatigue = typeof pt.fatigueScore === 'number'
-        ? pt.fatigueScore
-        : typeof pt.fatigueIndex === 'number'
-        ? Math.min(100, pt.fatigueIndex * 10)
-        : 15;
-      sumFatigue += ptFatigue;
-
-      const ptRecovery = typeof pt.recoveryScore === 'number'
-        ? pt.recoveryScore
-        : Math.min(100, Math.max(15, Math.round((pt.score || 100) * 0.65)));
-      sumRecovery += ptRecovery;
-    });
-
-    return {
-      healthScore: Math.round(sumHealth / totalPoints),
-      stressScore: Math.min(100, Math.max(0, Math.round(sumStress / totalPoints))),
-      fatigueScore: Math.min(100, Math.max(0, Math.round(sumFatigue / totalPoints))),
-      recoveryScore: Math.min(100, Math.max(0, Math.round(sumRecovery / totalPoints))),
-    };
-  }, [trendHistory, currentScore]);
-
-  // ─── 2. 智慧滾動式時間區間判定（依實際紀錄時間跨度自適應） ───
-  const [userSelectedResolution, setUserSelectedResolution] = useState<'auto' | IntervalResolution>('auto');
-
+  // ─── 1. 智慧滾動式時間區間判定（依實際紀錄時間跨度自適應 5m / 30m / 1h） ───
   const dataTimeSpanMs = useMemo(() => {
-    if (!trendHistory || trendHistory.length < 2) return 0;
+    if (!trendHistory || trendHistory.length === 0) return 0;
     const timestamps = trendHistory.map((p) => p.timestamp || Date.now());
     const minTs = Math.min(...timestamps);
     const maxTs = Math.max(...timestamps, Date.now());
     return Math.max(0, maxTs - minTs);
   }, [trendHistory]);
 
-  const autoResolution: IntervalResolution = useMemo(() => {
-    const THIRTY_MINS = 30 * 60 * 1000;
-    const THREE_HOURS = 3 * 60 * 60 * 1000;
-    if (dataTimeSpanMs < THIRTY_MINS) return '5m';
-    if (dataTimeSpanMs < THREE_HOURS) return '30m';
+  const activeResolution: IntervalResolution = useMemo(() => {
+    const ONE_HOUR = 60 * 60 * 1000;
+    const FOUR_HOURS = 4 * 60 * 60 * 1000;
+    if (dataTimeSpanMs <= ONE_HOUR) return '5m';
+    if (dataTimeSpanMs <= FOUR_HOURS) return '30m';
     return '1h';
   }, [dataTimeSpanMs]);
-
-  const activeResolution: IntervalResolution = userSelectedResolution === 'auto' ? autoResolution : userSelectedResolution;
 
   const resolutionMs = useMemo(() => {
     switch (activeResolution) {
@@ -172,74 +106,13 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
     }
   }, [activeResolution]);
 
-  // ─── 3. 按照下方圖表更新週期 (5m/30m/1h) 進行累加平均快照記錄 ───
-  const [periodicSnapshot, setPeriodicSnapshot] = useState<PeriodicCardSnapshot>(() => {
-    try {
-      const today = new Date().toLocaleDateString('en-CA');
-      const saved = localStorage.getItem('overwatch_trend_snapshot');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.date === today && parsed.snapshot && (parsed.snapshot.stressScore > 0 || parsed.snapshot.recoveryScore > 0)) {
-          return parsed.snapshot;
-        }
-      }
-    } catch {}
-
-    const initAvgs = calculateCumulativeAverages();
-    const currentSlotKey = `${activeResolution}_${Math.floor(Date.now() / resolutionMs)}`;
-
-    return {
-      lastSlotKey: currentSlotKey,
-      ...initAvgs,
-    };
-  });
-
-  // 自動同步當日快照至 localStorage
-  useEffect(() => {
-    try {
-      const today = new Date().toLocaleDateString('en-CA');
-      localStorage.setItem(
-        'overwatch_trend_snapshot',
-        JSON.stringify({
-          date: today,
-          snapshot: periodicSnapshot,
-        })
-      );
-    } catch (err) {
-      console.warn('Failed to save trend snapshot to localStorage:', err);
-    }
-  }, [periodicSnapshot]);
-
-  // 定期檢查並於圖表設定週期 (5m / 30m / 1h) 邊界自動更新卡片累加平均數值
-  useEffect(() => {
-    const checkAndUpdateSlot = () => {
-      const currentSlotKey = `${activeResolution}_${Math.floor(Date.now() / resolutionMs)}`;
-      setPeriodicSnapshot((prev) => {
-        // 如果槽位未改變，維持既有統計數值穩定，不隨即時畫面跳動
-        if (prev.lastSlotKey === currentSlotKey && (prev.stressScore > 0 || prev.recoveryScore > 0)) {
-          return prev;
-        }
-
-        const avgs = calculateCumulativeAverages();
-        return {
-          lastSlotKey: currentSlotKey,
-          ...avgs,
-        };
-      });
-    };
-
-    checkAndUpdateSlot();
-    const interval = setInterval(checkAndUpdateSlot, 1000);
-    return () => clearInterval(interval);
-  }, [activeResolution, resolutionMs, calculateCumulativeAverages]);
-
-  // ─── 4. 根據實際記錄的 trendHistory 構建時間軸數據（100% 真實記錄，絕不生成假數據） ───
+  // ─── 2. 根據實際記錄與當前時間構建連續時間軸走勢數據（自起點平順延伸至當前時刻） ───
   const chartData = useMemo(() => {
     if (!trendHistory || trendHistory.length === 0) {
       return [];
     }
 
-    // 將 trendHistory 按照選定的 bucket 進行彙整聚合（只保留實際有記錄的時間槽）
+    // 將 trendHistory 按照選定的 bucket 進行彙整聚合
     const bucketGroups = new Map<string, HealthTrendPoint[]>();
     trendHistory.forEach((pt) => {
       const slot = alignToSlot(pt.timestamp || Date.now(), activeResolution);
@@ -248,398 +121,731 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
       bucketGroups.set(slot.timeStr, list);
     });
 
-    const series = Array.from(bucketGroups.entries()).map(([timeStr, points]) => {
-      const firstPt = points[0];
-      const avgScore = Math.round(points.reduce((s, p) => s + p.score, 0) / points.length);
+    const nowTs = Date.now();
+    const timestamps = trendHistory.map((p) => p.timestamp || nowTs);
+    const minTs = Math.min(...timestamps);
+    const maxTs = Math.max(...timestamps, nowTs);
 
-      const realStressPoints = points.filter((p) => p.stressScore !== undefined);
-      const avgStress =
-        realStressPoints.length > 0
-          ? Math.round(realStressPoints.reduce((s, p) => s + (p.stressScore || 0), 0) / realStressPoints.length)
-          : periodicSnapshot.stressScore;
+    const startSlotTs = alignToSlot(minTs, activeResolution).slotTimestamp;
+    const endSlotTs = alignToSlot(maxTs, activeResolution).slotTimestamp;
 
-      const realFatiguePoints = points.filter((p) => p.fatigueScore !== undefined);
-      const avgFatigue =
-        realFatiguePoints.length > 0
-          ? Math.round(realFatiguePoints.reduce((s, p) => s + (p.fatigueScore || 0), 0) / realFatiguePoints.length)
-          : periodicSnapshot.fatigueScore;
+    let lastKnownScore = currentScore || 100;
+    let lastKnownStress = 20;
+    let lastKnownFatigue = 15;
+    let lastKnownRecovery = 65;
 
-      const realRecoveryPoints = points.filter((p) => p.recoveryScore !== undefined);
-      const avgRecovery =
-        realRecoveryPoints.length > 0
-          ? Math.round(realRecoveryPoints.reduce((s, p) => s + (p.recoveryScore || 0), 0) / realRecoveryPoints.length)
-          : periodicSnapshot.recoveryScore;
+    const series: Array<{
+      time: string;
+      timestamp: number;
+      score: number;
+      stressScore: number;
+      fatigueScore: number;
+      recoveryScore: number;
+      eventName: string;
+      displayTime: string;
+    }> = [];
 
-      const latestEvent = points[points.length - 1].eventName;
+    let currentTs = startSlotTs;
+    // 自打卡首個時段起，連續推演至當前最新時段（上限 120 個槽位）
+    while (currentTs <= endSlotTs && series.length < 120) {
+      const slot = alignToSlot(currentTs, activeResolution);
+      const points = bucketGroups.get(slot.timeStr);
 
-      return {
-        time: timeStr,
-        timestamp: firstPt.timestamp || Date.now(),
-        score: avgScore,
-        stressScore: avgStress,
-        fatigueScore: avgFatigue,
-        recoveryScore: avgRecovery,
-        eventName: latestEvent || '時段紀錄',
-        displayTime: timeStr,
-      };
-    });
+      if (points && points.length > 0) {
+        const avgScore = Math.round(points.reduce((s, p) => s + p.score, 0) / points.length);
+        const realStressPoints = points.filter((p) => p.stressScore !== undefined);
+        const avgStress =
+          realStressPoints.length > 0
+            ? Math.round(realStressPoints.reduce((s, p) => s + (p.stressScore || 0), 0) / realStressPoints.length)
+            : lastKnownStress;
 
-    // 依實際時間戳排序
-    series.sort((a, b) => a.timestamp - b.timestamp);
+        const realFatiguePoints = points.filter((p) => p.fatigueScore !== undefined);
+        const avgFatigue =
+          realFatiguePoints.length > 0
+            ? Math.round(realFatiguePoints.reduce((s, p) => s + (p.fatigueScore || 0), 0) / realFatiguePoints.length)
+            : lastKnownFatigue;
+
+        const realRecoveryPoints = points.filter((p) => p.recoveryScore !== undefined);
+        const avgRecovery =
+          realRecoveryPoints.length > 0
+            ? Math.round(realRecoveryPoints.reduce((s, p) => s + (p.recoveryScore || 0), 0) / realRecoveryPoints.length)
+            : lastKnownRecovery;
+
+        const latestEvent = points[points.length - 1].eventName || '時段紀錄';
+
+        lastKnownScore = avgScore;
+        lastKnownStress = avgStress;
+        lastKnownFatigue = avgFatigue;
+        lastKnownRecovery = avgRecovery;
+
+        series.push({
+          time: slot.timeStr,
+          timestamp: slot.slotTimestamp,
+          score: avgScore,
+          stressScore: avgStress,
+          fatigueScore: avgFatigue,
+          recoveryScore: avgRecovery,
+          eventName: latestEvent,
+          displayTime: slot.timeStr,
+        });
+      } else {
+        // 中間平穩時段或當前最新時段
+        const isCurrentSlot = slot.slotTimestamp === endSlotTs;
+        const slotScore = isCurrentSlot ? (currentScore ?? lastKnownScore) : lastKnownScore;
+
+        series.push({
+          time: slot.timeStr,
+          timestamp: slot.slotTimestamp,
+          score: slotScore,
+          stressScore: lastKnownStress,
+          fatigueScore: lastKnownFatigue,
+          recoveryScore: lastKnownRecovery,
+          eventName: isCurrentSlot ? '即時體徵' : '平穩時段',
+          displayTime: slot.timeStr,
+        });
+      }
+
+      currentTs += resolutionMs;
+    }
+
     return series;
   }, [
     trendHistory,
     activeResolution,
+    resolutionMs,
     currentScore,
-    periodicSnapshot.stressScore,
-    periodicSnapshot.fatigueScore,
-    periodicSnapshot.recoveryScore,
   ]);
 
-  // Overall Health Status Badge Logic (基於圖表週期累加平均快照)
-  let statusBadgeText = '全日良好 OPTIMAL';
+  // ─── 4.1 容器寬度動態監聽與自適應一屏可視筆數計算 ───
+  const chartWrapperRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hasUserScrolledRef = useRef(false);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  const [scrollPosition, setScrollPosition] = useState<{ isAtStart: boolean; isAtEnd: boolean }>({
+    isAtStart: true,
+    isAtEnd: true,
+  });
+
+  useEffect(() => {
+    const el = chartWrapperRef.current;
+    if (!el) return;
+
+    const updateWidth = () => {
+      if (el.clientWidth > 0) {
+        setContainerWidth(el.clientWidth);
+      }
+    };
+
+    updateWidth();
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setContainerWidth(Math.floor(entry.contentRect.width));
+        }
+      }
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // 每個時段點的最適可讀寬度 (像素)，依螢幕寬度自適應調配
+  const slotWidthPx = useMemo(() => {
+    if (containerWidth < 480) return 46;
+    if (containerWidth < 768) return 50;
+    return 54;
+  }, [containerWidth]);
+
+  // 當前螢幕寬度下，一屏最適可視時段數量 (自適應調配)
+  const visibleSlotsCount = useMemo(() => {
+    if (containerWidth <= 0) return 10;
+    const effectiveWidth = Math.max(120, containerWidth - 38);
+    return Math.max(5, Math.floor(effectiveWidth / slotWidthPx));
+  }, [containerWidth, slotWidthPx]);
+
+  const isScrollable = chartData.length > visibleSlotsCount;
+
+  // 動態自適應計算圖表總寬度 (超過筆數時展開供橫向滑動)
+  const calculatedChartWidth = useMemo(() => {
+    if (!isScrollable || containerWidth <= 0) {
+      return '100%';
+    }
+    const neededWidth = chartData.length * slotWidthPx;
+    const effectiveWidth = Math.max(120, containerWidth - 38);
+    return Math.max(effectiveWidth, neededWidth);
+  }, [isScrollable, containerWidth, chartData.length, slotWidthPx]);
+
+  // 預設或新數據加入時自動平滑滑動至最右側（最新當前時段）
+  useEffect(() => {
+    if (isScrollable && scrollContainerRef.current) {
+      const el = scrollContainerRef.current;
+      if (!hasUserScrolledRef.current) {
+        requestAnimationFrame(() => {
+          el.scrollTo({ left: el.scrollWidth - el.clientWidth, behavior: 'smooth' });
+        });
+      }
+    }
+  }, [chartData.length, isScrollable]);
+
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+    hasUserScrolledRef.current = true;
+    const maxScroll = scrollWidth - clientWidth;
+    setScrollPosition({
+      isAtStart: scrollLeft <= 8,
+      isAtEnd: scrollLeft >= maxScroll - 8,
+    });
+  }, []);
+
+  // Overall Health Status Badge Logic
+  let statusBadgeText = '體徵平穩 OPTIMAL';
   let statusBadgeClass = 'bg-cyan-950/80 border-cyan-500/80 text-cyan-300';
-  if (periodicSnapshot.healthScore < 60) {
-    statusBadgeText = '全日過勞 CRITICAL';
+  if (currentScore < 60) {
+    statusBadgeText = '過勞警戒 CRITICAL';
     statusBadgeClass = 'bg-rose-950/80 border-rose-500/80 text-rose-300 animate-pulse';
-  } else if (periodicSnapshot.healthScore < 80) {
-    statusBadgeText = '全日疲勞 FATIGUED';
+  } else if (currentScore < 80) {
+    statusBadgeText = '輕度疲憊 FATIGUED';
     statusBadgeClass = 'bg-amber-950/80 border-amber-500/80 text-amber-300';
   }
 
-  // 簡短狀態文案 (基於圖表週期累加平均快照)
-  const stressStatusText = periodicSnapshot.stressScore <= 25 ? '平靜無擾' : periodicSnapshot.stressScore <= 50 ? '輕微緊繃' : '高壓警戒';
-  const fatigueStatusText = periodicSnapshot.fatigueScore <= 25 ? '體態輕盈' : periodicSnapshot.fatigueScore <= 50 ? '輕度疲憊' : '過勞警戒';
-  const recoveryStatusText = periodicSnapshot.recoveryScore >= 50 ? '充沛回血' : periodicSnapshot.recoveryScore >= 20 ? '穩定蓄能' : '需補水休息';
+  // ─── 即時 4 維度體徵數據計算 (對應圖表上方 4 張狀態卡片與下方 4 條走勢折線) ───
+  const latestDataPoint = useMemo(() => {
+    if (chartData && chartData.length > 0) {
+      return chartData[chartData.length - 1];
+    }
+    return null;
+  }, [chartData]);
+
+  // 1. 健康指數 (Cyan)
+  const displayHealthScore = currentScore;
+  const healthBadge = useMemo(() => {
+    if (displayHealthScore >= 80) return { text: 'OPTIMAL', class: 'bg-cyan-950/80 border-cyan-500/70 text-cyan-300' };
+    if (displayHealthScore >= 60) return { text: 'FATIGUED', class: 'bg-amber-950/80 border-amber-500/70 text-amber-300' };
+    return { text: 'CRITICAL', class: 'bg-rose-950/80 border-rose-500/70 text-rose-300 animate-pulse' };
+  }, [displayHealthScore]);
+
+  // 2. 壓力指數 (Indigo / Purple)
+  const liveStress = useMemo(() => {
+    if (latestDataPoint && typeof latestDataPoint.stressScore === 'number') {
+      return latestDataPoint.stressScore;
+    }
+    const frownVal = telemetry?.frown ?? 0;
+    const proxVal = telemetry?.proximity ?? 0;
+    const deskSecs = telemetry?.consecutiveDeskSeconds ?? 0;
+    const deskMins = deskSecs / 60;
+    return Math.min(100, Math.max(12, Math.round(
+      (deskMins / 10) * 5.5 +
+      (frownVal > 0.01 ? ((frownVal - 0.01) / 0.06) * 30 : 0) +
+      (proxVal > 45 ? ((proxVal - 45) / 25) * 20 : 0) +
+      ((statsSummary?.frownsCaught ?? 0) * 3)
+    )));
+  }, [latestDataPoint, telemetry, statsSummary]);
+
+  const stressBadge = useMemo(() => {
+    if (liveStress >= 60) return { text: 'HIGH 緊繃', class: 'bg-rose-950/80 border-rose-500/70 text-rose-300' };
+    if (liveStress >= 35) return { text: 'MED 偏高', class: 'bg-indigo-950/80 border-indigo-500/70 text-indigo-300' };
+    return { text: 'LOW 平緩', class: 'bg-cyan-950/80 border-cyan-500/70 text-cyan-300' };
+  }, [liveStress]);
+
+  // 3. 疲勞指數 (Rose / Red)
+  const liveFatigue = useMemo(() => {
+    if (latestDataPoint && typeof latestDataPoint.fatigueScore === 'number') {
+      return latestDataPoint.fatigueScore;
+    }
+    const marVal = telemetry?.mar ?? 0;
+    const isBlinking = telemetry?.isFrequentBlinking ? 20 : 0;
+    const deskSecs = telemetry?.consecutiveDeskSeconds ?? 0;
+    const deskMins = deskSecs / 60;
+    const yawns = statsSummary?.yawnsCaught ?? 0;
+    return Math.min(100, Math.max(8, Math.round(
+      (marVal > 0.45 ? 25 : 0) +
+      isBlinking +
+      Math.min(30, (deskMins / (sedentaryLimitMinutes || 45)) * 25) +
+      (yawns * 4) +
+      (currentScore < 70 ? (70 - currentScore) * 0.4 : 0)
+    )));
+  }, [latestDataPoint, telemetry, statsSummary, sedentaryLimitMinutes, currentScore]);
+
+  const fatigueBadge = useMemo(() => {
+    if (liveFatigue >= 60) return { text: 'ALERT 警報', class: 'bg-rose-950/80 border-rose-500/70 text-rose-300 animate-pulse' };
+    if (liveFatigue >= 35) return { text: 'TIRED 疲勞', class: 'bg-amber-950/80 border-amber-500/70 text-amber-300' };
+    return { text: 'FRESH 充沛', class: 'bg-emerald-950/80 border-emerald-500/70 text-emerald-300' };
+  }, [liveFatigue]);
+
+  // 4. 修復活力 (Emerald)
+  const liveRecovery = useMemo(() => {
+    if (latestDataPoint && typeof latestDataPoint.recoveryScore === 'number') {
+      return latestDataPoint.recoveryScore;
+    }
+    const baseRec = Math.round(currentScore * 0.65);
+    const slackBonus = Math.min(25, (statsSummary?.slackMinutesEarned ?? 0) * 3);
+    const stretchBonus = (statsSummary?.sedentaryLocksCount ?? 0) * 5;
+    return Math.min(100, Math.max(15, baseRec + slackBonus + stretchBonus));
+  }, [latestDataPoint, currentScore, statsSummary]);
+
+  const recoveryBadge = useMemo(() => {
+    if (liveRecovery >= 75) return { text: 'PEAK 滿格', class: 'bg-emerald-950/80 border-emerald-500/70 text-emerald-300' };
+    if (liveRecovery >= 45) return { text: 'CHARGING 蓄力', class: 'bg-teal-950/80 border-teal-500/70 text-teal-300' };
+    return { text: 'LOW 匱乏', class: 'bg-rose-950/80 border-rose-500/70 text-rose-300' };
+  }, [liveRecovery]);
 
   return (
     <div className="bg-[#06080e] border border-slate-800 rounded-md p-3 sm:p-3.5 flex flex-col h-full backdrop-blur-md shadow-xl font-mono cctv-brackets">
-      {/* 簡約清晰的標題列（附帶智慧滾動刻度切換與更新間隔標註） */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-2.5 gap-2 shrink-0">
+      {/* 簡約清晰的標題列與圖表走勢圖例 */}
+      <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-2 gap-2 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="w-2 h-2 rounded-full bg-[#00d8ff] animate-pulse shadow-[0_0_8px_#00d8ff] shrink-0" />
           <h3 className="text-xs font-mono font-bold text-[#00d8ff] tracking-wider uppercase truncate">
             [HEALTH_TREND]
           </h3>
-          <span className="text-[9px] text-slate-500 hidden sm:inline-block font-sans">
-            (累加平均 · 每{activeResolution}更新)
-          </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${statusBadgeClass}`}>
+        {/* 圖例說明與即時狀態 */}
+        <div className="flex items-center gap-2.5 sm:gap-3.5 text-[9px] sm:text-[10px]">
+          <span className="flex items-center gap-1 text-cyan-400 font-bold">
+            <span className="w-2 h-0.5 bg-cyan-400 rounded-full" />
+            <span>健康</span>
+          </span>
+          <span className="flex items-center gap-1 text-indigo-300">
+            <span className="w-2 h-0.5 bg-indigo-400 rounded-full" />
+            <span>壓力</span>
+          </span>
+          <span className="flex items-center gap-1 text-rose-300">
+            <span className="w-2 h-0.5 bg-rose-400 rounded-full" />
+            <span>疲勞</span>
+          </span>
+          <span className="flex items-center gap-1 text-emerald-300">
+            <span className="w-2 h-0.5 bg-emerald-400 rounded-full" />
+            <span>修復</span>
+          </span>
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ml-1 ${statusBadgeClass}`}>
             {statusBadgeText}
           </span>
         </div>
       </div>
 
-      {/* ─── 四張卡片：全日打卡至今累加平均統計數據 ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 mb-2 sm:mb-2.5 shrink-0">
-        {/* 左側：健康分數 HERO CARD */}
-        <div className="sm:col-span-4 rounded-md bg-[#050b16] border border-cyan-500/60 px-3 py-2 sm:py-2.5 flex flex-col justify-between shadow-[0_0_15px_rgba(6,182,212,0.12)] relative overflow-hidden">
-          <div className="flex items-center justify-between text-cyan-300 font-bold text-[10px] tracking-wider uppercase">
-            <span className="flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5 text-cyan-400" />
-              <span>健康分數</span>
+      {/* ─── 圖表上方 4 維度體徵即時狀態卡片 (對應下方 4 條走勢折線與操作測試台) ─── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-2 shrink-0">
+        {/* === 第 1 張卡片：健康指數 (青色 Cyan) === */}
+        <div
+          className="p-2 sm:p-2.5 rounded bg-[#070b14] border border-slate-800 hover:border-cyan-500/50 transition-all flex flex-col justify-between select-none relative group shadow-sm"
+          title="【健康指數】即時綜合身心健康評級，連動全日體徵走勢"
+        >
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <span className="flex items-center gap-1.5 text-cyan-400 font-bold truncate text-[10px] sm:text-[11px]">
+              <HeartPulse className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span className="tracking-wider">健康指數</span>
+            </span>
+            <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${healthBadge.class}`}>
+              {healthBadge.text}
             </span>
           </div>
 
-          <div className="my-1">
-            <div className="text-2xl sm:text-3xl font-black text-cyan-300 font-mono tracking-tight drop-shadow-[0_0_8px_rgba(6,182,212,0.4)] flex items-baseline">
-              <span>{periodicSnapshot.healthScore}</span>
-              <span className="text-xs text-slate-500 font-normal ml-1">/100</span>
-            </div>
-            <div className="text-[10px] text-slate-400 font-sans">
-              {periodicSnapshot.healthScore >= 80 ? '體徵平穩良好' : periodicSnapshot.healthScore >= 60 ? '輕度疲勞消耗' : '過勞臨界警示'}
-            </div>
+          <div className="flex items-baseline justify-between gap-1 my-0.5">
+            <span className="text-lg sm:text-xl font-bold font-mono text-cyan-300 tabular-nums tracking-tight">
+              {displayHealthScore}
+              <span className="text-[10px] font-normal text-slate-500 ml-1">PTS</span>
+            </span>
+            <span className="text-[9px] text-slate-400 font-mono truncate hidden xs:inline">
+              綜合體徵
+            </span>
+          </div>
+
+          <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800/80 my-1">
+            <div
+              className="h-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.6)] transition-all duration-300"
+              style={{ width: `${Math.min(100, Math.max(0, displayHealthScore))}%` }}
+            />
+          </div>
+
+          <div className="text-[9px] text-slate-400 flex items-center justify-between font-mono truncate">
+            <span className="text-slate-500">基準: 100</span>
+            <span className="text-cyan-400/90 truncate">即時戰力走勢</span>
           </div>
         </div>
 
-        {/* 右側：三大維度卡片 (壓力、疲勞、修復) */}
-        <div className="sm:col-span-8 grid grid-cols-3 gap-2">
-          
-          {/* 維度 1：🧠 壓力指數 */}
-          <div className="bg-[#040814] border border-indigo-500/30 px-2.5 py-2 sm:py-2.5 rounded-md flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[10px] font-bold text-indigo-300 uppercase">
-              <span className="flex items-center gap-1">
-                <Brain className="w-3 h-3 text-indigo-400 shrink-0" />
-                <span className="truncate">壓力指數</span>
-              </span>
-            </div>
-
-            <div className="my-0.5">
-              <div className="text-lg sm:text-xl font-black text-indigo-200 font-mono flex items-baseline">
-                <span>{periodicSnapshot.stressScore}</span>
-                <span className="text-[10px] text-slate-500 font-normal ml-1">/100</span>
-              </div>
-            </div>
-
-            <div className="text-[9px] text-slate-400 truncate">
-              {stressStatusText}
-            </div>
+        {/* === 第 2 張卡片：壓力指數 (紫色 Purple / Indigo) === */}
+        <div
+          className="p-2 sm:p-2.5 rounded bg-[#070b14] border border-slate-800 hover:border-indigo-500/50 transition-all flex flex-col justify-between select-none relative group shadow-sm"
+          title="【壓力指數】由眉心緊繃、視距過近與連貫伏案時長綜合運算"
+        >
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <span className="flex items-center gap-1.5 text-indigo-400 font-bold truncate text-[10px] sm:text-[11px]">
+              <Zap className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span className="tracking-wider">壓力指數</span>
+            </span>
+            <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${stressBadge.class}`}>
+              {stressBadge.text}
+            </span>
           </div>
 
-          {/* 維度 2：🚨 疲勞指數 */}
-          <div className="bg-[#120509] border border-rose-500/30 px-2.5 py-2 sm:py-2.5 rounded-md flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[10px] font-bold text-rose-300 uppercase">
-              <span className="flex items-center gap-1">
-                <ShieldAlert className="w-3 h-3 text-rose-400 shrink-0" />
-                <span className="truncate">疲勞指數</span>
-              </span>
-            </div>
-
-            <div className="my-0.5">
-              <div className="text-lg sm:text-xl font-black text-rose-300 font-mono flex items-baseline">
-                <span>{periodicSnapshot.fatigueScore}</span>
-                <span className="text-[10px] text-slate-500 font-normal ml-1">/100</span>
-              </div>
-            </div>
-
-            <div className="text-[9px] text-rose-300/90 truncate">
-              {fatigueStatusText}
-            </div>
+          <div className="flex items-baseline justify-between gap-1 my-0.5">
+            <span className="text-lg sm:text-xl font-bold font-mono text-indigo-300 tabular-nums tracking-tight">
+              {liveStress}
+              <span className="text-[10px] font-normal text-slate-500 ml-1">PTS</span>
+            </span>
+            <span className="text-[9px] text-slate-400 font-mono truncate hidden xs:inline">
+              緊繃評級
+            </span>
           </div>
 
-          {/* 維度 3：⚡ 修復活力 */}
-          <div className="bg-[#04100c] border border-emerald-500/30 px-2.5 py-2 sm:py-2.5 rounded-md flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[10px] font-bold text-emerald-300 uppercase">
-              <span className="flex items-center gap-1">
-                <Zap className="w-3 h-3 text-emerald-400 shrink-0" />
-                <span className="truncate">修復活力</span>
-              </span>
-            </div>
-
-            <div className="my-0.5">
-              <div className="text-lg sm:text-xl font-black text-emerald-300 font-mono flex items-baseline">
-                <span>{periodicSnapshot.recoveryScore}</span>
-                <span className="text-[10px] text-slate-500 font-normal ml-1">/100</span>
-              </div>
-            </div>
-
-            <div className="text-[9px] text-emerald-400/90 truncate">
-              {recoveryStatusText}
-            </div>
+          <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800/80 my-1">
+            <div
+              className="h-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.6)] transition-all duration-300"
+              style={{ width: `${Math.min(100, Math.max(0, liveStress))}%` }}
+            />
           </div>
 
+          <div className="text-[9px] text-slate-400 flex items-center justify-between font-mono truncate">
+            <span className="text-slate-500">緊繃: {statsSummary?.frownsCaught ?? 0}次</span>
+            <span className="text-indigo-400/90 truncate">視距 & 眉心</span>
+          </div>
+        </div>
+
+        {/* === 第 3 張卡片：疲勞指數 (玫瑰紅 Rose / Red) === */}
+        <div
+          className="p-2 sm:p-2.5 rounded bg-[#070b14] border border-slate-800 hover:border-rose-500/50 transition-all flex flex-col justify-between select-none relative group shadow-sm"
+          title="【疲勞指數】由大腦缺氧哈欠、頻繁眨眼乾眼與超時加班綜合運算"
+        >
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <span className="flex items-center gap-1.5 text-rose-400 font-bold truncate text-[10px] sm:text-[11px]">
+              <Moon className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <span className="tracking-wider">疲勞指數</span>
+            </span>
+            <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${fatigueBadge.class}`}>
+              {fatigueBadge.text}
+            </span>
+          </div>
+
+          <div className="flex items-baseline justify-between gap-1 my-0.5">
+            <span className="text-lg sm:text-xl font-bold font-mono text-rose-300 tabular-nums tracking-tight">
+              {liveFatigue}
+              <span className="text-[10px] font-normal text-slate-500 ml-1">PTS</span>
+            </span>
+            <span className="text-[9px] text-slate-400 font-mono truncate hidden xs:inline">
+              倦怠警戒
+            </span>
+          </div>
+
+          <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800/80 my-1">
+            <div
+              className="h-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] transition-all duration-300"
+              style={{ width: `${Math.min(100, Math.max(0, liveFatigue))}%` }}
+            />
+          </div>
+
+          <div className="text-[9px] text-slate-400 flex items-center justify-between font-mono truncate">
+            <span className="text-slate-500">哈欠: {statsSummary?.yawnsCaught ?? 0}次</span>
+            <span className="text-rose-400/90 truncate">乾眼 & 缺氧</span>
+          </div>
+        </div>
+
+        {/* === 第 4 張卡片：修復活力 (翡翠綠 Emerald) === */}
+        <div
+          className="p-2 sm:p-2.5 rounded bg-[#070b14] border border-slate-800 hover:border-emerald-500/50 transition-all flex flex-col justify-between select-none relative group shadow-sm"
+          title="【修復活力】由離座摸魚回血、久坐體操伸展與定時水分補給注入活力"
+        >
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <span className="flex items-center gap-1.5 text-emerald-400 font-bold truncate text-[10px] sm:text-[11px]">
+              <BatteryCharging className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="tracking-wider">修復活力</span>
+            </span>
+            <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${recoveryBadge.class}`}>
+              {recoveryBadge.text}
+            </span>
+          </div>
+
+          <div className="flex items-baseline justify-between gap-1 my-0.5">
+            <span className="text-lg sm:text-xl font-bold font-mono text-emerald-300 tabular-nums tracking-tight">
+              {liveRecovery}
+              <span className="text-[10px] font-normal text-slate-500 ml-1">PTS</span>
+            </span>
+            <span className="text-[9px] text-slate-400 font-mono truncate hidden xs:inline">
+              回血蓄力
+            </span>
+          </div>
+
+          <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800/80 my-1">
+            <div
+              className="h-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)] transition-all duration-300"
+              style={{ width: `${Math.min(100, Math.max(0, liveRecovery))}%` }}
+            />
+          </div>
+
+          <div className="text-[9px] text-slate-400 flex items-center justify-between font-mono truncate">
+            <span className="text-slate-500">摸魚: +{statsSummary?.slackMinutesEarned ?? 0}m</span>
+            <span className="text-emerald-400/90 truncate">伸展 {statsSummary?.sedentaryLocksCount ?? 0}次</span>
+          </div>
         </div>
       </div>
 
-      {/* ─── 下方清晰折線圖 (動態滾動時間區間呈現) ─── */}
-      <div className="w-full flex-1 min-h-[260px] relative my-1">
+      {/* ─── 下方清晰折線圖 (支援橫向滑動與左側固定 Y 軸) ─── */}
+      <div ref={chartWrapperRef} className="w-full flex-1 min-h-[250px] relative my-1 flex overflow-hidden">
         {chartData.length === 0 && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none text-slate-500 font-mono text-xs bg-[#06080e]/60 backdrop-blur-[1px]">
-            <div className="px-3 py-1.5 rounded border border-slate-800 bg-[#0a0f1d]/80 text-slate-400 flex items-center gap-2 shadow-lg">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none text-slate-500 font-mono text-xs bg-[#06080e]/70 backdrop-blur-[1px]">
+            <div className="px-3 py-1.5 rounded border border-slate-800 bg-[#0a0f1d]/90 text-slate-400 flex items-center gap-2 shadow-lg">
               <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
               <span>[ 待打卡上班 · 尚未開始記錄歷史體徵 ]</span>
             </div>
           </div>
         )}
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart
-            data={chartData}
-            margin={{ top: 10, right: 12, left: 6, bottom: 2 }}
-          >
-            <defs>
-              <linearGradient id="healthGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.35} />
-                <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.02} />
-              </linearGradient>
-            </defs>
 
-            <CartesianGrid
-              stroke="rgba(255, 255, 255, 0.05)"
-              strokeDasharray="2 2"
-              vertical={false}
-            />
+        {/* 釘選左側 Y 軸標籤 (始終保持可見，不隨圖表水平滾動移出視線) */}
+        <div className="w-[38px] shrink-0 h-full select-none pointer-events-none border-r border-slate-800/80 bg-[#06080e] z-10">
+          <ResponsiveContainer width={38} height="100%">
+            <ComposedChart
+              data={[{ score: 0 }, { score: 100 }]}
+              margin={{ top: 10, right: 0, left: -2, bottom: 2 }}
+            >
+              <YAxis
+                yAxisId="health"
+                domain={[0, 100]}
+                tick={{ fill: '#38bdf8', fontSize: 10, fontFamily: 'monospace' }}
+                stroke="rgba(56, 189, 248, 0.3)"
+                ticks={[0, 25, 50, 75, 100]}
+                width={38}
+              />
+              <XAxis hide height={24} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
 
-            {/* X 軸刻度 */}
-            <XAxis
-              dataKey="time"
-              interval={0}
-              tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'monospace' }}
-              stroke="rgba(255, 255, 255, 0.1)"
-              dy={5}
-              padding={{ left: 12, right: 12 }}
-            />
+        {/* 可橫向滑動之圖表走勢本體 */}
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 h-full overflow-x-auto overflow-y-hidden custom-scrollbar relative"
+        >
+          {/* 左側溢位陰影提示 */}
+          {isScrollable && !scrollPosition.isAtStart && (
+            <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#06080e] to-transparent z-10" />
+          )}
 
-            {/* 左側清晰藍色刻度數字 (0, 25, 50, 75, 100) */}
-            <YAxis
-              yAxisId="health"
-              domain={[0, 100]}
-              tick={{ fill: '#38bdf8', fontSize: 10, fontFamily: 'monospace' }}
-              stroke="rgba(56, 189, 248, 0.3)"
-              ticks={[0, 25, 50, 75, 100]}
-              width={36}
-            />
+          {/* 右側溢位陰影提示 */}
+          {isScrollable && !scrollPosition.isAtEnd && (
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#06080e] to-transparent z-10" />
+          )}
 
-            {/* 四維度整合浮動視窗 (Tooltip) */}
-            <Tooltip
-              content={({ active, payload }) => {
-                if (active && payload && payload.length) {
-                  const data = payload[0].payload as any;
-                  return (
-                    <div className="bg-[#03060d]/95 backdrop-blur-md border border-cyan-500/70 p-2.5 rounded-lg shadow-2xl font-mono text-xs max-w-[240px]">
-                      <div className="text-[10px] text-slate-400 pb-1.5 border-b border-slate-800 flex justify-between items-center">
-                        <span className="text-cyan-300 font-bold">{data.time}</span>
-                        <span className="text-slate-400 truncate">
-                          {data.eventName}
-                        </span>
-                      </div>
+          <div style={{ width: calculatedChartWidth, minWidth: '100%', height: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart
+                data={chartData}
+                margin={{ top: 10, right: 16, left: 10, bottom: 2 }}
+              >
+                <defs>
+                  <linearGradient id="healthGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
 
-                      <div className="mt-1.5 space-y-1">
-                        <div className="flex justify-between items-center text-cyan-300 font-bold">
-                          <span className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                            健康分數:
-                          </span>
-                          <span className="text-sm">{data.score} PTS</span>
+                <CartesianGrid
+                  stroke="rgba(255, 255, 255, 0.05)"
+                  strokeDasharray="2 2"
+                  vertical={false}
+                />
+
+                {/* X 軸刻度 */}
+                <XAxis
+                  dataKey="time"
+                  interval={0}
+                  tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'monospace' }}
+                  stroke="rgba(255, 255, 255, 0.1)"
+                  dy={5}
+                  height={24}
+                  padding={{ left: 16, right: 16 }}
+                />
+
+                {/* 隱藏主圖表中的 YAxis，由左側釘選 Y 軸呈現 */}
+                <YAxis
+                  yAxisId="health"
+                  domain={[0, 100]}
+                  hide={true}
+                />
+
+                {/* 四維度整合浮動視窗 (Tooltip) */}
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload as any;
+                      return (
+                        <div className="bg-[#03060d]/95 backdrop-blur-md border border-cyan-500/70 p-2.5 rounded-lg shadow-2xl font-mono text-xs max-w-[240px]">
+                          <div className="text-[10px] text-slate-400 pb-1.5 border-b border-slate-800 flex justify-between items-center">
+                            <span className="text-cyan-300 font-bold">{data.time}</span>
+                            <span className="text-slate-400 truncate">
+                              {data.eventName}
+                            </span>
+                          </div>
+
+                          <div className="mt-1.5 space-y-1">
+                            <div className="flex justify-between items-center text-cyan-300 font-bold">
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                                健康分數:
+                              </span>
+                              <span className="text-sm">{data.score} PTS</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-indigo-300">
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-indigo-400" />
+                                壓力指數:
+                              </span>
+                              <span>{data.stressScore} PTS</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-rose-400">
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                                疲勞指數:
+                              </span>
+                              <span>{data.fatigueScore} PTS</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-emerald-300">
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                                修復活力:
+                              </span>
+                              <span>{data.recoveryScore} PTS</span>
+                            </div>
+                          </div>
                         </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
 
-                        <div className="flex justify-between items-center text-indigo-300">
-                          <span className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-indigo-400" />
-                            壓力指數:
-                          </span>
-                          <span>{data.stressScore} PTS</span>
-                        </div>
+                {/* 80分健康基準參考線 */}
+                <ReferenceLine
+                  yAxisId="health"
+                  y={80}
+                  stroke="#06b6d4"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: '健康基準 (80分)',
+                    fill: '#06b6d4',
+                    fontSize: 9,
+                    position: 'insideTopLeft',
+                  }}
+                />
 
-                        <div className="flex justify-between items-center text-rose-400">
-                          <span className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-rose-500" />
-                            疲勞指數:
-                          </span>
-                          <span>{data.fatigueScore} PTS</span>
-                        </div>
+                {/* 1. 健康分數：青藍色折線加微光底色 */}
+                <Area
+                  yAxisId="health"
+                  type="linear"
+                  dataKey="score"
+                  name="健康分數"
+                  stroke="#06b6d4"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#healthGradient)"
+                  isAnimationActive={false}
+                  connectNulls={true}
+                  dot={{
+                    r: 4,
+                    fill: '#06b6d4',
+                    stroke: '#030712',
+                    strokeWidth: 2,
+                  }}
+                  activeDot={{
+                    r: 6,
+                    fill: '#38bdf8',
+                    stroke: '#ffffff',
+                    strokeWidth: 2,
+                  }}
+                />
 
-                        <div className="flex justify-between items-center text-emerald-300">
-                          <span className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                            修復活力:
-                          </span>
-                          <span>{data.recoveryScore} PTS</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
+                {/* 2. 壓力指數：紫靛色折線 */}
+                <Line
+                  yAxisId="health"
+                  type="linear"
+                  dataKey="stressScore"
+                  name="壓力指數"
+                  stroke="#818cf8"
+                  strokeWidth={2.5}
+                  isAnimationActive={false}
+                  connectNulls={true}
+                  dot={{
+                    r: 3.5,
+                    fill: '#818cf8',
+                    stroke: '#030712',
+                    strokeWidth: 1.5,
+                  }}
+                  activeDot={{
+                    r: 5.5,
+                    fill: '#a5b4fc',
+                    stroke: '#ffffff',
+                    strokeWidth: 2,
+                  }}
+                />
 
-            {/* 80分健康基準參考線 */}
-            <ReferenceLine
-              yAxisId="health"
-              y={80}
-              stroke="#06b6d4"
-              strokeDasharray="4 4"
-              label={{
-                value: '健康基準 (80分)',
-                fill: '#06b6d4',
-                fontSize: 9,
-                position: 'insideTopLeft',
-              }}
-            />
+                {/* 3. 疲勞指數：玫紅色警示折線 */}
+                <Line
+                  yAxisId="health"
+                  type="linear"
+                  dataKey="fatigueScore"
+                  name="疲勞指數"
+                  stroke="#f43f5e"
+                  strokeWidth={2.5}
+                  isAnimationActive={false}
+                  connectNulls={true}
+                  dot={{
+                    r: 3.5,
+                    fill: '#f43f5e',
+                    stroke: '#030712',
+                    strokeWidth: 1.5,
+                  }}
+                  activeDot={{
+                    r: 5.5,
+                    fill: '#fb7185',
+                    stroke: '#ffffff',
+                    strokeWidth: 2,
+                  }}
+                />
 
-            {/* 1. 健康分數：青藍色折線加微光底色 */}
-            <Area
-              yAxisId="health"
-              type="linear"
-              dataKey="score"
-              name="健康分數"
-              stroke="#06b6d4"
-              strokeWidth={3}
-              fillOpacity={1}
-              fill="url(#healthGradient)"
-              isAnimationActive={false}
-              connectNulls={true}
-              dot={{
-                r: 4,
-                fill: '#06b6d4',
-                stroke: '#030712',
-                strokeWidth: 2,
-              }}
-              activeDot={{
-                r: 6,
-                fill: '#38bdf8',
-                stroke: '#ffffff',
-                strokeWidth: 2,
-              }}
-            />
-
-            {/* 2. 壓力指數：紫靛色折線 */}
-            <Line
-              yAxisId="health"
-              type="linear"
-              dataKey="stressScore"
-              name="壓力指數"
-              stroke="#818cf8"
-              strokeWidth={2.5}
-              isAnimationActive={false}
-              connectNulls={true}
-              dot={{
-                r: 3.5,
-                fill: '#818cf8',
-                stroke: '#030712',
-                strokeWidth: 1.5,
-              }}
-              activeDot={{
-                r: 5.5,
-                fill: '#a5b4fc',
-                stroke: '#ffffff',
-                strokeWidth: 2,
-              }}
-            />
-
-            {/* 3. 疲勞指數：玫紅色警示折線 */}
-            <Line
-              yAxisId="health"
-              type="linear"
-              dataKey="fatigueScore"
-              name="疲勞指數"
-              stroke="#f43f5e"
-              strokeWidth={2.5}
-              isAnimationActive={false}
-              connectNulls={true}
-              dot={{
-                r: 3.5,
-                fill: '#f43f5e',
-                stroke: '#030712',
-                strokeWidth: 1.5,
-              }}
-              activeDot={{
-                r: 5.5,
-                fill: '#fb7185',
-                stroke: '#ffffff',
-                strokeWidth: 2,
-              }}
-            />
-
-            {/* 4. 修復活力：翡翠綠色折線 */}
-            <Line
-              yAxisId="health"
-              type="linear"
-              dataKey="recoveryScore"
-              name="修復活力"
-              stroke="#10b981"
-              strokeWidth={2.5}
-              isAnimationActive={false}
-              connectNulls={true}
-              dot={{
-                r: 3.5,
-                fill: '#10b981',
-                stroke: '#030712',
-                strokeWidth: 1.5,
-              }}
-              activeDot={{
-                r: 5.5,
-                fill: '#34d399',
-                stroke: '#ffffff',
-                strokeWidth: 2,
-              }}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+                {/* 4. 修復活力：翡翠綠色折線 */}
+                <Line
+                  yAxisId="health"
+                  type="linear"
+                  dataKey="recoveryScore"
+                  name="修復活力"
+                  stroke="#10b981"
+                  strokeWidth={2.5}
+                  isAnimationActive={false}
+                  connectNulls={true}
+                  dot={{
+                    r: 3.5,
+                    fill: '#10b981',
+                    stroke: '#030712',
+                    strokeWidth: 1.5,
+                  }}
+                  activeDot={{
+                    r: 5.5,
+                    fill: '#34d399',
+                    stroke: '#ffffff',
+                    strokeWidth: 2,
+                  }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
+
+      {/* ─── 底部操作與滑動提示 ─── */}
+      {isScrollable && (
+        <div className="flex items-center justify-between text-[9px] text-slate-500 font-mono pt-1 border-t border-slate-800/50 shrink-0">
+          <span className="truncate">
+            ⇄ 支援左右觸控滑動 / 滾輪捲動檢視全日紀錄 (每屏呈現 {visibleSlotsCount} 筆)
+          </span>
+          <span className="text-slate-400 shrink-0 hidden xs:inline">
+            已自動對齊最新
+          </span>
+        </div>
+      )}
     </div>
   );
 };

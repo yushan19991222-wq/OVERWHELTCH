@@ -449,9 +449,6 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-zinc-200 tracking-wider">SHIFT_CLOSED</span>
-                    <span className="text-[8px] px-1.5 py-0.2 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
-                      已離席
-                    </span>
                   </div>
                   <span className="text-[9px] text-zinc-500 truncate mt-0.5">
                     本日工時與健康存摺已結算封存
@@ -580,19 +577,6 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
                       }`}
                     >
                       {getClockOutText()}
-                    </span>
-                    <span
-                      className={`text-[9px] tracking-tight truncate leading-tight mt-0.5 ${
-                        !isClockedIn
-                          ? 'text-slate-800 font-semibold'
-                          : isClockedOut
-                          ? 'text-zinc-500'
-                          : isAfterOffWork || isOvertime || isOverdue
-                          ? 'text-slate-800 font-semibold'
-                          : 'text-cyan-400/80 group-hover:text-cyan-300'
-                      }`}
-                    >
-                      {!isClockedIn ? '點擊開啟今日健康守護' : isClockedOut ? '本日戰報已封存' : `表定 ${offWorkTime || '17:30'}`}
                     </span>
                   </div>
                 </div>

@@ -83,10 +83,10 @@ export function evaluateRealtimeEmotion(
     };
   }
 
-  // 2. 【打哈欠】 (Yawning): 嘴巴大開 (垂直拉長) + 嘴角「無」上揚 (放鬆或微沉) + 無臉頰擠壓
-  // 關鍵區別：jawVal 超高但 smileVal 與 cheekSquintVal 極低，嘴型呈縱向長橢圓
-  if (jawVal > 0.42 && smileVal < 0.18 && cheekSquintVal < 0.14 && lipCornerElevation <= 0.015) {
-    const intensity = Math.min(100, Math.round(jawVal * 120));
+  // 2. 【打哈欠】 (Yawning): 嘴巴大開 (垂直拉長) + 嘴角非大幅上揚 (排除開懷大笑)
+  // 注意：打哈欠時眼部與臉頰常自然擠壓 (cheekSquint)，因此以高 jawVal 且非微笑為核心特徵
+  if (jawVal >= 0.36 && smileVal < 0.22 && lipCornerElevation <= 0.025) {
+    const intensity = Math.min(100, Math.round(jawVal * 125));
     return {
       type: 'yawn',
       label: '大口哈欠',

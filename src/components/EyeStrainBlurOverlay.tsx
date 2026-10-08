@@ -45,7 +45,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
 
   // Calculate live estimated distance (cm) from camera with calibrated optical focal mapping
   const rawPct = Math.max(10, proximityPct);
-  const cameraEstimatedCm = Math.round(1950 / Math.max(12, rawPct));
+  const cameraEstimatedCm = Math.round(1600 / Math.max(12, rawPct));
   const currentCm = simulatedCmOverride !== null ? simulatedCmOverride : cameraEstimatedCm;
   const currentFacePresent = simulatedCmOverride !== null ? true : isFacePresent;
 

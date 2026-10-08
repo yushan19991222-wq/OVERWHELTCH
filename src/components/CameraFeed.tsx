@@ -15,6 +15,11 @@ interface CameraFeedProps {
   telemetry: TelemetryData;
   sedentaryLimitMinutes: number;
   onTriggerYawn?: () => void;
+  onTriggerFrown?: () => void;
+  onTriggerBlink?: () => void;
+  onTriggerProximity?: () => void;
+  isClockedIn?: boolean;
+  onClockIn?: () => void;
   faceScoreData?: FaceCharismaScore | null;
   isScanningFace?: boolean;
   onTriggerFaceScan?: () => void;
@@ -36,6 +41,11 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
   telemetry,
   sedentaryLimitMinutes,
   onTriggerYawn,
+  onTriggerFrown,
+  onTriggerBlink,
+  onTriggerProximity,
+  isClockedIn = true,
+  onClockIn,
   faceScoreData,
   isScanningFace,
   onTriggerFaceScan,
@@ -276,9 +286,13 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
       {/* Streamlined Surveillance Telemetry Rack (Clean 3x2 Grid - Health & Fatigue Detection Metrics) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-2 text-xs font-mono shrink-0">
         {/* 1. Drowsiness / Yawn Check */}
-        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【大腦缺氧哈欠監測】嘴部持續張幅超過 0.48 達 1.0 秒將判定為大腦缺氧打哈欠並觸發醒腦提醒">
+        <div
+          onClick={onTriggerYawn}
+          className="p-2.5 rounded bg-[#070a10] border border-slate-800 hover:border-cyan-500/60 active:scale-[0.98] transition-all cursor-pointer flex flex-col justify-between group"
+          title="【大腦缺氧打哈欠】嘴巴大開（MAR ≥ 0.44）持續 0.45 秒即自動觸發抓拍！點擊可立即手動測試"
+        >
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate group-hover:text-cyan-300">
               <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">bedtime</span>
               <span>DROWSINESS ALERT</span>
             </span>
@@ -287,63 +301,68 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
           <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
             <div
               className={`h-full transition-all duration-75 ${
-                telemetry.mar > 0.48 ? 'bg-rose-500 shadow-[0_0_6px_#f43f5e]' : 'bg-cyan-400'
+                telemetry.mar >= 0.44 ? 'bg-rose-500 shadow-[0_0_6px_#f43f5e]' : 'bg-cyan-400'
               }`}
               style={{ width: `${Math.min(100, telemetry.mar * 180)}%` }}
             />
           </div>
-          <div className="text-[9px] text-slate-400 mt-1 flex justify-end items-center">
-            <span className={telemetry.mar > 0.48 ? 'text-rose-400 font-bold' : 'text-slate-400'}>
-              {telemetry.mar > 0.48 ? '缺氧超標' : '警戒線:0.48'}
+          <div className="text-[9px] text-slate-400 mt-1 flex justify-between items-center">
+            <span className="text-slate-500 text-[8px] sm:text-[9px]">門檻 &ge; 0.44</span>
+            <span className={telemetry.mar >= 0.44 ? 'text-rose-400 font-bold animate-pulse' : 'text-slate-400'}>
+              {telemetry.mar >= 0.44 ? '🚨 缺氧超標 (-5點)' : '放鬆舒適'}
             </span>
           </div>
         </div>
 
-        {/* 2. Stress Level */}
-        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【精神緊繃壓力監測】眉心張力大於 0.07 且持續 5.0 秒將判定為壓力緊繃並觸發心靈排解提醒">
+        {/* 2. Stress Level / Frown Check */}
+        <div
+          onClick={onTriggerFrown}
+          className="p-2.5 rounded bg-[#070a10] border border-slate-800 hover:border-cyan-500/60 active:scale-[0.98] transition-all cursor-pointer flex flex-col justify-between group"
+          title="【精神緊繃壓力監測】眉心緊鎖（壓力 ≥ 0.038）持續 0.5 秒即啟動解答之書開解！點擊可立即手動測試"
+        >
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate group-hover:text-cyan-300">
               <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">psychology</span>
               <span>STRESS LEVEL</span>
             </span>
-            <span className={`font-bold shrink-0 tabular-nums ${telemetry.frown > 0.07 ? 'text-amber-400' : 'text-cyan-400'}`}>
+            <span className={`font-bold shrink-0 tabular-nums ${telemetry.frown >= 0.038 ? 'text-amber-400' : 'text-cyan-400'}`}>
               {telemetry.frown.toFixed(2)}
             </span>
           </div>
           <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
             <div
               className={`h-full transition-all duration-75 ${
-                telemetry.frown > 0.07 ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]' : 'bg-cyan-400'
+                telemetry.frown >= 0.038 ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]' : 'bg-cyan-400'
               }`}
-              style={{ width: `${Math.min(100, (telemetry.frown / 0.12) * 100)}%` }}
+              style={{ width: `${Math.min(100, (telemetry.frown / 0.10) * 100)}%` }}
             />
           </div>
           <div className="text-[9px] text-slate-400 mt-1 flex justify-between items-center">
-            <span className="text-slate-500">門檻 &gt; 0.07</span>
-            <span className={telemetry.frown > 0.07 ? 'text-amber-400 font-bold' : 'text-slate-400'}>
-              {telemetry.frown > 0.07
-                ? (telemetry.frownDurationSeconds && telemetry.frownDurationSeconds > 0.2
-                    ? `緊繃蓄力 ${telemetry.frownDurationSeconds.toFixed(1)}s / 5.0s`
-                    : '緊繃蓄力中 (>0.07)')
-                : '放鬆舒適'}
+            <span className="text-slate-500 text-[8px] sm:text-[9px]">門檻 &ge; 0.038</span>
+            <span className={telemetry.frown >= 0.038 ? 'text-amber-400 font-bold animate-pulse' : 'text-slate-400'}>
+              {telemetry.frown >= 0.038 ? '🚨 壓力緊繃超標' : '放鬆舒適'}
             </span>
           </div>
         </div>
 
         {/* 3. Eye Strain / Blink Rate (Dry Eye Index) */}
-        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【乾眼頻繁眨眼監測】4 秒內連續急促眨眼達 5 次或沉重閉眼達 3.0 秒，判定乾眼過勞並啟動護眼提醒">
+        <div
+          onClick={onTriggerBlink}
+          className="p-2.5 rounded bg-[#070a10] border border-slate-800 hover:border-cyan-500/60 active:scale-[0.98] transition-all cursor-pointer flex flex-col justify-between group"
+          title="【乾眼頻繁眨眼監測】3.5秒內急促眨眼達 3 次或沉重閉眼達 0.9 秒，啟動神顏洗眼 SPA！點擊可立即手動測試"
+        >
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate group-hover:text-cyan-300">
               <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">visibility</span>
               <span>DRY EYE INDEX</span>
             </span>
             <span className={`font-bold shrink-0 ${telemetry.isFrequentBlinking ? 'text-rose-400' : 'text-cyan-400'}`}>
               {telemetry.isFrequentBlinking
                 ? '乾眼過勞'
-                : telemetry.isEyesClosed && telemetry.prolongedCloseSeconds && telemetry.prolongedCloseSeconds > 0.5
+                : telemetry.isEyesClosed && telemetry.prolongedCloseSeconds && telemetry.prolongedCloseSeconds > 0.4
                 ? `閉眼 ${telemetry.prolongedCloseSeconds}s`
-                : (telemetry.blinkCountWindow || 0) >= 3
-                ? `頻繁眨眼 ${telemetry.blinkCountWindow}/5`
+                : (telemetry.blinkCountWindow || 0) >= 2
+                ? `眨眼 ${telemetry.blinkCountWindow}/3`
                 : '雙眼放鬆'}
             </span>
           </div>
@@ -356,24 +375,29 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
                 width: `${Math.min(
                   100,
                   Math.max(
-                    ((telemetry.blinkCountWindow || 0) / 5) * 100,
-                    ((telemetry.prolongedCloseSeconds || 0) / 3.0) * 100
+                    ((telemetry.blinkCountWindow || 0) / 3) * 100,
+                    ((telemetry.prolongedCloseSeconds || 0) / 0.9) * 100
                   )
                 )}%`,
               }}
             />
           </div>
-          <div className="text-[9px] text-slate-400 mt-1 flex justify-end items-center">
-            <span className={telemetry.isFrequentBlinking ? 'text-rose-400 font-bold' : 'text-slate-400'}>
-              {telemetry.isFrequentBlinking ? '乾眼過勞 (≥5次)' : `${telemetry.blinkCountWindow || 0} / 5 次`}
+          <div className="text-[9px] text-slate-400 mt-1 flex justify-between items-center">
+            <span className="text-slate-500 text-[8px] sm:text-[9px]">門檻 &ge; 3次 / 0.9s</span>
+            <span className={telemetry.isFrequentBlinking ? 'text-rose-400 font-bold animate-pulse' : 'text-slate-400'}>
+              {telemetry.isFrequentBlinking ? '🚨 乾眼過勞 (-3點)' : `${telemetry.blinkCountWindow || 0} / 3 次`}
             </span>
           </div>
         </div>
 
         {/* 4. Screen Distance / Posture */}
-        <div className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between" title="【近距駝背風險】≥35cm 為最佳姿勢視距，30-35cm 為過渡區，<30cm 判定為近距駝背風險">
+        <div
+          onClick={onTriggerProximity}
+          className="p-2.5 rounded bg-[#070a10] border border-slate-800 hover:border-cyan-500/60 active:scale-[0.98] transition-all cursor-pointer flex flex-col justify-between group"
+          title="【近距駝背風險】≥45%（距離 <35cm）判定為近距駝背過勞風險，啟動護眼模糊校準雷達！點擊可立即手動測試"
+        >
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate group-hover:text-cyan-300">
               <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">straighten</span>
               <span>SCREEN DISTANCE</span>
             </span>
@@ -382,62 +406,101 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
           <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
             <div
               className={`h-full transition-all duration-75 ${
-                telemetry.proximity > 64
+                telemetry.proximity >= 45
                   ? 'bg-rose-500 shadow-[0_0_6px_#f43f5e]'
-                  : telemetry.proximity > 55
+                  : telemetry.proximity >= 38
                   ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]'
                   : 'bg-cyan-400'
               }`}
               style={{ width: `${Math.min(100, telemetry.proximity)}%` }}
             />
           </div>
-          <div className="text-[9px] text-slate-400 mt-1 flex justify-end items-center">
+          <div className="text-[9px] text-slate-400 mt-1 flex justify-between items-center">
+            <span className="text-slate-500 text-[8px] sm:text-[9px]">安全視距 &ge; 40cm</span>
             <span className={
-              telemetry.proximity > 64
-                ? 'text-rose-400 font-bold'
-                : telemetry.proximity > 55
+              telemetry.proximity >= 45
+                ? 'text-rose-400 font-bold animate-pulse'
+                : telemetry.proximity >= 38
                 ? 'text-amber-400 font-bold'
                 : 'text-slate-400'
             }>
-              {telemetry.proximity > 64 ? '駝背太近 (<30cm)' : telemetry.proximity > 55 ? '過渡區 (30-35)' : '[健康視距 ≥35cm]'}
+              {telemetry.proximity >= 45 ? '🚨 駝背太近 (<35cm)' : telemetry.proximity >= 38 ? '警戒區 (35-40cm)' : '[健康視距 ≥40cm]'}
             </span>
           </div>
         </div>
 
         {/* 5. Desk Time */}
         <div
-          className="p-2.5 rounded bg-[#070a10] border border-slate-800 flex flex-col justify-between"
-          title={`【久坐脊椎負擔】本輪伏案累積時長。連續久坐達設定上限（${sedentaryLimitMinutes}分鐘）將準時啟動 30 秒站立伸展體操！`}
+          onClick={!isClockedIn ? onClockIn : undefined}
+          className={`p-2.5 rounded bg-[#070a10] border flex flex-col justify-between transition-all ${
+            !isClockedIn
+              ? 'border-cyan-500/80 bg-cyan-950/20 hover:bg-cyan-950/40 cursor-pointer shadow-[0_0_12px_rgba(6,182,212,0.15)]'
+              : 'border-slate-800'
+          }`}
+          title={
+            !isClockedIn
+              ? '【待打卡上班】點擊此處立即打卡上班，正式啟動工時與伏案身心健康監測！'
+              : `【久坐脊椎負擔】本輪伏案累積時長。中斷超過 5 分鐘才會重新計算；達 ${sedentaryLimitMinutes} 分鐘將準時啟動 30 秒站立伸展！`
+          }
         >
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
             <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
-              <span className={`material-symbols-outlined text-[15px] shrink-0 ${telemetry.isFacePresent ? 'text-cyan-400' : 'text-amber-400'}`}>
-                {telemetry.isFacePresent ? 'timer' : 'pause_circle'}
+              <span className={`material-symbols-outlined text-[15px] shrink-0 ${
+                !isClockedIn
+                  ? 'text-cyan-400 animate-pulse'
+                  : telemetry.isFacePresent
+                  ? 'text-cyan-400'
+                  : 'text-amber-400'
+              }`}>
+                {!isClockedIn ? 'login' : telemetry.isFacePresent ? 'timer' : 'pause_circle'}
               </span>
-              <span>{telemetry.isFacePresent ? 'DESK TIME' : 'DESK PAUSED'}</span>
+              <span>
+                {!isClockedIn
+                  ? 'DESK TIME (待打卡)'
+                  : telemetry.isFacePresent
+                  ? 'DESK TIME'
+                  : 'DESK PAUSED'}
+              </span>
             </span>
-            <span className={`font-bold shrink-0 ${telemetry.isFacePresent ? (deskProgressPct > 85 ? 'text-rose-400' : 'text-cyan-400') : 'text-amber-400'}`}>
-              {deskTimeStr}
+            <span className={`font-bold shrink-0 font-mono ${
+              !isClockedIn
+                ? 'text-cyan-400'
+                : telemetry.isFacePresent
+                ? (deskProgressPct > 85 ? 'text-rose-400' : 'text-cyan-400')
+                : 'text-amber-400'
+            }`}>
+              {!isClockedIn ? '00:00' : deskTimeStr}
             </span>
           </div>
           <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
             <div
               className={`h-full transition-all duration-300 ${
-                deskProgressPct > 85
+                !isClockedIn
+                  ? 'bg-cyan-500/40'
+                  : deskProgressPct > 85
                   ? 'bg-rose-500 shadow-[0_0_6px_#f43f5e]'
                   : telemetry.isFacePresent
                   ? 'bg-cyan-400'
                   : 'bg-amber-400'
               }`}
-              style={{ width: `${deskProgressPct}%` }}
+              style={{ width: `${!isClockedIn ? 0 : deskProgressPct}%` }}
             />
           </div>
-          <div className="text-[9px] text-slate-400 mt-1 flex justify-end items-center">
-            <span className={deskProgressPct > 85 ? 'text-rose-400 font-bold' : telemetry.isFacePresent ? 'text-slate-400' : 'text-amber-400'}>
-              {telemetry.isFacePresent
-                ? `${Math.round(deskProgressPct)}% / ${sedentaryLimitMinutes}m`
-                : `離座暫停中 (${Math.round(deskProgressPct)}% / ${sedentaryLimitMinutes}m)`}
-            </span>
+          <div className="text-[9px] text-slate-400 mt-1 flex justify-between items-center">
+            {!isClockedIn ? (
+              <span className="text-cyan-400 font-bold w-full text-right animate-pulse">
+                👉 [點擊此處打卡上班]
+              </span>
+            ) : (
+              <>
+                <span className="text-slate-500 text-[8px] sm:text-[9px]">上限 {sedentaryLimitMinutes}m</span>
+                <span className={deskProgressPct > 85 ? 'text-rose-400 font-bold' : telemetry.isFacePresent ? 'text-slate-400' : 'text-amber-400'}>
+                  {telemetry.isFacePresent
+                    ? `${Math.round(deskProgressPct)}% (${deskTimeStr})`
+                    : `離座暫停中 (${Math.floor(telemetry.consecutiveAwaySeconds)}s/300s)`}
+                </span>
+              </>
+            )}
           </div>
         </div>
 

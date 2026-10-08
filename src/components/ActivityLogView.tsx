@@ -37,6 +37,11 @@ export const ActivityLogView: React.FC<ActivityLogViewProps> = ({ events, onClea
           <span className="text-[9px] px-1.5 py-0.2 rounded bg-black/60 border border-slate-800 text-slate-400 font-bold">
             {events.length} 筆
           </span>
+          {events.length > 10 && (
+            <span className="text-[9px] text-slate-500 hidden sm:inline lg:hidden font-mono">
+              (單欄限顯 10 筆 · 支援捲動)
+            </span>
+          )}
         </div>
         <button
           onClick={onClear}
@@ -49,7 +54,7 @@ export const ActivityLogView: React.FC<ActivityLogViewProps> = ({ events, onClea
 
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 max-h-[380px] lg:max-h-none overflow-y-auto space-y-1.5 pr-1.5 text-xs custom-scrollbar"
+        className="flex-1 min-h-0 max-h-[355px] lg:max-h-none overflow-y-auto space-y-1.5 pr-1.5 text-xs custom-scrollbar"
       >
         {events.length === 0 ? (
           <div className="h-full min-h-[220px] flex items-center justify-center p-8 text-center text-slate-500 text-[11px]">

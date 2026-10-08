@@ -41,6 +41,7 @@ import { ScreensaverMemeTakeover } from './components/ScreensaverMemeTakeover';
 import { StretchStickmanScreensaver } from './components/StretchStickmanScreensaver';
 import { InitialOnboardingModal } from './components/InitialOnboardingModal';
 import { evaluateFaceScoreWithGemini, computeLocalFaceScore } from './utils/faceScoreEvaluator';
+import { evaluateDailyAppraisal } from './utils/receiptEvaluator';
 import {
   fireDesktopNotification,
   speakVoiceAlert,
@@ -75,6 +76,8 @@ interface DailySessionState {
   sessionStartTime?: number;
   lastHydrationTime?: number;
   deskSessionStartTime?: number;
+  lastClockOutTime?: number;
+  lastClockOutDeskSecs?: number;
   healthScore: number;
   trendHistory: HealthTrendPoint[];
   statsSummary: {
@@ -117,6 +120,7 @@ const loadTodaySessionState = (): DailySessionState | null => {
       localStorage.removeItem('overwatch_last_face_score');
       localStorage.removeItem('overwatch_trend_snapshot');
       localStorage.removeItem('overwatch_clockin_date');
+      localStorage.removeItem('overwatch_last_clockout');
     }
   } catch (err) {
     console.warn('Failed to load daily session state:', err);
@@ -271,6 +275,8 @@ export default function App() {
         sessionStartTime,
         lastHydrationTime,
         deskSessionStartTime: detectionRef.current.deskSessionStartTime || sessionStartTime,
+        lastClockOutTime: lastClockOutInfoRef.current?.timestamp,
+        lastClockOutDeskSecs: lastClockOutInfoRef.current?.consecutiveDeskSecs,
         healthScore,
         trendHistory,
         statsSummary,
@@ -308,6 +314,57 @@ export default function App() {
     isTooClose: false,
     isFrequentBlinking: false,
   });
+
+  const telemetryRef = useRef<TelemetryData>(telemetry);
+  telemetryRef.current = telemetry;
+  const healthScoreRef = useRef<number>(healthScore);
+  healthScoreRef.current = healthScore;
+  const isClockedInRef = useRef<boolean>(isClockedIn);
+  isClockedInRef.current = isClockedIn;
+  const isClockedOutRef = useRef<boolean>(isClockedOut);
+  isClockedOutRef.current = isClockedOut;
+
+  // Track last clock-out event on the same day for resuming sedentary time if re-clocking in within 5 minutes
+  const lastClockOutInfoRef = useRef<{
+    timestamp: number;
+    date: string;
+    consecutiveDeskSecs: number;
+  } | null>(null);
+
+  if (lastClockOutInfoRef.current === null && typeof window !== 'undefined') {
+    try {
+      const today = getTodayDateKey();
+      const raw = localStorage.getItem('overwatch_last_clockout');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.date === today && typeof parsed.timestamp === 'number') {
+          lastClockOutInfoRef.current = parsed;
+        }
+      } else if (initialSession?.lastClockOutTime && initialSession.date === today) {
+        lastClockOutInfoRef.current = {
+          timestamp: initialSession.lastClockOutTime,
+          date: today,
+          consecutiveDeskSecs: initialSession.lastClockOutDeskSecs || 0,
+        };
+      }
+    } catch {}
+  }
+
+  const recordClockOutState = useCallback(() => {
+    const nowTs = Date.now();
+    const today = getTodayDateKey();
+    const currentDeskSecs = detectionRef.current.consecutiveDeskSecs || 0;
+    const info = {
+      timestamp: nowTs,
+      date: today,
+      consecutiveDeskSecs: currentDeskSecs,
+    };
+    lastClockOutInfoRef.current = info;
+    try {
+      localStorage.setItem('overwatch_last_clockout', JSON.stringify(info));
+    } catch {}
+    return info;
+  }, []);
 
   // AI Face Charisma & Beauty Score State (Persisted in localStorage for today only)
   const [faceScoreData, setFaceScoreData] = useState<FaceCharismaScore>(() => {
@@ -594,7 +651,7 @@ export default function App() {
             return updated;
           }
 
-          return [...history, newPoint].slice(-40);
+          return [...history, newPoint].slice(-180);
         });
 
         return nextScore;
@@ -604,76 +661,108 @@ export default function App() {
     [logEvent, telemetry, settings.sedentaryLimitMinutes]
   );
 
-  // Auto record health score every 5-minute real-time interval with 6-axis telemetry integration
-  useEffect(() => {
-    const timer = setInterval(() => {
-      // If user has NOT clocked in or user clocked out:
-      // DO NOT record periodic sampling points!
-      if (!isClockedIn || isClockedOut) {
-        return;
+  // Helper to reliably sample & log a trend point for the current 5-minute slot
+  const recordPeriodicTrendPoint = useCallback((force: boolean = false) => {
+    if (!isClockedInRef.current || isClockedOutRef.current) {
+      return;
+    }
+
+    const now = new Date();
+    const roundedMinutes = Math.floor(now.getMinutes() / 5) * 5;
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(roundedMinutes).padStart(2, '0');
+    const timeSlot = `${hh}:${mm}`;
+    const curTelemetry = telemetryRef.current;
+    const curScore = healthScoreRef.current;
+
+    setTrendHistory((history) => {
+      // If not forced and slot already has a record, do nothing
+      if (!force && history.length > 0 && history[history.length - 1].time === timeSlot) {
+        return history;
       }
 
-      const now = new Date();
-      const roundedMinutes = Math.floor(now.getMinutes() / 5) * 5;
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(roundedMinutes).padStart(2, '0');
-      const timeSlot = `${hh}:${mm}`;
-
-      setTrendHistory((history) => {
-        if (history.length > 0 && history[history.length - 1].time === timeSlot) {
-          return history;
-        }
-
-        // Composite 6-axis fatigue evaluation for idle periodic sampling
-        const currentFatigueLoad = Math.min(
-          10,
-          Math.max(
-            1,
-            Math.round(
-              (telemetry.mar > 0.45 ? 3 : 0) +
-              (telemetry.frown >= 0.04 ? 2.5 : 0) +
-              (telemetry.proximity > 60 ? 2 : 0) +
-              (telemetry.isFrequentBlinking ? 2 : 0) +
-              (detectionRef.current.consecutiveDeskSecs > (settings.sedentaryLimitMinutes * 50) ? 2.5 : 0) +
-              (healthScore < 80 ? 1 : 0)
-            )
+      // Composite 6-axis fatigue evaluation for idle periodic sampling
+      const currentFatigueLoad = Math.min(
+        10,
+        Math.max(
+          1,
+          Math.round(
+            (curTelemetry.mar > 0.45 ? 3 : 0) +
+            (curTelemetry.frown >= 0.04 ? 2.5 : 0) +
+            (curTelemetry.proximity > 60 ? 2 : 0) +
+            (curTelemetry.isFrequentBlinking ? 2 : 0) +
+            (detectionRef.current.consecutiveDeskSecs > (settings.sedentaryLimitMinutes * 50) ? 2.5 : 0) +
+            (curScore < 80 ? 1 : 0)
           )
-        );
+        )
+      );
 
-        const deskMins = (detectionRef.current.consecutiveDeskSecs || 0) / 60;
-        const currentStress = Math.min(100, Math.max(12, Math.round(
-          (deskMins / 10) * 5.5 +
-          (telemetry.frown > 0.01 ? ((telemetry.frown - 0.01) / 0.06) * 30 : 0) +
-          (telemetry.proximity > 45 ? ((telemetry.proximity - 45) / 25) * 20 : 0)
-        )));
-        const currentRecovery = Math.min(100, Math.max(15, Math.round(
-          healthScore * 0.60 +
-          (telemetry.proximity > 0 && telemetry.proximity <= 45 ? 8 : 0) +
-          ((telemetry.emotion?.label === '愉悅微笑' || telemetry.emotion?.label === '放鬆平靜') ? 10 : 0) -
-          Math.max(0, (deskMins - 15) * 1.2)
-        )));
+      const deskMins = (detectionRef.current.consecutiveDeskSecs || 0) / 60;
+      const currentStress = Math.min(100, Math.max(12, Math.round(
+        (deskMins / 10) * 5.5 +
+        (curTelemetry.frown > 0.01 ? ((curTelemetry.frown - 0.01) / 0.06) * 30 : 0) +
+        (curTelemetry.proximity > 45 ? ((curTelemetry.proximity - 45) / 25) * 20 : 0)
+      )));
+      const currentRecovery = Math.min(100, Math.max(15, Math.round(
+        curScore * 0.60 +
+        (curTelemetry.proximity > 0 && curTelemetry.proximity <= 45 ? 8 : 0) +
+        ((curTelemetry.emotion?.label === '愉悅微笑' || curTelemetry.emotion?.label === '放鬆平靜') ? 10 : 0) -
+        Math.max(0, (deskMins - 15) * 1.2)
+      )));
 
-        return [
-          ...history,
-          {
-            time: timeSlot,
-            timestamp: now.getTime(),
-            score: healthScore,
-            fatigueIndex: currentFatigueLoad,
-            stressScore: currentStress,
-            recoveryScore: currentRecovery,
-            eventDelta: 0,
-            eventName: '六維綜合巡檢',
-            eventType: 'info' as const,
-            emotionLabel: telemetry.emotion?.label,
-            emotionEmoji: telemetry.emotion?.emoji,
-          },
-        ].slice(-40);
-      });
-    }, 10000);
+      const newPoint: HealthTrendPoint = {
+        time: timeSlot,
+        timestamp: now.getTime(),
+        score: curScore,
+        fatigueIndex: currentFatigueLoad,
+        stressScore: currentStress,
+        recoveryScore: currentRecovery,
+        eventDelta: 0,
+        eventName: '六維綜合巡檢',
+        eventType: 'info' as const,
+        emotionLabel: curTelemetry.emotion?.label,
+        emotionEmoji: curTelemetry.emotion?.emoji,
+      };
 
-    return () => clearInterval(timer);
-  }, [healthScore, telemetry, isClockedIn, isClockedOut, settings.sedentaryLimitMinutes]);
+      if (history.length > 0 && history[history.length - 1].time === timeSlot) {
+        const copy = [...history];
+        copy[copy.length - 1] = newPoint;
+        return copy;
+      }
+
+      return [...history, newPoint].slice(-180);
+    });
+  }, [settings.sedentaryLimitMinutes]);
+
+  // Auto record health score every 5-minute real-time interval reliably without frame interference
+  useEffect(() => {
+    if (!isClockedIn || isClockedOut) {
+      return;
+    }
+
+    // Immediately record current slot point upon mount or active clocking-in
+    recordPeriodicTrendPoint();
+
+    // Regular steady heartbeat timer (5s check interval)
+    const timer = setInterval(() => {
+      recordPeriodicTrendPoint();
+    }, 5000);
+
+    // When tab becomes active or window gains focus (e.g. after lunch break or screen wake), refresh current point
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        recordPeriodicTrendPoint(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+    };
+  }, [isClockedIn, isClockedOut, recordPeriodicTrendPoint]);
 
   // Cross-tab & Multi-interface Hazard Dispatcher (OS Notifications, TTS Voice, Title Flashing, PiP)
   const dispatchHazardAlert = useCallback(
@@ -1351,6 +1440,7 @@ export default function App() {
 
   const handleEscapeOvertime = useCallback((ranAway: boolean) => {
     if (ranAway) {
+      recordClockOutState();
       setIsClockedOut(true);
       setIsOvertime(false);
       setIsReceiptOpen(true);
@@ -1363,7 +1453,7 @@ export default function App() {
     } else {
       logEvent('【向資本低頭】屈服於老闆的法拉利圓夢集資，繼續血汗加班。', 0, 'info', '🙇‍♂️');
     }
-  }, [logEvent]);
+  }, [logEvent, recordClockOutState]);
 
   /* ====================================================================
      MediaPipe FaceLandmarker Initialization & Video Setup
@@ -1655,7 +1745,7 @@ export default function App() {
                 const totalSpanX = Math.max(0.001, distToL + distToR);
                 const yawBalance = distToL / totalSpanX; // ~0.50 when facing forward
                 yawDev = Math.abs(yawBalance - 0.50) * 2;
-                isLookingSideways = yawDev > 0.11; // Catch even slight head turns to prevent side-face false triggers
+                isLookingSideways = yawDev > 0.22; // Catch genuine head turns while allowing natural desk gaze angles
               }
 
               // 3. Multi-Expression Synchronous Extraction (Facial Affect Analysis)
@@ -1739,47 +1829,47 @@ export default function App() {
                 const eyeSpan = Math.max(0.01, Math.hypot(leftEyeCorner.x - rightEyeCorner.x, leftEyeCorner.y - rightEyeCorner.y));
                 const browSpan = Math.hypot(leftInnerBrow.x - rightInnerBrow.x, leftInnerBrow.y - rightInnerBrow.y);
                 const ratio = browSpan / eyeSpan;
-                // If inner brows draw closer together (< 0.35 of eye span)
-                if (ratio < 0.35) {
-                  geomFurrow = Math.min(0.035, (0.35 - ratio) * 0.35);
+                // If inner brows draw closer together (< 0.38 of eye span)
+                if (ratio < 0.38) {
+                  geomFurrow = Math.min(0.05, (0.38 - ratio) * 0.45);
                 }
               }
 
               // Direct, responsive brow signal:
               // Natural resting face sits around 0.00 ~ 0.02
-              // Natural effortless frown comfortably reaches 0.04 ~ 0.07 without straining
+              // Natural effortless frown comfortably reaches 0.04 ~ 0.08+ without straining
               const browAvg = (browDownL + browDownR) / 2;
               const browMax = Math.max(browDownL, browDownR);
-              // Scale blendshape so a natural, non-violent frown reaches 0.04+ easily
-              const rawBrowSignal = (browMax * 0.60 + browAvg * 0.40) * 1.55 + geomFurrow;
+              // Scale blendshape so a natural frown reaches 0.05+ easily and responsively
+              const rawBrowSignal = (browMax * 0.65 + browAvg * 0.35) * 1.85 + geomFurrow;
 
-              // Micro-stress hints (nose sneer / mouth frown) provide subtle boost when brows start moving
-              const microStressBoost = rawBrowSignal > 0.02
-                ? Math.max(noseSneerVal * 0.15, mouthFrownVal * 0.15)
+              // Micro-stress hints (nose sneer / mouth frown / lip press) provide boost when brows start moving
+              const microStressBoost = rawBrowSignal > 0.015
+                ? Math.max(noseSneerVal * 0.20, mouthFrownVal * 0.20, mouthPressVal * 0.15)
                 : 0;
 
               let baseBrowScore = rawBrowSignal + microStressBoost;
 
-              // Inhibit smile/laughter false positives
-              if (smileVal > 0.10 || lipCornerElevation > 0.02) {
-                const smileDamp = Math.max((smileVal - 0.10) * 3.0, (lipCornerElevation - 0.02) * 15);
+              // Inhibit smile/laughter false positives (only when truly smiling, not resting lip shape)
+              if (smileVal > 0.18 || lipCornerElevation > 0.035) {
+                const smileDamp = Math.max((smileVal - 0.18) * 3.0, (lipCornerElevation - 0.035) * 15);
                 baseBrowScore *= Math.max(0.1, 1 - Math.min(0.9, smileDamp));
               }
 
               // Inhibit extreme jaw opening / yawn / speech
-              if (jawVal > 0.28) {
-                baseBrowScore *= Math.max(0.2, 1 - (jawVal - 0.28) * 2.0);
+              if (jawVal > 0.32) {
+                baseBrowScore *= Math.max(0.2, 1 - (jawVal - 0.32) * 2.0);
               }
 
               // Side-angle mild dampener (only if turned heavily sideways)
-              if (isLookingSideways && yawDev > 0.18) {
-                baseBrowScore *= Math.max(0.4, 1 - (yawDev - 0.18) * 2.0);
+              if (isLookingSideways && yawDev > 0.25) {
+                baseBrowScore *= Math.max(0.5, 1 - (yawDev - 0.25) * 2.0);
               }
 
               const rawBrowPressure = Math.max(0, baseBrowScore);
               const prevBrow = detectionRef.current.latestBrowPressure ?? rawBrowPressure;
-              // Responsive EMA: 0.50 new + 0.50 prev gives zero lag and smooth values
-              const browPressure = Number((prevBrow * 0.50 + rawBrowPressure * 0.50).toFixed(2));
+              // Responsive EMA: 0.65 new + 0.35 prev gives rapid responsive feedback
+              const browPressure = Number((prevBrow * 0.35 + rawBrowPressure * 0.65).toFixed(2));
               detectionRef.current.latestBrowPressure = browPressure;
               const frownVal = browPressure;
 
@@ -1966,8 +2056,8 @@ export default function App() {
                 detectionRef.current.hasTriggeredThisYawn = false;
               }
 
-              // Frown Trigger Check (Require genuine Brow Pressure > 0.07 sustained for 5.0s, 5s buffer, facing forward)
-              const isFrowningNow = frownVal > 0.07 && !isLookingSideways;
+              // Frown Trigger Check (Require genuine Brow Pressure >= 0.05 sustained for 2.8s, 4s buffer)
+              const isFrowningNow = frownVal >= 0.05 && !isLookingSideways;
               let currentFrownElapsedSecs = 0;
               if (isFrowningNow) {
                 if (!detectionRef.current.frownStartTime) {
@@ -1978,14 +2068,14 @@ export default function App() {
                 currentFrownElapsedSecs = elapsedFrown;
                 if (
                   isTrackingActive &&
-                  elapsedFrown >= 5.0 &&
+                  elapsedFrown >= 2.8 &&
                   !detectionRef.current.hasTriggeredThisFrown &&
                   detectionRef.current.frownCooldown <= 0 &&
                   !activeHazardRef.current
                 ) {
                   handleFrownPenalty();
                   detectionRef.current.hasTriggeredThisFrown = true;
-                  detectionRef.current.frownCooldown = 5; // 5s buffer
+                  detectionRef.current.frownCooldown = 4; // 4s buffer
                 }
               } else {
                 detectionRef.current.frownStartTime = null;
@@ -2276,7 +2366,9 @@ export default function App() {
         setIsClockedOut(false);
         try {
           localStorage.removeItem('overwatch_clockin_date');
+          localStorage.removeItem('overwatch_last_clockout');
         } catch {}
+        lastClockOutInfoRef.current = null;
         setSessionStartTime(Date.now());
         setLastHydrationTime(Date.now());
         setOvertimeMinutes(0);
@@ -2448,22 +2540,14 @@ export default function App() {
   // Compute Daily Summary Stats
   const getSummaryStats = (): DailySummaryStats => {
     const finalAge = Number((settings.baseAge + (100 - healthScore) * 0.8).toFixed(1));
-    let title = '打工戰士';
-    let quote = '平安下班，勝造七級浮屠。';
-
-    if (healthScore >= 90) {
-      title = '摸魚養生大師 (天選社畜)';
-      quote = '懂得在資本主義夾縫中喝水伸展，你能長命百歲！';
-    } else if (healthScore >= 70) {
-      title = '標準職場螺絲釘';
-      quote = '微量熬夜與緊繃，回家請立刻平躺放空。';
-    } else if (healthScore >= 45) {
-      title = '重度損耗人體電池';
-      quote = '這點薪水不值得你拿命換，明天請假吧！';
-    } else {
-      title = '半隻腳已踏入棺材';
-      quote = '急需離職單與大自然森林浴！';
-    }
+    const appraisal = evaluateDailyAppraisal({
+      healthScore,
+      yawnsCaught: statsSummary.yawnsCaught,
+      frownsCaught: statsSummary.frownsCaught,
+      sedentaryLocksCount: statsSummary.sedentaryLocksCount,
+      slackMinutesEarned: statsSummary.slackMinutesEarned,
+      overtimeMinutes: statsSummary.overtimeMinutes,
+    });
 
     return {
       date: new Date().toLocaleDateString('zh-TW', {
@@ -2479,8 +2563,8 @@ export default function App() {
       sedentaryLocksCount: statsSummary.sedentaryLocksCount,
       slackMinutesEarned: statsSummary.slackMinutesEarned,
       overtimeMinutes: statsSummary.overtimeMinutes,
-      title,
-      quote,
+      title: appraisal.title,
+      quote: appraisal.quote,
     };
   };
 
@@ -2586,6 +2670,22 @@ export default function App() {
     setIsReceiptOpen(false);
   }, []);
 
+  const handleClockOut = useCallback(() => {
+    recordClockOutState();
+    if (!isClockedOut || !frozenReceiptStats) {
+      const currentStats = getSummaryStats();
+      setFrozenReceiptStats(currentStats);
+      setFrozenReceiptEvents([...events]);
+      setIsClockedOut(true);
+      setIsOvertime(false);
+      try {
+        soundSynth.playRewardJingle();
+      } catch {}
+      logEvent('🏁 打卡下班完成！今日戰鬥結束，已生成結算收據', 0, 'info', '🏁');
+    }
+    setIsReceiptOpen(true);
+  }, [isClockedOut, frozenReceiptStats, events, getSummaryStats, logEvent, recordClockOutState]);
+
   const handleClockIn = useCallback(() => {
     const today = getTodayDateKey();
     const nowTs = Date.now();
@@ -2593,6 +2693,20 @@ export default function App() {
     setIsClockedOut(false);
     setIsOvertime(false);
     setOvertimeMinutes(0);
+
+    const lastClockOut = lastClockOutInfoRef.current;
+    let shouldResumeSedentary = false;
+    let resumedDeskSecs = 0;
+
+    if (lastClockOut && lastClockOut.date === today && typeof lastClockOut.timestamp === 'number') {
+      const intervalSecs = (nowTs - lastClockOut.timestamp) / 1000;
+      // 同一日下班後重新上班，若間隔未超過5分鐘 (<= 300秒)
+      if (intervalSecs >= 0 && intervalSecs <= 300) {
+        shouldResumeSedentary = true;
+        resumedDeskSecs = Math.max(0, lastClockOut.consecutiveDeskSecs || 0);
+      }
+    }
+
     const now = new Date();
     const roundedMinutes = Math.floor(now.getMinutes() / 5) * 5;
     const hh = String(now.getHours()).padStart(2, '0');
@@ -2606,45 +2720,155 @@ export default function App() {
         stressScore: 15,
         recoveryScore: 85,
         eventDelta: 0,
-        eventName: '今日打卡上班',
+        eventName: shouldResumeSedentary ? '恢復打卡上班' : '今日打卡上班',
         eventType: 'info',
       },
     ]);
     setSessionStartTime(nowTs);
     setLastHydrationTime(nowTs);
     if (detectionRef.current) {
-      detectionRef.current.deskSessionStartTime = nowTs;
-      detectionRef.current.consecutiveDeskSecs = 0;
+      if (shouldResumeSedentary && resumedDeskSecs > 0) {
+        detectionRef.current.deskSessionStartTime = nowTs - (resumedDeskSecs * 1000);
+        detectionRef.current.consecutiveDeskSecs = resumedDeskSecs;
+      } else {
+        detectionRef.current.deskSessionStartTime = nowTs;
+        detectionRef.current.consecutiveDeskSecs = 0;
+      }
       detectionRef.current.lastFaceLeaveTimestamp = null;
       detectionRef.current.consecutiveAwaySecs = 0;
       detectionRef.current.hasTriggeredSlackAlert = false;
       detectionRef.current.overtimeTicker = 0;
     }
+
+    setTelemetry((prev) => ({
+      ...prev,
+      consecutiveDeskSeconds: shouldResumeSedentary ? resumedDeskSecs : 0,
+    }));
+
     try {
       localStorage.setItem('overwatch_clockin_date', today);
-      localStorage.setItem('overwatch_desk_session_start', String(nowTs));
+      if (detectionRef.current?.deskSessionStartTime) {
+        localStorage.setItem('overwatch_desk_session_start', String(detectionRef.current.deskSessionStartTime));
+      }
       soundSynth.playRewardJingle();
     } catch {}
-    logEvent('☀️ 打卡上班：已開啟今日身心健康守護與工時倒數！', 0, 'info', '☀️');
-  }, [healthScore, logEvent]);
+
+    if (shouldResumeSedentary && resumedDeskSecs > 0) {
+      const mins = Math.floor(resumedDeskSecs / 60);
+      const secs = Math.round(resumedDeskSecs % 60);
+      const timeStr = mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
+      logEvent(`☀️ 打卡上班：下班間隔未滿 5 分鐘，久坐時間接續計算（已累積 ${timeStr}）`, 0, 'info', '☀️');
+      triggerToast({
+        title: '☀️ 重新打卡・久坐接續計算',
+        desc: `下班間隔未滿 5 分鐘，久坐時間不歸零並繼續累計（已累積 ${timeStr}）`,
+        badge: '久坐接續',
+        badgeColor: 'bg-cyan-500 text-slate-950 font-bold',
+        type: 'general',
+      });
+    } else {
+      logEvent('☀️ 打卡上班：已開啟今日身心健康守護與工時倒數！', 0, 'info', '☀️');
+    }
+  }, [healthScore, logEvent, triggerToast]);
 
   const handleClockInAgain = useCallback(() => {
     const today = getTodayDateKey();
+    const nowTs = Date.now();
     setIsClockedIn(true);
     setIsClockedOut(false);
     setIsOvertime(false);
     setOvertimeMinutes(0);
+
+    const lastClockOut = lastClockOutInfoRef.current;
+    let shouldResumeSedentary = false;
+    let resumedDeskSecs = 0;
+
+    if (lastClockOut && lastClockOut.date === today && typeof lastClockOut.timestamp === 'number') {
+      const intervalSecs = (nowTs - lastClockOut.timestamp) / 1000;
+      // 同一日下班後重新上班，若間隔未超過5分鐘 (<= 300秒)
+      if (intervalSecs >= 0 && intervalSecs <= 300) {
+        shouldResumeSedentary = true;
+        resumedDeskSecs = Math.max(0, lastClockOut.consecutiveDeskSecs || 0);
+      }
+    }
+
     if (detectionRef.current) {
       detectionRef.current.overtimeTicker = 0;
-      detectionRef.current.deskSessionStartTime = Date.now();
+      detectionRef.current.lastFaceLeaveTimestamp = null;
+      detectionRef.current.consecutiveAwaySecs = 0;
+      detectionRef.current.hasTriggeredSlackAlert = false;
+
+      if (shouldResumeSedentary && resumedDeskSecs > 0) {
+        // 久坐時間繼續計算，不從零開始
+        detectionRef.current.deskSessionStartTime = nowTs - (resumedDeskSecs * 1000);
+        detectionRef.current.consecutiveDeskSecs = resumedDeskSecs;
+      } else {
+        // 超過 5 分鐘或無紀錄：重新從 0 開始
+        detectionRef.current.deskSessionStartTime = nowTs;
+        detectionRef.current.consecutiveDeskSecs = 0;
+      }
+      try {
+        localStorage.setItem(
+          'overwatch_desk_session_start',
+          String(detectionRef.current.deskSessionStartTime)
+        );
+      } catch {}
     }
+
+    setTelemetry((prev) => ({
+      ...prev,
+      consecutiveDeskSeconds: shouldResumeSedentary ? resumedDeskSecs : 0,
+    }));
+
     setFrozenReceiptStats(null);
     setFrozenReceiptEvents(null);
     try {
       localStorage.setItem('overwatch_clockin_date', today);
     } catch {}
-    logEvent('💼 已切換回「繼續上班」模式，恢復即時體徵追蹤', 0, 'info', '💼');
-  }, [logEvent]);
+
+    // Record an active trend point for the current time slot immediately
+    const now = new Date();
+    const roundedMinutes = Math.floor(now.getMinutes() / 5) * 5;
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(roundedMinutes).padStart(2, '0');
+    const timeSlot = `${hh}:${mm}`;
+
+    setTrendHistory((history) => {
+      const curHealth = healthScoreRef.current || 100;
+      const resumePoint: HealthTrendPoint = {
+        time: timeSlot,
+        timestamp: nowTs,
+        score: curHealth,
+        fatigueIndex: 1,
+        stressScore: 18,
+        recoveryScore: Math.min(100, Math.max(15, Math.round(curHealth * 0.65))),
+        eventDelta: 0,
+        eventName: '恢復打卡追蹤',
+        eventType: 'info',
+      };
+      if (history.length > 0 && history[history.length - 1].time === timeSlot) {
+        const copy = [...history];
+        copy[copy.length - 1] = resumePoint;
+        return copy;
+      }
+      return [...history, resumePoint].slice(-180);
+    });
+
+    if (shouldResumeSedentary && resumedDeskSecs > 0) {
+      const mins = Math.floor(resumedDeskSecs / 60);
+      const secs = Math.round(resumedDeskSecs % 60);
+      const timeStr = mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
+      logEvent(`💼 重新上班：下班間隔未滿 5 分鐘，久坐時間接續計算（已累積 ${timeStr}）`, 0, 'info', '💼');
+      triggerToast({
+        title: '💼 重新上班・久坐接續計算',
+        desc: `下班間隔未滿 5 分鐘，久坐時間不歸零並繼續累計（已累積 ${timeStr}）`,
+        badge: '久坐接續',
+        badgeColor: 'bg-cyan-500 text-slate-950 font-bold',
+        type: 'general',
+      });
+    } else {
+      logEvent('💼 已切換回「繼續上班」模式，恢復即時體徵追蹤（久坐計時重新起算）', 0, 'info', '💼');
+    }
+  }, [logEvent, triggerToast]);
 
   const handleSaveSettings = useCallback(
     (newSettings: GuardianSettings) => {
@@ -2673,6 +2897,8 @@ export default function App() {
     localStorage.removeItem('overwatch_last_face_score');
     localStorage.removeItem('overwatch_trend_snapshot');
     localStorage.removeItem('overwatch_desk_session_start');
+    localStorage.removeItem('overwatch_last_clockout');
+    lastClockOutInfoRef.current = null;
 
     setHealthScore(100);
     const now = new Date();
@@ -2936,20 +3162,7 @@ export default function App() {
               isClockedOut={isClockedOut}
               onClockIn={handleClockIn}
               onClockInAgain={handleClockInAgain}
-              onClockOut={() => {
-                if (!isClockedOut) {
-                  const currentStats = getSummaryStats();
-                  setFrozenReceiptStats(currentStats);
-                  setFrozenReceiptEvents([...events]);
-                  setIsClockedOut(true);
-                  setIsOvertime(false);
-                  try {
-                    soundSynth.playRewardJingle();
-                  } catch {}
-                  logEvent('🏁 打卡下班完成！今日戰鬥結束，已生成結算收據', 0, 'info', '🏁');
-                }
-                setIsReceiptOpen(true);
-              }}
+              onClockOut={handleClockOut}
               onTriggerOvertime={() => handleOvertimeDeduction(true)}
               onOpenCandidGallery={() => setIsCandidGalleryOpen(true)}
               candidCount={candidGallery.length}

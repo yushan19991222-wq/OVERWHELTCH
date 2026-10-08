@@ -1,8 +1,13 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { Download, Share2, Check, Sparkles, Trophy, X, Terminal, Heart, Play, Briefcase } from 'lucide-react';
+import { Download, Share2, Check, Sparkles, Trophy, X, Terminal, Heart, Play, Briefcase, RotateCcw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { DailySummaryStats, HealthEvent } from '../types';
 import { soundSynth } from '../utils/audioSynth';
+import {
+  getBarcodeVerificationPool,
+  getReceiptStampInfo,
+  BarcodeScanItem,
+} from '../utils/receiptEvaluator';
 
 interface DailyReceiptModalProps {
   isOpen: boolean;
@@ -16,16 +21,37 @@ interface DailyReceiptModalProps {
 export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
   isOpen,
   onClose,
-  stats,
+  stats: incomingStats,
   events,
   isClockedOut,
   onClockInAgain,
 }) => {
+  const [lockedStats, setLockedStats] = useState<DailySummaryStats>(incomingStats);
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen && !wasOpenRef.current) {
+      setLockedStats(incomingStats);
+      wasOpenRef.current = true;
+    } else if (!isOpen) {
+      wasOpenRef.current = false;
+    }
+  }, [isOpen, incomingStats]);
+
+  // Use frozen lockedStats for the entire duration of the open modal session
+  const stats = isOpen ? lockedStats : incomingStats;
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
   const [isScanned, setIsScanned] = useState(false);
-  const [scanMessage, setIsScanMessage] = useState('');
+  const [scanResult, setScanResult] = useState<BarcodeScanItem | null>(null);
   const [isBarcodeHovered, setIsBarcodeHovered] = useState(false);
+  const lastScanIndexRef = useRef<number>(-1);
+
+  const stampInfo = useMemo(
+    () => getReceiptStampInfo(stats.finalHealthScore),
+    [stats.finalHealthScore]
+  );
 
   // Stable session ID generated once per modal opening session, preventing continuous re-render flickering
   const sessionId = useMemo(() => {
@@ -81,7 +107,7 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
 
     // Reset barcode interaction states
     setIsScanned(false);
-    setIsScanMessage('');
+    setScanResult(null);
   }, [isOpen]);
 
   // Hidden high-res canvas rendering for download
@@ -204,7 +230,7 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
     ctx.save();
     ctx.translate(w - 120, h - 160);
     ctx.rotate(-0.15);
-    ctx.strokeStyle = stats.finalHealthScore >= 70 ? '#059669' : '#dc2626';
+    ctx.strokeStyle = stampInfo.canvasStroke;
     ctx.lineWidth = 3;
     // Draw roundRect manually
     const rX = -60, rY = -25, rW = 120, rH = 50, rRad = 8;
@@ -221,12 +247,12 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
     ctx.closePath();
     ctx.stroke();
 
-    ctx.fillStyle = stats.finalHealthScore >= 70 ? '#059669' : '#dc2626';
-    ctx.font = 'bold 15px sans-serif';
-    ctx.fillText(stats.finalHealthScore >= 70 ? '打卡合格' : '需補元氣', 0, 6);
+    ctx.fillStyle = stampInfo.canvasStroke;
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(stampInfo.text.split(' / ')[1] || stampInfo.text, 0, 6);
     ctx.restore();
 
-  }, [isOpen, stats, events]);
+  }, [isOpen, stats, events, stampInfo]);
 
   if (!isOpen) return null;
 
@@ -263,13 +289,16 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
       soundSynth.playCoinShower();
     } catch {}
     setIsScanned(true);
-    const messages = [
-      'SCAN_OK // 認證結果：合格勞工 🟢',
-      'SCAN_OK // 判定：今日尚有殘存元氣 ⚡',
-      'SCAN_OK // 警報：薪水小偷指數：極高 💸',
-      'SCAN_OK // 警告：老闆的下一台跑車已蓄勢待發 🏎️',
-    ];
-    setIsScanMessage(messages[Math.floor(Math.random() * messages.length)]);
+
+    const pool = getBarcodeVerificationPool(stats);
+    if (pool.length === 0) return;
+
+    let nextIndex = Math.floor(Math.random() * pool.length);
+    if (pool.length > 1 && nextIndex === lastScanIndexRef.current) {
+      nextIndex = (nextIndex + 1) % pool.length;
+    }
+    lastScanIndexRef.current = nextIndex;
+    setScanResult(pool[nextIndex]);
   };
 
   const isHealthy = stats.finalHealthScore >= 70;
@@ -431,7 +460,7 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
                   <span className="text-cyan-700">{stats.finalBodyAge} YRS</span>
                 </div>
                 <div className="flex justify-between text-[10px] text-zinc-500 font-bold">
-                  <span>(ACTUAL AGE: {stats.baseAge} YRS // DEVIATION:):</span>
+                  <span>ACTUAL: {stats.baseAge} YRS (DIFF):</span>
                   <span className={stats.finalBodyAge >= stats.baseAge ? 'text-red-600' : 'text-emerald-700'}>
                     {stats.finalBodyAge >= stats.baseAge ? '+' : ''}{(stats.finalBodyAge - stats.baseAge).toFixed(1)} YRS
                   </span>
@@ -443,10 +472,10 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
                 <div className="font-black text-zinc-900 text-[10px] tracking-wider uppercase mb-1">
                   [EVALUATION_REPORT]
                 </div>
-                <div className="font-bold text-zinc-800 text-[11px] leading-relaxed">
+                <div className="font-bold text-zinc-800 text-[11px] truncate whitespace-nowrap">
                   評級: <span className="underline underline-offset-2 decoration-zinc-400 font-black">{stats.title}</span>
                 </div>
-                <div className="text-[10.5px] italic text-zinc-600 mt-1 font-serif leading-relaxed">
+                <div className="text-[10px] italic text-zinc-600 mt-1 font-serif truncate whitespace-nowrap">
                   「{stats.quote}」
                 </div>
               </div>
@@ -455,14 +484,12 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
               <div className="mt-6 pt-3.5 border-t border-dashed border-zinc-300 relative">
                 
                 {/* Visual Official Stamp overlay */}
-                <div className={`absolute right-4 top-2 select-none pointer-events-none transform rotate-[-12deg] z-10 border-2 px-3 py-1 rounded font-black text-[11px] tracking-widest uppercase opacity-85 ${
-                  isHealthy ? 'border-emerald-600 text-emerald-700' : 'border-red-500 text-red-600'
-                }`}>
-                  {isHealthy ? 'PASS / 合格' : 'RECHARGE / 需補元氣'}
+                <div className={`absolute right-4 top-2 select-none pointer-events-none transform rotate-[-12deg] z-10 border-2 px-2.5 py-1 rounded font-black text-[11px] tracking-widest uppercase opacity-85 shadow-xs ${stampInfo.borderColor} ${stampInfo.textColor}`}>
+                  {stampInfo.text}
                 </div>
 
                 <div className="font-black text-[8px] text-zinc-400 tracking-widest uppercase text-center mb-2">
-                  * TOUCH BARCODE TO SCAN VERIFICATION *
+                  * TOUCH BARCODE TO SCAN (點擊掃描驗證盲盒) *
                 </div>
 
                 {/* Simulated Barcode block */}
@@ -470,7 +497,8 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
                   onMouseEnter={handleBarcodeHover}
                   onMouseLeave={() => setIsBarcodeHovered(false)}
                   onClick={handleBarcodeClick}
-                  className="flex justify-center gap-[1px] h-10 w-full overflow-hidden opacity-90 select-none cursor-pointer relative group/barcode bg-white p-1 rounded border border-zinc-200 shadow-sm"
+                  className="flex justify-center gap-[1px] h-10 w-full overflow-hidden opacity-90 select-none cursor-pointer relative group/barcode bg-white p-1 rounded border border-zinc-200 shadow-sm active:scale-[0.99] transition-transform"
+                  title="點擊條碼可掃描驗證報告（每次點擊隨機抽取不同內容）"
                 >
                   {/* Sweep Laser line effect on hover */}
                   {isBarcodeHovered && (
@@ -489,14 +517,42 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
                   })}
                 </div>
 
-                {/* Interactive Scan Response Box */}
-                {isScanned ? (
-                  <div className="mt-2.5 p-2 rounded bg-zinc-100 border border-zinc-200 text-[10px] font-bold text-center text-zinc-800 animate-pulse font-mono tracking-wide">
-                    {scanMessage}
+                {/* Interactive Scan Response Box (Separated Title & Body to prevent unwanted word wrapping) */}
+                {isScanned && scanResult ? (
+                  <div className={`mt-2.5 p-2 rounded text-center font-mono border transition-all ${
+                    scanResult.severity === 'legend'
+                      ? 'bg-cyan-50 text-cyan-950 border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.15)]'
+                      : scanResult.severity === 'ok'
+                      ? 'bg-emerald-50 text-emerald-950 border-emerald-300'
+                      : scanResult.severity === 'warning'
+                      ? 'bg-amber-50 text-amber-950 border-amber-300'
+                      : scanResult.severity === 'critical'
+                      ? 'bg-red-50 text-red-950 border-red-300'
+                      : 'bg-purple-50 text-purple-950 border-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.15)]'
+                  }`}>
+                    <div className="flex items-center justify-center gap-1.5 text-[10px] font-black tracking-wide truncate whitespace-nowrap">
+                      <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold ${
+                        scanResult.severity === 'legend'
+                          ? 'bg-cyan-200/90 text-cyan-900'
+                          : scanResult.severity === 'ok'
+                          ? 'bg-emerald-200/80 text-emerald-800'
+                          : scanResult.severity === 'warning'
+                          ? 'bg-amber-200/90 text-amber-900'
+                          : scanResult.severity === 'critical'
+                          ? 'bg-red-200/80 text-red-800'
+                          : 'bg-purple-200/90 text-purple-900'
+                      }`}>
+                        {scanResult.tag}
+                      </span>
+                      <span>{scanResult.title}</span>
+                    </div>
+                    <div className="text-[9.5px] font-medium text-zinc-700 mt-1 truncate whitespace-nowrap tracking-tight">
+                      {scanResult.detail}
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center text-[9px] text-zinc-400 mt-1.5 font-bold tracking-wider">
-                    * CODE_SECURE_VERIFIED_v2 *
+                    * 點擊條碼可掃描獲取身心驗證盲盒報告（支援重複點擊抽取）*
                   </div>
                 )}
               </div>
@@ -531,6 +587,21 @@ export const DailyReceiptModal: React.FC<DailyReceiptModalProps> = ({
             <span>{copied ? 'COPIED!' : 'COPY_TEXT'}</span>
           </button>
         </div>
+
+        {/* Re-clock In / Resume Working Action Button */}
+        {isClockedOut && onClockInAgain && (
+          <button
+            onClick={() => {
+              onClockInAgain();
+              onClose();
+            }}
+            className="w-full mt-2.5 py-2 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-cyan-500/60 text-zinc-200 hover:text-cyan-300 font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer font-mono active:scale-95"
+            title="重新上班，繼續今日身心健康追蹤"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <span>重新上班 / 繼續今日監測</span>
+          </button>
+        )}
       </div>
 
       {/* Styled Print Animation Rules */}
