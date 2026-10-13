@@ -54,7 +54,7 @@ export const CandidGalleryModal: React.FC<CandidGalleryModalProps> = ({
   const handleDownload = (item: CandidSnapshotItem) => {
     const link = document.createElement('a');
     link.href = item.image;
-    link.download = `OVERWATCH_CANDID_${item.time.replace(/:/g, '')}_${item.id.slice(0, 4)}.jpg`;
+    link.download = `OVERWHELTCH_CANDID_${item.time.replace(/:/g, '')}_${item.id.slice(0, 4)}.jpg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -66,7 +66,7 @@ export const CandidGalleryModal: React.FC<CandidGalleryModalProps> = ({
       setTimeout(() => {
         const link = document.createElement('a');
         link.href = item.image;
-        link.download = `OVERWATCH_CANDID_${item.time.replace(/:/g, '')}_${item.id.slice(0, 4)}.jpg`;
+        link.download = `OVERWHELTCH_CANDID_${item.time.replace(/:/g, '')}_${item.id.slice(0, 4)}.jpg`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

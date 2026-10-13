@@ -1036,15 +1036,15 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
     setWaterStep('drinking');
     setWaterProgress(0);
     try {
-      soundSynth.playWaterDrink();
+      soundSynth.playWaterGulp();
     } catch {}
 
     let currentProg = 0;
     const interval = setInterval(() => {
-      currentProg += 1.5; // Slower, realistic liquid gulping (~6.6 seconds total)
-      if (Math.floor(currentProg) % 22 === 0 && currentProg > 0) {
+      currentProg += 2; // Total duration ~5 seconds (50 steps of 100ms)
+      if (Math.floor(currentProg) % 20 === 0 && currentProg > 0 && currentProg < 100) {
         try {
-          soundSynth.playWaterDrink();
+          soundSynth.playWaterGulp();
         } catch {}
       }
       setWaterProgress(Math.min(100, Math.round(currentProg * 10) / 10));
@@ -1054,9 +1054,9 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
         setTimeout(() => {
           setWaterStep('completed');
           try {
-            soundSynth.playRewardJingle();
+            soundSynth.playWaterComplete();
           } catch {}
-        }, 400);
+        }, 300);
       }
     }, 100);
   };
@@ -1258,11 +1258,9 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
       {/* TOP HEADER STATUS BAR - Overwatch Command Strip */}
       <header className="relative z-10 w-full flex items-center justify-between pb-1.5 sm:pb-2 border-b border-white/10 text-xs shrink-0 gap-2">
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
-          <div
-            className={`flex items-center gap-1.5 sm:gap-2 px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded border text-[10px] sm:text-[11px] font-bold tracking-wider truncate ${theme.badgeClass}`}
-          >
-            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-current animate-pulse shadow-[0_0_8px_currentColor] shrink-0" />
-            <span className="truncate">&gt; OVERWATCH // INTERCEPT</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded bg-[#00d8ff]/15 border border-[#00d8ff]/60 text-[#00d8ff] font-bold tracking-wider shadow-[0_0_15px_rgba(0,216,255,0.25)] truncate text-[10px] sm:text-[11px]">
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00d8ff] animate-pulse shadow-[0_0_8px_#00d8ff] shrink-0" />
+            <span className="truncate">&gt; OVERWHELTCH // INTERCEPT</span>
           </div>
         </div>
 
@@ -1294,7 +1292,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
         <div className="text-lg animate-bounce">{theme.floatingIcon}</div>
         <div>
           <div className="text-[9px] font-bold text-slate-200 tracking-wider">
-            &gt; OVERWATCH_INTERCEPT
+            &gt; OVERWHELTCH_INTERCEPT
           </div>
           <div className="text-[8px] text-[#00d8ff] font-mono">[ACTIVE_LOCK]</div>
         </div>
@@ -1302,7 +1300,9 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
 
       {/* MAIN HERO CARD */}
       <main className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center text-center px-2 sm:px-4 max-w-5xl lg:max-w-6xl mx-auto py-2 w-full overflow-hidden">
-        <div className="relative w-full h-full max-h-full flex flex-col items-center justify-center rounded-lg bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_36px_0_rgba(0,0,0,0.85)] backdrop-blur-xl p-3 sm:p-4 overflow-hidden cctv-brackets">
+        <div className={`relative w-full h-full max-h-full flex flex-col items-center justify-center rounded-lg bg-[#0a0c10]/95 border border-white/10 shadow-[0_8px_36px_0_rgba(0,0,0,0.85)] backdrop-blur-xl p-3 sm:p-4 overflow-hidden ${
+          alert.type === 'hydration' || alert.type === 'beauty_score' ? '' : 'cctv-brackets'
+        }`}>
 
           {/* DYNAMIC CONTENT PER HAZARD TYPE */}
           <div className={`relative group mx-auto w-full flex-1 min-h-[320px] max-h-[74vh] flex flex-col shrink overflow-hidden rounded-lg border shadow-2xl bg-black/95 transition-all duration-300 ${
@@ -1445,7 +1445,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                       <div className="w-full bg-emerald-950/80 border border-emerald-500/50 rounded-lg p-3 mb-4 flex flex-col items-center gap-1">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 font-mono">
                           <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
-                          <span>準備返回 OVERWATCH 監控頁面...</span>
+                          <span>準備返回 OVERWHELTCH 監控頁面...</span>
                         </div>
                         <div className="text-[11px] text-slate-300 font-mono">
                           將於 <span className="text-sm font-black text-emerald-400 font-mono px-0.5">{restCountdown}</span> 秒後自動返回
@@ -1457,7 +1457,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                         onClick={onDismiss}
                         className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-[11px] border border-emerald-300/60 shadow-[0_0_15px_rgba(52,211,153,0.35)] transition hover:scale-105 active:scale-95 cursor-pointer font-mono tracking-wider"
                       >
-                        【 立即返回 OVERWATCH 監控頁 】
+                        【 立即返回 OVERWHELTCH 監控頁 】
                       </button>
                     </div>
                   </div>
@@ -1643,11 +1643,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                       <div className="absolute inset-0 shadow-[inset_0_0_80px_rgba(0,0,0,0.65)] pointer-events-none" />
                     </div>
 
-                    {/* Overwatch Corner Brackets on the photo corners */}
-                    <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-400 pointer-events-none z-20" />
-                    <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-cyan-400 pointer-events-none z-20" />
-                    <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-cyan-400 pointer-events-none z-20" />
-                    <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400 pointer-events-none z-20" />
+
 
                     {/* Top Text Overlay (維持現狀 - 浮於照片頂端，完整露出臉部) */}
                     <div className="relative z-20 w-full pt-2.5 pb-7 px-4 bg-gradient-to-b from-black/95 via-black/75 to-transparent flex flex-col items-center gap-1 pointer-events-none">
@@ -1684,11 +1680,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                   <div className="absolute w-[500px] h-[500px] rounded-full bg-cyan-500/15 blur-[100px] pointer-events-none" />
                   <div className="absolute inset-0 bg-[radial-gradient(rgba(6,182,212,0.08)_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-60" />
 
-                  {/* Corner Brackets */}
-                  <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-400 rounded-tl-md pointer-events-none" />
-                  <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-cyan-400 rounded-tr-md pointer-events-none" />
-                  <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-cyan-400 rounded-bl-md pointer-events-none" />
-                  <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400 rounded-br-md pointer-events-none" />
+
 
                   {/* STEP 2: REFINED SMART WATER FLASK (ONLY BOTTLE, NO EXTRA PERSON) */}
                   {waterStep === 'drinking' && (
@@ -2591,7 +2583,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
       {/* FOOTER */}
       <footer className="relative z-10 w-full pt-1.5 border-t border-white/10 flex items-center justify-between text-[9px] sm:text-[10px] text-slate-500 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-[#00d8ff] font-bold">[OVERWATCH // BIOSURVEILLANCE]</span>
+          <span className="text-[#00d8ff] font-bold">[OVERWHELTCH // BIOSURVEILLANCE]</span>
         </div>
 
         <div className="flex items-center gap-2 font-mono">

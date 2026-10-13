@@ -578,6 +578,25 @@ export const FloatingHUD: React.FC<FloatingHUDProps> = ({
                     >
                       {getClockOutText()}
                     </span>
+                    <span
+                      className={`text-[10px] font-mono tracking-tight mt-0.5 truncate leading-none ${
+                        !isClockedIn
+                          ? 'text-slate-900/80 font-medium'
+                          : isClockedOut
+                          ? 'text-zinc-400 group-hover:text-zinc-300'
+                          : isAfterOffWork || isOvertime || isOverdue
+                          ? 'text-slate-900/90 font-medium'
+                          : 'text-white/90 group-hover:text-white font-medium'
+                      }`}
+                    >
+                      {!isClockedIn
+                        ? `表定 ${resolvedOffWorkTime} 下班`
+                        : isClockedOut
+                        ? '工時結算存摺'
+                        : isAfterOffWork || isOvertime || isOverdue
+                        ? `表定 ${resolvedOffWorkTime} 已過`
+                        : `下班時間 ${resolvedOffWorkTime}`}
+                    </span>
                   </div>
                 </div>
 

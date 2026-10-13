@@ -80,7 +80,7 @@ export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-slate-200 tracking-wider text-xs">
-                [OVERWATCH // INTERFACE_INTERCEPT_CHANNELS]
+                [OVERWHELTCH // INTERFACE_INTERCEPT_CHANNELS]
               </span>
               <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/40">
                 MULTI-NODE ARMED

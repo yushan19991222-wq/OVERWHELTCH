@@ -5,6 +5,7 @@ import { soundSynth } from '../utils/audioSynth';
 interface EyeStrainBlurOverlayProps {
   isOpen: boolean;
   proximityPct: number; // 0 - 100
+  distanceCm?: number;
   isFacePresent: boolean;
   onDismiss: () => void;
   onCalibrationSuccess?: () => void;
@@ -13,6 +14,7 @@ interface EyeStrainBlurOverlayProps {
 export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
   isOpen,
   proximityPct,
+  distanceCm,
   isFacePresent,
   onDismiss,
   onCalibrationSuccess,
@@ -44,8 +46,10 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
   const outOfBoundsBufferRef = useRef<number>(0);
 
   // Calculate live estimated distance (cm) from camera with calibrated optical focal mapping
+  // Uses distanceCm prop if available for 100% parity with main telemetry card
   const rawPct = Math.max(10, proximityPct);
-  const cameraEstimatedCm = Math.round(1600 / Math.max(12, rawPct));
+  const fallbackCm = Math.round(1050 / Math.max(12, rawPct));
+  const cameraEstimatedCm = distanceCm !== undefined ? distanceCm : fallbackCm;
   const currentCm = simulatedCmOverride !== null ? simulatedCmOverride : cameraEstimatedCm;
   const currentFacePresent = simulatedCmOverride !== null ? true : isFacePresent;
 
@@ -88,9 +92,6 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
       setHoldTimer(HOLD_DURATION);
       setRefusalAttempt(false);
       setSimulatedCmOverride(null);
-      try {
-        soundSynth.playRadarLockBeep(520);
-      } catch {}
     }
   }, [isOpen]);
 
@@ -213,16 +214,9 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
       {/* TOP HEADER STATUS BAR - Identical to ScreensaverMemeTakeover & SedentaryLockModal */}
       <header className="relative z-20 w-full flex items-center justify-between pb-2 sm:pb-2.5 border-b border-white/10 text-xs shrink-0 gap-2">
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
-          <div
-            className="flex items-center gap-1.5 sm:gap-2 px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded border text-[10px] sm:text-[11px] font-bold tracking-wider truncate"
-            style={{
-              backgroundColor: `${statusColor}18`,
-              borderColor: `${statusColor}60`,
-              color: statusColor,
-            }}
-          >
-            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-current shadow-[0_0_8px_currentColor] shrink-0" />
-            <span className="truncate">&gt; OVERWATCH // INTERCEPT</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded bg-[#00d8ff]/15 border border-[#00d8ff]/60 text-[#00d8ff] font-bold tracking-wider shadow-[0_0_15px_rgba(0,216,255,0.25)] truncate text-[10px] sm:text-[11px]">
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00d8ff] animate-pulse shadow-[0_0_8px_#00d8ff] shrink-0" />
+            <span className="truncate">&gt; OVERWHELTCH // INTERCEPT</span>
           </div>
         </div>
 
@@ -296,10 +290,10 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                 : !currentFacePresent
                 ? '未感應到人臉'
                 : isSafe
-                ? '最佳距離 (≥35cm)'
+                ? '自然視距 (>35cm)'
                 : isWarning
-                ? '過渡距離 (30-35cm)'
-                : '距離過近 (<30cm)'}
+                ? '過渡區 (30-35cm)'
+                : '過近警告 (<30cm)'}
             </div>
           </div>
 
@@ -411,7 +405,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                     即時距離感測
                   </span>
                   <span className="text-[10px] text-slate-400 font-bold">
-                    最佳姿勢視距: <span className="text-emerald-400">≥ 35 cm</span>
+                    自然姿勢視距: <span className="text-emerald-400">&gt; 35 cm</span>
                   </span>
                 </div>
 
@@ -433,10 +427,10 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                       {isCompleted
                         ? '校準成功'
                         : isSafe
-                        ? '最佳姿勢 (合格)'
+                        ? '自然姿勢 合格'
                         : isWarning
-                        ? '過渡區 (30-35cm)'
-                        : '過近警告 (<30cm)'}
+                        ? '過渡區 30-35cm'
+                        : '過近警告 <30cm'}
                     </div>
                   </div>
                 </div>
@@ -444,9 +438,9 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                 {/* Visual Zone Bar with 3-Column Grid Labels */}
                 <div className="mt-3">
                   <div className="grid grid-cols-3 text-[9px] text-slate-400 mb-1 font-mono text-center font-bold">
-                    <span className="text-rose-400 text-left">過近 (&lt;30cm)</span>
-                    <span className="text-amber-400 text-center">過渡區 (30-35cm)</span>
-                    <span className="text-emerald-400 text-right">最佳姿勢 (≥35cm)</span>
+                    <span className="text-rose-400 text-left">過近 &lt;30cm</span>
+                    <span className="text-amber-400 text-center">過渡 30-35cm</span>
+                    <span className="text-emerald-400 text-right">自然 &gt;35cm</span>
                   </div>
 
                   <div className="relative w-full h-3 bg-black/70 rounded-full border border-white/10 overflow-hidden flex">
@@ -472,7 +466,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
 
                 {/* Quick Simulation / Testing Assistant Bar */}
                 <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
-                  <span className="text-slate-500 text-[9px]">距離校準模擬:</span>
+                  <span className="text-slate-500 text-[9px]">校準模擬:</span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
@@ -486,7 +480,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                           : 'bg-black/40 border-slate-800 text-slate-400 hover:text-slate-200'
                       }`}
                     >
-                      太近 25cm (&lt;30)
+                      太近 25cm &lt;30
                     </button>
                     <button
                       type="button"
@@ -500,7 +494,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                           : 'bg-black/40 border-slate-800 text-slate-400 hover:text-slate-200'
                       }`}
                     >
-                      過渡 32cm (30-35)
+                      過渡 32cm 30-35
                     </button>
                     <button
                       type="button"
@@ -514,7 +508,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                           : 'bg-black/40 border-slate-800 text-slate-400 hover:text-slate-200'
                       }`}
                     >
-                      最佳 42cm (≥35)
+                      自然 42cm &gt;35
                     </button>
                     {simulatedCmOverride !== null && (
                       <button
@@ -544,9 +538,9 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                   <div className="flex items-center gap-2.5 text-emerald-300">
                     <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                     <div>
-                      <div className="text-xs font-bold">最佳護眼距離校準完成！(DISTANCE_OK)</div>
+                      <div className="text-xs font-bold">自然護眼校準完成！ DISTANCE_OK</div>
                       <div className="text-[10px] text-emerald-400/90 mt-0.5">
-                        已維持最佳姿勢視距 (≥35cm)，獎勵健康存摺 +3 點！正在解除鎖定...
+                        已維持自然姿勢視距 &gt;35cm，獎勵健康存摺 +3 點！正在解除鎖定...
                       </div>
                     </div>
                   </div>
@@ -554,9 +548,9 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                   <div className="flex items-start gap-2 text-rose-300">
                     <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                     <div>
-                      <div className="text-xs font-bold">鏡頭未感應到人臉 (FACE_OFFLINE)</div>
+                      <div className="text-xs font-bold">鏡頭未感應到人臉 FACE_OFFLINE</div>
                       <div className="text-[10px] text-rose-200/90 mt-0.5 leading-relaxed">
-                        請坐正面向相機鏡頭，保持最佳工作距離 <span className="font-bold text-white">35cm 以上</span>。
+                        請坐正面向相機鏡頭，保持自然工作距離 <span className="font-bold text-white">35cm 以上</span>。
                       </div>
                     </div>
                   </div>
@@ -565,14 +559,14 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                        最佳姿勢已達標！維持 3 秒即自動解鎖
+                        自然姿勢已達標！維持 3 秒即自動解鎖
                       </span>
                       <span className="text-sm font-black text-cyan-400 font-mono">
                         {holdTimer.toFixed(1)}s
                       </span>
                     </div>
                     <p className="text-[10px] text-cyan-200/80 mb-1.5">
-                      請保持此最佳坐姿 (≥35cm)，若中途靠近至 30cm 以下將重置計時。
+                      請保持此自然坐姿 &gt;35cm，若中途靠近至 30cm 以下將重置計時。
                     </p>
                     {/* Hold Progress Bar */}
                     <div className="w-full bg-black/60 rounded-full h-1.5 overflow-hidden border border-cyan-500/40 p-[1px]">
@@ -586,9 +580,9 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                   <div className="flex items-start gap-2 text-amber-300">
                     <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <div>
-                      <div className="text-xs font-bold">處於過渡區（當前 {currentCm} cm，範圍 30-35cm）</div>
+                      <div className="text-xs font-bold">處於過渡區 當前 {currentCm} cm，範圍 30-35cm</div>
                       <div className="text-[10px] text-amber-200/90 mt-0.5">
-                        請稍微再往後退約 2~5 公分，達到 <span className="font-bold text-white">35cm 以上最佳姿勢區</span> 即可啟動解鎖倒數！
+                        請稍微再往後退約 2~5 公分，達到 <span className="font-bold text-white">35cm 以上自然姿勢區</span> 即可啟動解鎖倒數！
                       </div>
                     </div>
                   </div>
@@ -596,9 +590,9 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
                   <div className="flex items-start gap-2 text-rose-300">
                     <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                     <div>
-                      <div className="text-xs font-bold">距離螢幕過近警告（當前 {currentCm} cm，低於 30cm）</div>
+                      <div className="text-xs font-bold">過近警告 當前 {currentCm} cm，低於 30cm</div>
                       <div className="text-[10px] text-rose-200/90 mt-0.5 leading-relaxed">
-                        距離低於 30cm 過近！請將腰背後靠至椅背，拉開至最佳姿勢標準（<span className="font-bold text-white">35 公分以上</span>）！
+                        低於 30cm 過近！請將腰背後靠至椅背，拉開至自然姿勢標準 <span className="font-bold text-white">35 公分以上</span>！
                       </div>
                     </div>
                   </div>
@@ -613,7 +607,7 @@ export const EyeStrainBlurOverlay: React.FC<EyeStrainBlurOverlayProps> = ({
       {/* FOOTER - Identical to ScreensaverMemeTakeover */}
       <footer className="relative z-10 w-full pt-1.5 border-t border-white/10 flex items-center justify-between text-[9px] sm:text-[10px] text-slate-500 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-[#00d8ff] font-bold">[OVERWATCH // OPTICAL_SAFEGUARD]</span>
+          <span className="text-[#00d8ff] font-bold">[OVERWHELTCH // OPTICAL_SAFEGUARD]</span>
         </div>
 
         <div className="flex items-center gap-2 font-mono">

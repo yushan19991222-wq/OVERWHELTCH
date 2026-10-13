@@ -319,11 +319,6 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
 
   // 1. 健康指數 (Cyan)
   const displayHealthScore = currentScore;
-  const healthBadge = useMemo(() => {
-    if (displayHealthScore >= 80) return { text: 'OPTIMAL', class: 'bg-cyan-950/80 border-cyan-500/70 text-cyan-300' };
-    if (displayHealthScore >= 60) return { text: 'FATIGUED', class: 'bg-amber-950/80 border-amber-500/70 text-amber-300' };
-    return { text: 'CRITICAL', class: 'bg-rose-950/80 border-rose-500/70 text-rose-300 animate-pulse' };
-  }, [displayHealthScore]);
 
   // 2. 壓力指數 (Indigo / Purple)
   const liveStress = useMemo(() => {
@@ -336,17 +331,11 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
     const deskMins = deskSecs / 60;
     return Math.min(100, Math.max(12, Math.round(
       (deskMins / 10) * 5.5 +
-      (frownVal > 0.01 ? ((frownVal - 0.01) / 0.06) * 30 : 0) +
+      (frownVal > 0.04 ? ((frownVal - 0.04) / 0.10) * 30 : 0) +
       (proxVal > 45 ? ((proxVal - 45) / 25) * 20 : 0) +
       ((statsSummary?.frownsCaught ?? 0) * 3)
     )));
   }, [latestDataPoint, telemetry, statsSummary]);
-
-  const stressBadge = useMemo(() => {
-    if (liveStress >= 60) return { text: 'HIGH 緊繃', class: 'bg-rose-950/80 border-rose-500/70 text-rose-300' };
-    if (liveStress >= 35) return { text: 'MED 偏高', class: 'bg-indigo-950/80 border-indigo-500/70 text-indigo-300' };
-    return { text: 'LOW 平緩', class: 'bg-cyan-950/80 border-cyan-500/70 text-cyan-300' };
-  }, [liveStress]);
 
   // 3. 疲勞指數 (Rose / Red)
   const liveFatigue = useMemo(() => {
@@ -367,12 +356,6 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
     )));
   }, [latestDataPoint, telemetry, statsSummary, sedentaryLimitMinutes, currentScore]);
 
-  const fatigueBadge = useMemo(() => {
-    if (liveFatigue >= 60) return { text: 'ALERT 警報', class: 'bg-rose-950/80 border-rose-500/70 text-rose-300 animate-pulse' };
-    if (liveFatigue >= 35) return { text: 'TIRED 疲勞', class: 'bg-amber-950/80 border-amber-500/70 text-amber-300' };
-    return { text: 'FRESH 充沛', class: 'bg-emerald-950/80 border-emerald-500/70 text-emerald-300' };
-  }, [liveFatigue]);
-
   // 4. 修復活力 (Emerald)
   const liveRecovery = useMemo(() => {
     if (latestDataPoint && typeof latestDataPoint.recoveryScore === 'number') {
@@ -384,15 +367,9 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
     return Math.min(100, Math.max(15, baseRec + slackBonus + stretchBonus));
   }, [latestDataPoint, currentScore, statsSummary]);
 
-  const recoveryBadge = useMemo(() => {
-    if (liveRecovery >= 75) return { text: 'PEAK 滿格', class: 'bg-emerald-950/80 border-emerald-500/70 text-emerald-300' };
-    if (liveRecovery >= 45) return { text: 'CHARGING 蓄力', class: 'bg-teal-950/80 border-teal-500/70 text-teal-300' };
-    return { text: 'LOW 匱乏', class: 'bg-rose-950/80 border-rose-500/70 text-rose-300' };
-  }, [liveRecovery]);
-
   return (
     <div className="bg-[#06080e] border border-slate-800 rounded-md p-3 sm:p-3.5 flex flex-col h-full backdrop-blur-md shadow-xl font-mono cctv-brackets">
-      {/* 簡約清晰的標題列與圖表走勢圖例 */}
+      {/* 簡約清晰的標題列與即時狀態 */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-2 gap-2 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="w-2 h-2 rounded-full bg-[#00d8ff] animate-pulse shadow-[0_0_8px_#00d8ff] shrink-0" />
@@ -401,31 +378,15 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
           </h3>
         </div>
 
-        {/* 圖例說明與即時狀態 */}
-        <div className="flex items-center gap-2.5 sm:gap-3.5 text-[9px] sm:text-[10px]">
-          <span className="flex items-center gap-1 text-cyan-400 font-bold">
-            <span className="w-2 h-0.5 bg-cyan-400 rounded-full" />
-            <span>健康</span>
-          </span>
-          <span className="flex items-center gap-1 text-indigo-300">
-            <span className="w-2 h-0.5 bg-indigo-400 rounded-full" />
-            <span>壓力</span>
-          </span>
-          <span className="flex items-center gap-1 text-rose-300">
-            <span className="w-2 h-0.5 bg-rose-400 rounded-full" />
-            <span>疲勞</span>
-          </span>
-          <span className="flex items-center gap-1 text-emerald-300">
-            <span className="w-2 h-0.5 bg-emerald-400 rounded-full" />
-            <span>修復</span>
-          </span>
-          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ml-1 ${statusBadgeClass}`}>
+        {/* 即時狀態標籤 */}
+        <div className="flex items-center gap-2 text-[9px] sm:text-[10px]">
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${statusBadgeClass}`}>
             {statusBadgeText}
           </span>
         </div>
       </div>
 
-      {/* ─── 圖表上方 4 維度體徵即時狀態卡片 (對應下方 4 條走勢折線與操作測試台) ─── */}
+      {/* ─── 圖表上方 4 維度體徵即時狀態卡片 ─── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-2 shrink-0">
         {/* === 第 1 張卡片：健康指數 (青色 Cyan) === */}
         <div
@@ -436,9 +397,6 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
             <span className="flex items-center gap-1.5 text-cyan-400 font-bold truncate text-[10px] sm:text-[11px]">
               <HeartPulse className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
               <span className="tracking-wider">健康指數</span>
-            </span>
-            <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${healthBadge.class}`}>
-              {healthBadge.text}
             </span>
           </div>
 
@@ -458,11 +416,6 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
               style={{ width: `${Math.min(100, Math.max(0, displayHealthScore))}%` }}
             />
           </div>
-
-          <div className="text-[9px] text-slate-400 flex items-center justify-between font-mono truncate">
-            <span className="text-slate-500">基準: 100</span>
-            <span className="text-cyan-400/90 truncate">即時戰力走勢</span>
-          </div>
         </div>
 
         {/* === 第 2 張卡片：壓力指數 (紫色 Purple / Indigo) === */}
@@ -474,9 +427,6 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
             <span className="flex items-center gap-1.5 text-indigo-400 font-bold truncate text-[10px] sm:text-[11px]">
               <Zap className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
               <span className="tracking-wider">壓力指數</span>
-            </span>
-            <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${stressBadge.class}`}>
-              {stressBadge.text}
             </span>
           </div>
 
@@ -496,11 +446,6 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
               style={{ width: `${Math.min(100, Math.max(0, liveStress))}%` }}
             />
           </div>
-
-          <div className="text-[9px] text-slate-400 flex items-center justify-between font-mono truncate">
-            <span className="text-slate-500">緊繃: {statsSummary?.frownsCaught ?? 0}次</span>
-            <span className="text-indigo-400/90 truncate">視距 & 眉心</span>
-          </div>
         </div>
 
         {/* === 第 3 張卡片：疲勞指數 (玫瑰紅 Rose / Red) === */}
@@ -512,9 +457,6 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
             <span className="flex items-center gap-1.5 text-rose-400 font-bold truncate text-[10px] sm:text-[11px]">
               <Moon className="w-3.5 h-3.5 text-rose-400 shrink-0" />
               <span className="tracking-wider">疲勞指數</span>
-            </span>
-            <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${fatigueBadge.class}`}>
-              {fatigueBadge.text}
             </span>
           </div>
 
@@ -534,11 +476,6 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
               style={{ width: `${Math.min(100, Math.max(0, liveFatigue))}%` }}
             />
           </div>
-
-          <div className="text-[9px] text-slate-400 flex items-center justify-between font-mono truncate">
-            <span className="text-slate-500">哈欠: {statsSummary?.yawnsCaught ?? 0}次</span>
-            <span className="text-rose-400/90 truncate">乾眼 & 缺氧</span>
-          </div>
         </div>
 
         {/* === 第 4 張卡片：修復活力 (翡翠綠 Emerald) === */}
@@ -550,9 +487,6 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
             <span className="flex items-center gap-1.5 text-emerald-400 font-bold truncate text-[10px] sm:text-[11px]">
               <BatteryCharging className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span className="tracking-wider">修復活力</span>
-            </span>
-            <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${recoveryBadge.class}`}>
-              {recoveryBadge.text}
             </span>
           </div>
 
@@ -571,11 +505,6 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
               className="h-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)] transition-all duration-300"
               style={{ width: `${Math.min(100, Math.max(0, liveRecovery))}%` }}
             />
-          </div>
-
-          <div className="text-[9px] text-slate-400 flex items-center justify-between font-mono truncate">
-            <span className="text-slate-500">摸魚: +{statsSummary?.slackMinutesEarned ?? 0}m</span>
-            <span className="text-emerald-400/90 truncate">伸展 {statsSummary?.sedentaryLocksCount ?? 0}次</span>
           </div>
         </div>
       </div>

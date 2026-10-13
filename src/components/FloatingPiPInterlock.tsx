@@ -255,12 +255,14 @@ export const FloatingPiPInterlock: React.FC<FloatingPiPInterlockProps> = ({
               <div className="flex items-center gap-2">
                 <div className="w-16 bg-[#06090f] h-1.5 rounded overflow-hidden">
                   <div
-                    className={`h-full ${telemetry.proximity > 65 ? 'bg-rose-500' : 'bg-amber-400'}`}
+                    className={`h-full ${telemetry.distanceCm && telemetry.distanceCm < 30 ? 'bg-rose-500' : telemetry.distanceCm && telemetry.distanceCm < 35 ? 'bg-amber-400' : 'bg-cyan-400'}`}
                     style={{ width: `${Math.min(100, telemetry.proximity)}%` }}
                   />
                 </div>
-                <span className="w-8 text-right font-bold text-amber-300">
-                  {telemetry.proximity}%
+                <span className={`w-12 text-right font-bold text-xs font-mono ${telemetry.distanceCm && telemetry.distanceCm < 30 ? 'text-rose-400' : telemetry.distanceCm && telemetry.distanceCm < 35 ? 'text-amber-400' : 'text-cyan-300'}`}>
+                  {telemetry.isFacePresent && (telemetry.distanceCm || telemetry.proximity > 0)
+                    ? `${telemetry.distanceCm || Math.round(1050 / Math.max(12, telemetry.proximity))}cm`
+                    : '--'}
                 </span>
               </div>
             </div>

@@ -106,6 +106,7 @@ export interface TelemetryData {
   frown: number;
   frownDurationSeconds?: number;
   proximity: number;
+  distanceCm?: number;
   blinkScore: number;
   ear?: number;
   isEyesClosed?: boolean;

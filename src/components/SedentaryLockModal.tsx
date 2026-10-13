@@ -135,7 +135,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
     >
       {/* Tactical HUD Corner Crosshairs */}
       <div className="pointer-events-none absolute top-3 left-3 text-slate-600 text-[10px] sm:text-xs z-20 select-none hidden xs:block">
-        + [OVERWATCH:SECURITY_LOCK]
+        + [OVERWHELTCH:SECURITY_LOCK]
       </div>
       <div className="pointer-events-none absolute top-3 right-3 text-slate-600 text-[10px] sm:text-xs z-20 select-none hidden xs:block">
         [SPINE_SHIELD_ACTIVE] +
@@ -154,9 +154,9 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
       {/* TOP SCREENSAVER BANNER BAR - Overwatch Command Strip */}
       <header className="relative z-10 w-full flex items-center justify-between pb-2.5 sm:pb-3 border-b border-white/10 text-xs shrink-0 gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded bg-[#ff3366]/15 border border-[#ff3366]/60 text-[#ff3366] font-bold tracking-wider shadow-[0_0_15px_rgba(255,51,102,0.3)] animate-pulse truncate text-[10px] sm:text-xs">
-            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#ff3366] shadow-[0_0_8px_#ff3366] shrink-0" />
-            <span className="truncate">&gt; OVERWATCH // SEDENTARY_LOCK</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded bg-[#00d8ff]/15 border border-[#00d8ff]/60 text-[#00d8ff] font-bold tracking-wider shadow-[0_0_15px_rgba(0,216,255,0.25)] truncate text-[10px] sm:text-[11px]">
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00d8ff] animate-pulse shadow-[0_0_8px_#00d8ff] shrink-0" />
+            <span className="truncate">&gt; OVERWHELTCH // INTERCEPT</span>
           </div>
           <span className="hidden md:inline text-slate-400 text-[11px] tracking-wide truncate">
             &gt; PROTOCOL: 工作台強制凍結中 // 椎間盤健康防護
@@ -342,7 +342,7 @@ export const SedentaryLockModal: React.FC<SedentaryLockModalProps> = ({
       {/* BOTTOM TICKER / PHILOSOPHY STRIP - Overwatch Strip */}
       <footer className="relative z-10 w-full pt-3 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-500 gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-[#ff3366] font-bold">[OVERWATCH // HEALTH_INTERLOCK]</span>
+          <span className="text-[#ff3366] font-bold">[OVERWHELTCH // HEALTH_INTERLOCK]</span>
           <span>身體只有一個，工作永遠做不完。現在起立喝杯水，椎間盤感謝你。</span>
         </div>
         <div className="flex items-center gap-3 font-mono">

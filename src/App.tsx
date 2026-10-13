@@ -186,6 +186,7 @@ export default function App() {
   const activeHazardRef = useRef<ActiveHazardAlert | null>(null);
   activeHazardRef.current = activeHazard;
   const activeHazardTimeoutRef = useRef<number | null>(null);
+  const [hazardQueue, setHazardQueue] = useState<Array<{ hazard: ActiveHazardAlert; voiceSpeechText: string }>>([]);
 
   // Modals & Screensavers
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -323,6 +324,10 @@ export default function App() {
   isClockedInRef.current = isClockedIn;
   const isClockedOutRef = useRef<boolean>(isClockedOut);
   isClockedOutRef.current = isClockedOut;
+  const isStretchScreensaverOpenRef = useRef<boolean>(isStretchScreensaverOpen);
+  isStretchScreensaverOpenRef.current = isStretchScreensaverOpen;
+  const isSedentaryLockedRef = useRef<boolean>(isSedentaryLocked);
+  isSedentaryLockedRef.current = isSedentaryLocked;
 
   // Track last clock-out event on the same day for resuming sedentary time if re-clocking in within 5 minutes
   const lastClockOutInfoRef = useRef<{
@@ -518,6 +523,7 @@ export default function App() {
     latestEyeOpenness: 0.8,
     latestBrowPressure: 0.2,
     latestProximityPct: 40,
+    latestDistanceCm: 50,
     latestFaceBounds: null as { minX: number; maxX: number; minY: number; maxY: number } | null,
     latestFaceCenter: { x: 50, y: 38 } as { x: number; y: number },
     rawEyeLandmarks: null as {
@@ -535,6 +541,7 @@ export default function App() {
       eyeDistance: number;
       rotationDeg: number;
     },
+    lastVideoTimestamp: 0,
   });
 
   // Sound sync
@@ -606,7 +613,7 @@ export default function App() {
 
         setTrendHistory((history) => {
           // Dynamic 6-axis real-time composite fatigue load (1 ~ 10):
-          const instantFrownLoad = (telemetry.frown >= 0.04 ? 2.5 : 0);
+          const instantFrownLoad = (telemetry.frown >= 0.10 ? 2.5 : 0);
           const instantYawnLoad = (delta < 0 && reason.includes('哈欠') ? 4 : telemetry.mar > 0.45 ? 2.5 : 0);
           const instantProximityLoad = (telemetry.proximity > 60 ? 2 : 0);
           const instantBlinkLoad = (telemetry.isFrequentBlinking ? 2 : 0);
@@ -619,7 +626,7 @@ export default function App() {
           const deskMins = (detectionRef.current.consecutiveDeskSecs || 0) / 60;
           const currentStress = Math.min(100, Math.max(12, Math.round(
             (deskMins / 10) * 5.5 +
-            (telemetry.frown > 0.01 ? ((telemetry.frown - 0.01) / 0.06) * 30 : 0) +
+            (telemetry.frown > 0.04 ? ((telemetry.frown - 0.04) / 0.10) * 30 : 0) +
             (telemetry.proximity > 45 ? ((telemetry.proximity - 45) / 25) * 20 : 0) +
             (delta < 0 ? Math.abs(delta) * 2.5 : 0)
           )));
@@ -688,7 +695,7 @@ export default function App() {
           1,
           Math.round(
             (curTelemetry.mar > 0.45 ? 3 : 0) +
-            (curTelemetry.frown >= 0.04 ? 2.5 : 0) +
+            (curTelemetry.frown >= 0.10 ? 2.5 : 0) +
             (curTelemetry.proximity > 60 ? 2 : 0) +
             (curTelemetry.isFrequentBlinking ? 2 : 0) +
             (detectionRef.current.consecutiveDeskSecs > (settings.sedentaryLimitMinutes * 50) ? 2.5 : 0) +
@@ -700,7 +707,7 @@ export default function App() {
       const deskMins = (detectionRef.current.consecutiveDeskSecs || 0) / 60;
       const currentStress = Math.min(100, Math.max(12, Math.round(
         (deskMins / 10) * 5.5 +
-        (curTelemetry.frown > 0.01 ? ((curTelemetry.frown - 0.01) / 0.06) * 30 : 0) +
+        (curTelemetry.frown > 0.04 ? ((curTelemetry.frown - 0.04) / 0.10) * 30 : 0) +
         (curTelemetry.proximity > 45 ? ((curTelemetry.proximity - 45) / 25) * 20 : 0)
       )));
       const currentRecovery = Math.min(100, Math.max(15, Math.round(
@@ -764,8 +771,7 @@ export default function App() {
     };
   }, [isClockedIn, isClockedOut, recordPeriodicTrendPoint]);
 
-  // Cross-tab & Multi-interface Hazard Dispatcher (OS Notifications, TTS Voice, Title Flashing, PiP)
-  const dispatchHazardAlert = useCallback(
+  const dispatchHazardAlertImmediate = useCallback(
     (hazard: ActiveHazardAlert, voiceSpeechText: string) => {
       setActiveHazard(hazard);
       // Do not auto-dismiss hazard alert! Keep page open until user action
@@ -800,6 +806,36 @@ export default function App() {
     [settings.desktopNotificationsEnabled, settings.voiceAlertsEnabled, isMeetingMode]
   );
 
+  const processNextInQueue = useCallback(() => {
+    setHazardQueue((prevQueue) => {
+      if (prevQueue.length === 0) return prevQueue;
+      const [nextItem, ...remaining] = prevQueue;
+      setTimeout(() => {
+        dispatchHazardAlertImmediate(nextItem.hazard, nextItem.voiceSpeechText);
+      }, 150);
+      return remaining;
+    });
+  }, [dispatchHazardAlertImmediate]);
+
+  // Cross-tab & Multi-interface Hazard Dispatcher (OS Notifications, TTS Voice, Title Flashing, PiP)
+  const dispatchHazardAlert = useCallback(
+    (hazard: ActiveHazardAlert, voiceSpeechText: string) => {
+      // If any major mechanism (hazard, sedentary lock, eye strain, stretch screensaver) is currently active, queue it up sequentially
+      if (
+        activeHazardRef.current ||
+        isSedentaryLockedRef.current ||
+        isStretchScreensaverOpenRef.current ||
+        isEyeStrainActive
+      ) {
+        setHazardQueue((prev) => [...prev, { hazard, voiceSpeechText }]);
+        return;
+      }
+
+      dispatchHazardAlertImmediate(hazard, voiceSpeechText);
+    },
+    [isEyeStrainActive, dispatchHazardAlertImmediate]
+  );
+
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
@@ -809,7 +845,7 @@ export default function App() {
     detectionRef.current.consecutiveDeskSecs = 0;
     setLastHydrationTime(Date.now());
     modifyScore(+10, '補充水分 300ml：成功補充水分，補水週期重新起算 (+10點)', '💧');
-    soundSynth.playWaterDrink();
+    soundSynth.playWaterComplete();
   }, [modifyScore]);
 
   // Multi-tab synchronization listener
@@ -982,7 +1018,7 @@ export default function App() {
           ctx.fillStyle = '#f87171';
           ctx.font = 'bold 12px monospace';
           ctx.textAlign = 'left';
-          ctx.fillText(`+ [OVERWATCH] +`, 12, 20);
+          ctx.fillText(`+ [OVERWHELTCH] +`, 12, 20);
 
           ctx.fillStyle = '#cbd5e1';
           ctx.font = '11px monospace';
@@ -1050,7 +1086,7 @@ export default function App() {
   const handleFrownPenalty = useCallback(() => {
     modifyScore(-3, '長期緊皺眉頭：怨念氣場爆棚 (-3點)', '😠');
     setStatsSummary((s) => ({ ...s, frownsCaught: s.frownsCaught + 1 }));
-    soundSynth.playWarningBuzz();
+    soundSynth.playFrownPenalty();
 
     // Capture exact frowning ugly shot
     const frownSnap = takeCandidWebcamSnapshot('緊皺眉頭厭世臉', 'frown');
@@ -1201,7 +1237,7 @@ export default function App() {
     setLastHydrationTime(Date.now());
     modifyScore(+5, '💧 定時久坐補水：補充體內水分與細胞能量，提升修復活力 (+5點)', '💧');
     try {
-      soundSynth.playWaterDrink();
+      soundSynth.playWaterTrigger();
     } catch {}
     dispatchHazardAlert(
       {
@@ -1306,7 +1342,7 @@ export default function App() {
   const handleProximityBlur = useCallback(() => {
     setIsEyeStrainActive(true);
     modifyScore(-5, '頭部距離螢幕過近：啟動護眼科技雷達校準 (-5點)', 'PROXIMITY');
-    soundSynth.playWarningBuzz();
+    soundSynth.playProximityAlert();
     
     // Voice alert & notifications
     if (settings.voiceAlertsEnabled && !isMeetingMode) {
@@ -1315,7 +1351,7 @@ export default function App() {
     if (settings.desktopNotificationsEnabled && !isMeetingMode) {
       fireDesktopNotification({
         title: '距離過近警告',
-        body: '頭部過度貼近螢幕（低於 30cm）！請靠上椅背保持最佳姿勢視距 (≥35cm)！',
+        body: '頭部過度貼近螢幕（低於 30cm）！請靠上椅背保持自然姿勢視距 >35cm！',
         tag: 'ohg-proximity',
         requireInteraction: true,
       });
@@ -1324,25 +1360,33 @@ export default function App() {
 
   const handleProximityCalibrationSuccess = useCallback(() => {
     setIsEyeStrainActive(false);
+    detectionRef.current.proximityCooldown = 4;
+    detectionRef.current.hasTriggeredThisProximity = false;
+    detectionRef.current.proximityStartTime = null;
     triggerToast({
-      title: '最佳護眼距離已鎖定',
-      desc: '已維持最佳姿勢視距 (≥35cm)，視力防護就緒',
+      title: '自然護眼距離已鎖定',
+      desc: '已維持自然姿勢視距 >35cm，視力防護就緒',
       badge: '校準成功',
       badgeColor: 'bg-emerald-500 text-slate-950',
       image: '/memes/cat-curious.jpg',
       type: 'blink',
     });
-    logEvent('護眼雷達：成功維持最佳姿勢視距 (≥35cm) 並完成校準', 0, 'reward', 'CALIBRATED');
+    logEvent('護眼雷達：成功維持自然姿勢視距 >35cm 並完成校準', 0, 'reward', 'CALIBRATED');
   }, [triggerToast, logEvent]);
 
   const handleSedentaryLock = useCallback(() => {
     // Directly launch the exquisite 30-second Stickman Calisthenics stretch screen!
     setStretchScreensaverReason('sedentary');
     setIsStretchScreensaverOpen(true);
+    isStretchScreensaverOpenRef.current = true;
     modifyScore(-5, '連續久坐超過時限：啟動 30 秒站立伸展體操 (-5點)', '🪑');
     setStatsSummary((s) => ({ ...s, sedentaryLocksCount: s.sedentaryLocksCount + 1 }));
-    soundSynth.playYawnAlert();
+    soundSynth.playSedentaryAlarm();
     broadcastCrossTabEvent('sedentary_lock', true);
+
+    if (typeof document !== 'undefined' && document.hidden) {
+      startTitleFlashing('🚨【久坐超時】請起立伸展！');
+    }
 
     if (settings.voiceAlertsEnabled && !isMeetingMode) {
       speakVoiceAlert('久坐超時！請立刻起立，跟隨全螢幕體操放鬆脊椎！');
@@ -1376,7 +1420,8 @@ export default function App() {
     if (settings.voiceAlertsEnabled && !isMeetingMode) {
       speakVoiceAlert('恭喜成功起立離座活動！鎖定已解除，血液重新流動！');
     }
-  }, [logEvent, triggerToast, settings.voiceAlertsEnabled, isMeetingMode]);
+    processNextInQueue();
+  }, [logEvent, triggerToast, settings.voiceAlertsEnabled, isMeetingMode, processNextInQueue]);
 
   const handleSlackReward = useCallback(
     (minutes: number) => {
@@ -1415,7 +1460,7 @@ export default function App() {
     }
     modifyScore(-15, '血汗超時加班：生命力被無情抽取 (-15點)', '🩸');
     setStatsSummary((s) => ({ ...s, overtimeMinutes: s.overtimeMinutes + 10 }));
-    soundSynth.playWarningBuzz();
+    soundSynth.playOvertimeAlarm();
     triggerToast({
       title: '🩸 超時加班警報',
       desc: '已過下班時間，請盡速打卡下班',
@@ -1490,51 +1535,49 @@ export default function App() {
     }
   }, []);
 
-  // Ref to track laptop lid closure / tab hidden state and timestamps
-  const lidClosedAtRef = useRef<number | null>(null);
+  // Heartbeat tracker to detect TRUE OS-level sleep / suspension (where JS execution completely stopped)
+  const lastHeartbeatTimeRef = useRef<number>(Date.now());
 
-  // Auto handle laptop lid close / system sleep / tab wake up
+  // Auto handle true OS sleep / system wake up & tab visibility
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        lidClosedAtRef.current = Date.now();
-        console.log('💻 [LID_CLOSE/TAB_HIDDEN] Laptop lid closed or tab hidden. Pausing desk & away timers.');
-      } else if (document.visibilityState === 'visible') {
-        const closedAt = lidClosedAtRef.current;
-        const closedDurationMs = closedAt ? Date.now() - closedAt : 0;
-        console.log(`💻 [LID_OPEN/TAB_VISIBLE] System wake-up detected (was closed for ${(closedDurationMs / 1000).toFixed(1)}s).`);
-
-        // If computer was closed/asleep for more than 3 seconds:
-        if (closedDurationMs > 3000) {
-          // Pause desk session timer during sleep by shifting deskSessionStartTime forward
-          if (detectionRef.current.deskSessionStartTime) {
-            detectionRef.current.deskSessionStartTime += closedDurationMs;
-            try {
-              localStorage.setItem('overwatch_desk_session_start', String(detectionRef.current.deskSessionStartTime));
-            } catch {}
-          }
-          // Pause hydration interval timer during sleep by shifting lastHydrationTime forward
-          setLastHydrationTime((prev) => prev + closedDurationMs);
-          // Reset away trackers so sleep duration is not falsely counted as away slack time
-          detectionRef.current.lastFaceLeaveTimestamp = null;
-          detectionRef.current.hasTriggeredSlackAlert = false;
-          detectionRef.current.consecutiveAwaySecs = 0;
-
-          // Clear any stale slack or sedentary hazards that may have triggered right before sleeping
-          if (activeHazardRef.current?.type === 'slack' || activeHazardRef.current?.type === 'sedentary') {
-            setActiveHazard(null);
-          }
+    // Check for true system sleep/hibernation:
+    // When the laptop lid closes or system sleeps, all timers and JS execution stop completely.
+    // If the elapsed time between two 1-second ticks is > 25 seconds, the OS was suspended.
+    const sleepCheckTimer = setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - lastHeartbeatTimeRef.current;
+      if (elapsed > 25000) {
+        console.log(`💻 [SYSTEM_SLEEP] Real OS suspension detected (frozen for ${(elapsed / 1000).toFixed(1)}s). Adjusting timers.`);
+        if (detectionRef.current.deskSessionStartTime) {
+          detectionRef.current.deskSessionStartTime += elapsed;
+          try {
+            localStorage.setItem('overwatch_desk_session_start', String(detectionRef.current.deskSessionStartTime));
+          } catch {}
         }
+        setLastHydrationTime((prev) => prev + elapsed);
+        detectionRef.current.lastFaceLeaveTimestamp = null;
+        detectionRef.current.hasTriggeredSlackAlert = false;
+        detectionRef.current.consecutiveAwaySecs = 0;
+        if (activeHazardRef.current?.type === 'slack' || activeHazardRef.current?.type === 'sedentary') {
+          setActiveHazard(null);
+        }
+      }
+      lastHeartbeatTimeRef.current = now;
+    }, 1000);
 
-        lidClosedAtRef.current = null;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        stopTitleFlashing();
         startCamera();
       }
     };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
+      clearInterval(sleepCheckTimer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [startCamera, logEvent]);
+  }, [startCamera]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -1610,9 +1653,12 @@ export default function App() {
      Realtime Video AI Processing Loop
      ==================================================================== */
   useEffect(() => {
-    let animationFrameId: number;
+    let animationFrameId: number | null = null;
+    let bgTimeoutId: number | null = null;
+    let isCancelled = false;
 
     async function processLoop() {
+      if (isCancelled) return;
       const now = performance.now();
       let delta = (now - detectionRef.current.lastFrameTime) / 1000;
 
@@ -1641,7 +1687,12 @@ export default function App() {
 
           try {
             const landmarker = await getFaceLandmarker();
-            const results = landmarker.detectForVideo(video, now);
+            let videoTimestamp = Math.round(performance.now());
+            if (videoTimestamp <= detectionRef.current.lastVideoTimestamp) {
+              videoTimestamp = detectionRef.current.lastVideoTimestamp + 1;
+            }
+            detectionRef.current.lastVideoTimestamp = videoTimestamp;
+            const results = landmarker.detectForVideo(video, videoTimestamp);
             const hasFace = results.faceLandmarks && results.faceLandmarks.length > 0;
             detectionRef.current.isFaceCurrentlyPresent = !!hasFace;
 
@@ -1721,9 +1772,9 @@ export default function App() {
               const nosePt = landmarks[1] || landmarks[4];
               const headVerticalSpan = Math.max(0.001, (chinPt?.y ?? 1) - (foreheadPt?.y ?? 0));
               const noseRelY = ((nosePt?.y ?? 0.5) - (foreheadPt?.y ?? 0)) / headVerticalSpan;
-              // When looking down or camera angle is low, noseRelY increases (> 0.485 indicates downward head tilt)
-              const isLookingDown = noseRelY > 0.485;
-              const pitchDownDev = Math.max(0, noseRelY - 0.465);
+              // When looking down or camera angle is low, noseRelY increases (> 0.460 indicates downward head tilt)
+              const isLookingDown = noseRelY > 0.460;
+              const pitchDownDev = Math.max(0, noseRelY - 0.450);
               const pitchDampener = Math.max(0.08, 1 - pitchDownDev * 6.5);
 
               // Eye Gaze Downward Direction (looking down with eyes, e.g. at keyboard or lower screen)
@@ -1733,6 +1784,8 @@ export default function App() {
                 blendshapes.find((b) => b.categoryName === 'eyeLookDownRight')?.score || 0;
               const eyeLookDownVal = (eyeLookDownL + eyeLookDownR) / 2;
               const gazeDownDampener = Math.max(0.10, 1 - eyeLookDownVal * 2.5);
+              const isGazeDown = eyeLookDownVal > 0.12;
+              const isHeadOrGazeDown = isLookingDown || pitchDownDev > 0 || isGazeDown;
 
               // Estimate head yaw / looking sideways (nose #1 relative to outer eye corners #33 and #263)
               const leftEyeCornerPt = landmarks[33];
@@ -1824,31 +1877,42 @@ export default function App() {
                 rightInnerBrow &&
                 leftInnerBrow &&
                 rightEyeCorner &&
-                leftEyeCorner
+                leftEyeCorner &&
+                !isLookingDown &&
+                eyeLookDownVal < 0.20
               ) {
                 const eyeSpan = Math.max(0.01, Math.hypot(leftEyeCorner.x - rightEyeCorner.x, leftEyeCorner.y - rightEyeCorner.y));
                 const browSpan = Math.hypot(leftInnerBrow.x - rightInnerBrow.x, leftInnerBrow.y - rightInnerBrow.y);
                 const ratio = browSpan / eyeSpan;
-                // If inner brows draw closer together (< 0.38 of eye span)
-                if (ratio < 0.38) {
-                  geomFurrow = Math.min(0.05, (0.38 - ratio) * 0.45);
+                // If inner brows draw closer together (< 0.35 of eye span)
+                if (ratio < 0.35) {
+                  geomFurrow = Math.min(0.04, (0.35 - ratio) * 0.40);
                 }
               }
 
               // Direct, responsive brow signal:
               // Natural resting face sits around 0.00 ~ 0.02
-              // Natural effortless frown comfortably reaches 0.04 ~ 0.08+ without straining
+              // Natural intentional frown comfortably reaches 0.08 ~ 0.15+
               const browAvg = (browDownL + browDownR) / 2;
               const browMax = Math.max(browDownL, browDownR);
-              // Scale blendshape so a natural frown reaches 0.05+ easily and responsively
-              const rawBrowSignal = (browMax * 0.65 + browAvg * 0.35) * 1.85 + geomFurrow;
+              // Scale blendshape with smooth balanced response without hair-trigger spikes
+              const rawBrowSignal = (browMax * 0.65 + browAvg * 0.35) * 1.20 + geomFurrow;
 
-              // Micro-stress hints (nose sneer / mouth frown / lip press) provide boost when brows start moving
-              const microStressBoost = rawBrowSignal > 0.015
-                ? Math.max(noseSneerVal * 0.20, mouthFrownVal * 0.20, mouthPressVal * 0.15)
+              // Micro-stress hints (nose sneer / mouth frown / lip press) provide boost only when brows start actively moving
+              const microStressBoost = rawBrowSignal > 0.03
+                ? Math.max(noseSneerVal * 0.15, mouthFrownVal * 0.15, mouthPressVal * 0.12)
                 : 0;
 
               let baseBrowScore = rawBrowSignal + microStressBoost;
+
+              // Inhibit looking down false positives (downward gaze or head tilted down towards keyboard/desk)
+              // MediaPipe blendshapes artificially report elevated browDown when looking down due to eyelid relaxation and projective foreshortening.
+              if (isHeadOrGazeDown) {
+                const gazeSuppression = Math.max(0, (eyeLookDownVal - 0.08) * 4.0);
+                const pitchSuppression = pitchDownDev * 12.0;
+                const totalDownSuppression = Math.min(0.96, Math.max(gazeSuppression, pitchSuppression) + 0.35);
+                baseBrowScore *= Math.max(0.04, 1 - totalDownSuppression);
+              }
 
               // Inhibit smile/laughter false positives (only when truly smiling, not resting lip shape)
               if (smileVal > 0.18 || lipCornerElevation > 0.035) {
@@ -1873,11 +1937,25 @@ export default function App() {
               detectionRef.current.latestBrowPressure = browPressure;
               const frownVal = browPressure;
 
-              // 5. Proximity / Screen Distance
-              const stableBoneSpan = foreheadPt && chinPt ? Math.abs(chinPt.y - foreheadPt.y) * 1.28 : faceHeight;
-              const rawProximity = Math.round(stableBoneSpan * 100);
+              // 5. Proximity / Screen Distance (Ergonomically Calibrated Desk Posture Scale)
+              // Landmark 10 (forehead) and 152 (chin) provide the primary vertical face span.
+              // Anatomical ratio of vertical face span to bi-ocular width (corners 33 and 263) is ~1.45.
+              const vertSpan = foreheadPt && chinPt ? Math.hypot(chinPt.x - foreheadPt.x, chinPt.y - foreheadPt.y) : faceHeight;
+              const eyeSpan = leftEyeCornerPt && rightEyeCornerPt ? Math.hypot(rightEyeCornerPt.x - leftEyeCornerPt.x, rightEyeCornerPt.y - leftEyeCornerPt.y) : 0;
+              // Compensate for pitch foreshortening if user tilts head down (e.g. typing or looking down)
+              const pitchCompensatedVert = isLookingDown && pitchDownDev > 0 ? vertSpan / Math.max(0.85, 1 - pitchDownDev * 0.8) : vertSpan;
+              // Combined anthropometric skeletal span
+              const effectiveBoneSpan = eyeSpan > 0.05 ? Math.max(pitchCompensatedVert, eyeSpan * 1.45) : vertSpan;
+              // Calibrated physical sitting distance in cm (optical inverse scale):
+              const rawDistCm = effectiveBoneSpan > 0 ? Math.round(17.5 / effectiveBoneSpan) : 45;
+              const prevDist = detectionRef.current.latestDistanceCm || rawDistCm;
+              const distCm = Math.round(prevDist * 0.35 + rawDistCm * 0.65);
+              detectionRef.current.latestDistanceCm = distCm;
+
+              // Proximity percentage derived from distance for UI bars
+              const rawProximity = Math.round(Math.max(10, Math.min(100, (65 - distCm) * 1.5)));
               const prevProximity = detectionRef.current.latestProximityPct || rawProximity;
-              const proximityPct = Math.round(prevProximity * 0.70 + rawProximity * 0.30);
+              const proximityPct = Math.round(prevProximity * 0.35 + rawProximity * 0.65);
               detectionRef.current.latestProximityPct = proximityPct;
 
               // 6. Blinking & Eye Vitality & Camera Closed Eye Detection
@@ -1936,23 +2014,16 @@ export default function App() {
                 }
               }
 
-              // Prune old blink timestamps (> 4.0s sliding window)
-              // Only rapid bursts of 5+ blinks within 4 seconds trigger dry-eye fatigue
+              // Prune old blink timestamps (> 5.0s sliding window)
+              // Rapid bursts of 3+ blinks within 5.0 seconds trigger dry-eye fatigue
               detectionRef.current.blinkTimestamps = detectionRef.current.blinkTimestamps.filter(
-                (t) => now - t <= 4000
+                (t) => now - t <= 5000
               );
 
-              // Dual-trigger criteria (Robust & Non-intrusive):
-              // Criterion 1: Rapid Dry-Eye Fluttering (>= 5 rapid consecutive blinks within 4.0 seconds)
-              const isRapidBlinking = detectionRef.current.blinkTimestamps.length >= 5;
-
-              // Criterion 2: Prolonged heavy-lid eye closure (continuous closure for >= 3.0s, e.g. nodding off / micro-sleep)
-              const prolongedClosureDuration = detectionRef.current.wasBlinking
-                ? now - detectionRef.current.blinkClosureStartTime
-                : 0;
-              const isProlongedClosed = prolongedClosureDuration >= 3000;
-
-              const isFrequentBlinkingNow = isRapidBlinking || isProlongedClosed;
+              // Trigger criterion: Rapid Dry-Eye Fluttering (>= 3 rapid consecutive blinks within 5.0 seconds)
+              // Continuous eye closure does not trigger alerts per user request.
+              const isRapidBlinking = detectionRef.current.blinkTimestamps.length >= 3;
+              const isFrequentBlinkingNow = isRapidBlinking;
 
               const isTrackingActive = isClockedIn && !isClockedOut;
 
@@ -1968,12 +2039,7 @@ export default function App() {
                 detectionRef.current.blinkCooldown = 6; // 6s buffer
               }
 
-              // Update desk / away trackers
-              // If document is hidden / laptop is closed / not clocked in, do not process away transition or award spurious slack rewards
-              if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-                return;
-              }
-
+              // Update desk / away trackers (continues seamlessly in active and background modes)
               // If user was away, evaluate away duration using absolute system clock
               if (isTrackingActive && detectionRef.current.lastFaceLeaveTimestamp) {
                 const awayDurationSecs = (Date.now() - detectionRef.current.lastFaceLeaveTimestamp) / 1000;
@@ -2020,8 +2086,8 @@ export default function App() {
               if (
                 isTrackingActive &&
                 detectionRef.current.consecutiveDeskSecs >= deskLimitSecs &&
-                !isStretchScreensaverOpen &&
-                !isSedentaryLocked
+                !isStretchScreensaverOpenRef.current &&
+                !isSedentaryLockedRef.current
               ) {
                 handleSedentaryLock();
               }
@@ -2056,8 +2122,14 @@ export default function App() {
                 detectionRef.current.hasTriggeredThisYawn = false;
               }
 
-              // Frown Trigger Check (Require genuine Brow Pressure >= 0.05 sustained for 2.8s, 4s buffer)
-              const isFrowningNow = frownVal >= 0.05 && !isLookingSideways;
+              // Frown Trigger Check (Require genuine Brow Pressure >= 0.10 sustained for 4.0s; strictly inhibit when looking down)
+              const isFrowningNow =
+                frownVal >= 0.10 &&
+                !isLookingSideways &&
+                !isLookingDown &&
+                !isHeadOrGazeDown &&
+                eyeLookDownVal < 0.15 &&
+                pitchDownDev <= 0.005;
               let currentFrownElapsedSecs = 0;
               if (isFrowningNow) {
                 if (!detectionRef.current.frownStartTime) {
@@ -2068,42 +2140,54 @@ export default function App() {
                 currentFrownElapsedSecs = elapsedFrown;
                 if (
                   isTrackingActive &&
-                  elapsedFrown >= 2.8 &&
+                  elapsedFrown >= 4.0 &&
                   !detectionRef.current.hasTriggeredThisFrown &&
                   detectionRef.current.frownCooldown <= 0 &&
                   !activeHazardRef.current
                 ) {
                   handleFrownPenalty();
                   detectionRef.current.hasTriggeredThisFrown = true;
-                  detectionRef.current.frownCooldown = 4; // 4s buffer
+                  detectionRef.current.frownCooldown = 8; // 8s buffer to prevent alert fatigue
                 }
               } else {
                 detectionRef.current.frownStartTime = null;
                 detectionRef.current.hasTriggeredThisFrown = false;
               }
 
-              // Proximity Trigger Check (>64% indicates distance < 30cm, require 1.5s sustained duration, 5s buffer)
-              const isTooCloseNow = proximityPct > 64;
-              if (isTooCloseNow) {
+              // Proximity Trigger Check (< 30cm indicates too close)
+              // Uses jitter-resilient hysteresis (keeps timing if distance stays < 33cm) and 0.6s sustained duration:
+              const isTooCloseNow = distCm < 30;
+              const isInCloseZone = distCm < 33;
+
+              if (isTooCloseNow || (detectionRef.current.proximityStartTime && isInCloseZone)) {
                 if (!detectionRef.current.proximityStartTime) {
                   detectionRef.current.proximityStartTime = performance.now();
                 }
                 const elapsedClose =
                   (performance.now() - detectionRef.current.proximityStartTime) / 1000;
+
+                // Reset trigger lock if cooldown has finished
+                if (detectionRef.current.proximityCooldown <= 0) {
+                  detectionRef.current.hasTriggeredThisProximity = false;
+                }
+
                 if (
-                  isTrackingActive &&
-                  elapsedClose >= 1.5 &&
+                  !isClockedOut &&
+                  elapsedClose >= 0.6 &&
                   !isEyeStrainActive &&
                   detectionRef.current.proximityCooldown <= 0 &&
                   !detectionRef.current.hasTriggeredThisProximity
                 ) {
                   handleProximityBlur();
                   detectionRef.current.hasTriggeredThisProximity = true;
-                  detectionRef.current.proximityCooldown = 5; // 5s buffer
+                  detectionRef.current.proximityCooldown = 4; // 4s buffer
+                  detectionRef.current.proximityStartTime = null;
                 }
               } else {
                 detectionRef.current.proximityStartTime = null;
-                detectionRef.current.hasTriggeredThisProximity = false;
+                if (detectionRef.current.proximityCooldown <= 0) {
+                  detectionRef.current.hasTriggeredThisProximity = false;
+                }
               }
 
               // Decay 5-second buffer cooldowns
@@ -2160,11 +2244,12 @@ export default function App() {
                 frown: frownVal,
                 frownDurationSeconds: Number(currentFrownElapsedSecs.toFixed(1)),
                 proximity: proximityPct,
+                distanceCm: distCm,
                 blinkScore,
                 ear,
                 isEyesClosed: isEyesClosedNow,
                 blinkCountWindow: detectionRef.current.blinkTimestamps.length,
-                prolongedCloseSeconds: Number((prolongedClosureDuration / 1000).toFixed(1)),
+                prolongedCloseSeconds: 0,
                 smileScore: smileVal,
                 emotion: currentEmotion,
                 isFacePresent: true,
@@ -2181,10 +2266,7 @@ export default function App() {
               detectionRef.current.yawnStartTime = null;
               detectionRef.current.frownStartTime = null;
 
-              // If document is hidden / laptop is closed, do not accumulate away seconds or fire slack alerts
-              if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-                return;
-              }
+              // Away tracker (tracks absence accurately across active and background modes)
 
               if (!detectionRef.current.lastFaceLeaveTimestamp) {
                 detectionRef.current.lastFaceLeaveTimestamp = Date.now();
@@ -2229,6 +2311,7 @@ export default function App() {
                 mar: 0,
                 frown: 0,
                 proximity: 0,
+                distanceCm: undefined,
                 blinkScore: 0,
                 ear: undefined,
                 isEyesClosed: false,
@@ -2311,11 +2394,43 @@ export default function App() {
         }
       }
 
+      if (isCancelled) return;
+      if (typeof document !== 'undefined' && document.hidden) {
+        // Tab is in background: requestAnimationFrame is suspended by browsers.
+        // Use setTimeout to continue background face & desk monitoring at ~1-2 fps
+        bgTimeoutId = window.setTimeout(processLoop, 500);
+      } else {
+        animationFrameId = requestAnimationFrame(processLoop);
+      }
+    }
+
+    const handleVisibilitySwitch = () => {
+      if (typeof document !== 'undefined' && !document.hidden && !isCancelled) {
+        if (bgTimeoutId !== null) {
+          clearTimeout(bgTimeoutId);
+          bgTimeoutId = null;
+        }
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
+        }
+        animationFrameId = requestAnimationFrame(processLoop);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilitySwitch);
+
+    if (typeof document !== 'undefined' && document.hidden) {
+      bgTimeoutId = window.setTimeout(processLoop, 500);
+    } else {
       animationFrameId = requestAnimationFrame(processLoop);
     }
 
-    animationFrameId = requestAnimationFrame(processLoop);
-    return () => cancelAnimationFrame(animationFrameId);
+    return () => {
+      isCancelled = true;
+      document.removeEventListener('visibilitychange', handleVisibilitySwitch);
+      if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+      if (bgTimeoutId !== null) clearTimeout(bgTimeoutId);
+    };
   }, [
     showMesh,
     isClockedIn,
@@ -2386,27 +2501,37 @@ export default function App() {
       }
 
       // If user clocked out or user has NOT clocked in yet, pause background ticker
-      if (isClockedOut || !isClockedIn) {
+      if (isClockedOutRef.current || !isClockedInRef.current) {
         return;
       }
 
-      // 1. Sedentary Limit Check (only tracks when user face is present at an open active screen)
-      if (detectionRef.current.isFaceCurrentlyPresent && detectionRef.current.deskSessionStartTime) {
-        const elapsedDeskSecs = Math.floor((Date.now() - detectionRef.current.deskSessionStartTime) / 1000);
-        detectionRef.current.consecutiveDeskSecs = Math.max(0, elapsedDeskSecs);
+      // 1. Sedentary Limit Check (tracks continuous sitting session at desk)
+      if (detectionRef.current.deskSessionStartTime) {
+        const awaySecs = detectionRef.current.lastFaceLeaveTimestamp
+          ? (Date.now() - detectionRef.current.lastFaceLeaveTimestamp) / 1000
+          : 0;
+        // As long as user hasn't left the desk continuously for >= 5 minutes (300s)
+        if (awaySecs < 300) {
+          const elapsedDeskSecs = Math.floor((Date.now() - detectionRef.current.deskSessionStartTime) / 1000);
+          detectionRef.current.consecutiveDeskSecs = Math.max(0, elapsedDeskSecs);
+          setTelemetry((prev) => ({
+            ...prev,
+            consecutiveDeskSeconds: detectionRef.current.consecutiveDeskSecs,
+          }));
+        }
       }
 
       const deskLimitSecs = (settings.sedentaryLimitMinutes || 45) * 60;
       if (
         detectionRef.current.consecutiveDeskSecs >= deskLimitSecs &&
-        !isStretchScreensaverOpen &&
-        !isSedentaryLocked
+        !isStretchScreensaverOpenRef.current &&
+        !isSedentaryLockedRef.current
       ) {
         handleSedentaryLock();
       }
 
       // If Sedentary is Locked, countdown ONLY advances if user is ABSENT!
-      if (isSedentaryLocked) {
+      if (isSedentaryLockedRef.current) {
         if (!detectionRef.current.isFaceCurrentlyPresent) {
           setSedentaryRemainingSeconds((sec) => {
             const next = sec - 1;
@@ -2491,6 +2616,8 @@ export default function App() {
 
     return () => clearInterval(timer);
   }, [
+    isClockedIn,
+    isClockedOut,
     isSedentaryLocked,
     isStretchScreensaverOpen,
     isEyeStrainActive,
@@ -2580,7 +2707,8 @@ export default function App() {
       clearTimeout(activeHazardTimeoutRef.current);
       activeHazardTimeoutRef.current = null;
     }
-  }, []);
+    processNextInQueue();
+  }, [processNextInQueue]);
 
   const handleStartStretchFromYawn = useCallback(() => {
     setActiveHazard(null);
@@ -2612,22 +2740,44 @@ export default function App() {
 
   const handleDismissEyeStrain = useCallback(() => {
     setIsEyeStrainActive(false);
-  }, []);
+    detectionRef.current.proximityCooldown = 4;
+    detectionRef.current.hasTriggeredThisProximity = false;
+    detectionRef.current.proximityStartTime = null;
+    processNextInQueue();
+  }, [processNextInQueue]);
 
   const lastStretchCompleteTimeRef = useRef<number>(0);
   const handleStretchComplete = useCallback(() => {
     const now = Date.now();
-    // Guard against duplicate invocations within 4 seconds
-    if (now - lastStretchCompleteTimeRef.current < 4000) {
+    // Guard against duplicate invocations within 1.5 seconds
+    if (now - lastStretchCompleteTimeRef.current < 1500) {
       return;
     }
     lastStretchCompleteTimeRef.current = now;
 
     setIsStretchScreensaverOpen(false);
+    isStretchScreensaverOpenRef.current = false;
+    setActiveHazard(null);
+    if (activeHazardTimeoutRef.current) {
+      clearTimeout(activeHazardTimeoutRef.current);
+      activeHazardTimeoutRef.current = null;
+    }
     setHealthScore((prev) => Math.min(100, prev + 15));
     setIsSedentaryLocked(false);
+    isSedentaryLockedRef.current = false;
+    stopTitleFlashing();
     detectionRef.current.consecutiveDeskSecs = 0;
     detectionRef.current.deskSessionStartTime = now;
+
+    if (settings.desktopNotificationsEnabled && !isMeetingMode && typeof document !== 'undefined' && document.hidden) {
+      fireDesktopNotification({
+        title: '🎉 30 秒動態體操完成！',
+        body: '脊椎有效減壓，健康存摺 +15 點，久坐計時已重置！',
+        tag: 'ohg-stretch-complete',
+        requireInteraction: false,
+      });
+    }
+
     triggerToast({
       title: '🧘 站立動態體操完成！',
       desc: '脊椎有效減壓，健康存摺 +15 點',
@@ -2641,11 +2791,15 @@ export default function App() {
       'reward',
       '🧘'
     );
-  }, [triggerToast, logEvent]);
+    processNextInQueue();
+  }, [triggerToast, logEvent, settings.desktopNotificationsEnabled, isMeetingMode, processNextInQueue]);
 
   const handleStretchDismiss = useCallback(() => {
     setIsStretchScreensaverOpen(false);
+    isStretchScreensaverOpenRef.current = false;
     setIsSedentaryLocked(false);
+    isSedentaryLockedRef.current = false;
+    stopTitleFlashing();
     detectionRef.current.consecutiveDeskSecs = 0;
     detectionRef.current.deskSessionStartTime = Date.now();
   }, []);
@@ -3029,6 +3183,7 @@ export default function App() {
       <EyeStrainBlurOverlay
         isOpen={isEyeStrainActive}
         proximityPct={telemetry.proximity}
+        distanceCm={telemetry.distanceCm}
         isFacePresent={telemetry.isFacePresent}
         onDismiss={handleDismissEyeStrain}
         onCalibrationSuccess={handleProximityCalibrationSuccess}
@@ -3071,7 +3226,7 @@ export default function App() {
                 CAM_REC
               </span>
               <span className="text-slate-600 hidden sm:inline">•</span>
-              <span className="hidden md:inline text-slate-500 truncate">趣味辦公室身心健康與高壓監視器</span>
+              <span className="hidden sm:inline text-slate-400 truncate font-medium">趣味辦公身心健視器</span>
             </div>
           </div>
         </div>
@@ -3140,6 +3295,11 @@ export default function App() {
               telemetry={telemetry}
               sedentaryLimitMinutes={settings.sedentaryLimitMinutes}
               onTriggerYawn={handleYawnPenalty}
+              onTriggerFrown={handleFrownPenalty}
+              onTriggerBlink={handleBlinkPenalty}
+              onTriggerProximity={handleProximityBlur}
+              isClockedIn={isClockedIn}
+              onClockIn={handleClockIn}
               faceScoreData={faceScoreData}
               isScanningFace={isScanningFace}
               onTriggerFaceScan={() => handleScanFaceCharisma(false)}

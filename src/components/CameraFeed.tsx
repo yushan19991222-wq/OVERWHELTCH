@@ -133,7 +133,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
               <span className="text-slate-300 font-mono font-bold tracking-wider">CAM-01</span>
             </div>
             <div className="hidden sm:flex items-center px-2 py-0.5 rounded bg-black/60 border border-slate-800 text-[10px] font-mono text-cyan-400">
-              OVERWATCH_DESK // 60FPS
+              60pfs
             </div>
           </div>
 
@@ -233,7 +233,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
             <div className="w-8 h-8 border-2 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin mb-3" />
             <div className="text-xs font-bold text-cyan-300 mb-1 flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              <span>INITIALIZING_OVERWATCH_AI_CORE...</span>
+              <span>INITIALIZING_OVERWHELTCH_AI_CORE...</span>
             </div>
             <p className="text-[11px] text-slate-400 max-w-sm leading-relaxed">
               正在啟動本地神經網路監控節點 (100% Client-Side WASM)。
@@ -318,29 +318,29 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
         <div
           onClick={onTriggerFrown}
           className="p-2.5 rounded bg-[#070a10] border border-slate-800 hover:border-cyan-500/60 active:scale-[0.98] transition-all cursor-pointer flex flex-col justify-between group"
-          title="【精神緊繃壓力監測】眉心緊鎖（壓力 ≥ 0.038）持續 0.5 秒即啟動解答之書開解！點擊可立即手動測試"
+          title="【精神緊繃壓力監測】眉心緊鎖（壓力 ≥ 0.10）持續 4.0 秒啟動開解與存證！點擊可立即手動測試"
         >
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
             <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate group-hover:text-cyan-300">
               <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">psychology</span>
               <span>STRESS LEVEL</span>
             </span>
-            <span className={`font-bold shrink-0 tabular-nums ${telemetry.frown >= 0.038 ? 'text-amber-400' : 'text-cyan-400'}`}>
+            <span className={`font-bold shrink-0 tabular-nums ${telemetry.frown >= 0.10 ? 'text-amber-400' : 'text-cyan-400'}`}>
               {telemetry.frown.toFixed(2)}
             </span>
           </div>
           <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
             <div
               className={`h-full transition-all duration-75 ${
-                telemetry.frown >= 0.038 ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]' : 'bg-cyan-400'
+                telemetry.frown >= 0.10 ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]' : 'bg-cyan-400'
               }`}
-              style={{ width: `${Math.min(100, (telemetry.frown / 0.10) * 100)}%` }}
+              style={{ width: `${Math.min(100, (telemetry.frown / 0.15) * 100)}%` }}
             />
           </div>
           <div className="text-[9px] text-slate-400 mt-1 flex justify-between items-center">
-            <span className="text-slate-500 text-[8px] sm:text-[9px]">門檻 &ge; 0.038</span>
-            <span className={telemetry.frown >= 0.038 ? 'text-amber-400 font-bold animate-pulse' : 'text-slate-400'}>
-              {telemetry.frown >= 0.038 ? '🚨 壓力緊繃超標' : '放鬆舒適'}
+            <span className="text-slate-500 text-[8px] sm:text-[9px]">門檻 &ge; 0.10</span>
+            <span className={telemetry.frown >= 0.10 ? 'text-amber-400 font-bold animate-pulse' : 'text-slate-400'}>
+              {telemetry.frown >= 0.10 ? '🚨 壓力緊繃超標' : '放鬆舒適'}
             </span>
           </div>
         </div>
@@ -349,7 +349,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
         <div
           onClick={onTriggerBlink}
           className="p-2.5 rounded bg-[#070a10] border border-slate-800 hover:border-cyan-500/60 active:scale-[0.98] transition-all cursor-pointer flex flex-col justify-between group"
-          title="【乾眼頻繁眨眼監測】3.5秒內急促眨眼達 3 次或沉重閉眼達 0.9 秒，啟動神顏洗眼 SPA！點擊可立即手動測試"
+          title="【乾眼頻繁眨眼監測】5秒內急促眨眼達 3 次即啟動護眼提醒！點擊可立即手動測試"
         >
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
             <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate group-hover:text-cyan-300">
@@ -359,8 +359,6 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
             <span className={`font-bold shrink-0 ${telemetry.isFrequentBlinking ? 'text-rose-400' : 'text-cyan-400'}`}>
               {telemetry.isFrequentBlinking
                 ? '乾眼過勞'
-                : telemetry.isEyesClosed && telemetry.prolongedCloseSeconds && telemetry.prolongedCloseSeconds > 0.4
-                ? `閉眼 ${telemetry.prolongedCloseSeconds}s`
                 : (telemetry.blinkCountWindow || 0) >= 2
                 ? `眨眼 ${telemetry.blinkCountWindow}/3`
                 : '雙眼放鬆'}
@@ -374,16 +372,13 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
               style={{
                 width: `${Math.min(
                   100,
-                  Math.max(
-                    ((telemetry.blinkCountWindow || 0) / 3) * 100,
-                    ((telemetry.prolongedCloseSeconds || 0) / 0.9) * 100
-                  )
+                  ((telemetry.blinkCountWindow || 0) / 3) * 100
                 )}%`,
               }}
             />
           </div>
           <div className="text-[9px] text-slate-400 mt-1 flex justify-between items-center">
-            <span className="text-slate-500 text-[8px] sm:text-[9px]">門檻 &ge; 3次 / 0.9s</span>
+            <span className="text-slate-500 text-[8px] sm:text-[9px]">門檻 &ge; 3次 / 5.0s</span>
             <span className={telemetry.isFrequentBlinking ? 'text-rose-400 font-bold animate-pulse' : 'text-slate-400'}>
               {telemetry.isFrequentBlinking ? '🚨 乾眼過勞 (-3點)' : `${telemetry.blinkCountWindow || 0} / 3 次`}
             </span>
@@ -391,43 +386,68 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
         </div>
 
         {/* 4. Screen Distance / Posture */}
-        <div
-          onClick={onTriggerProximity}
-          className="p-2.5 rounded bg-[#070a10] border border-slate-800 hover:border-cyan-500/60 active:scale-[0.98] transition-all cursor-pointer flex flex-col justify-between group"
-          title="【近距駝背風險】≥45%（距離 <35cm）判定為近距駝背過勞風險，啟動護眼模糊校準雷達！點擊可立即手動測試"
-        >
-          <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-            <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate group-hover:text-cyan-300">
-              <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">straighten</span>
-              <span>SCREEN DISTANCE</span>
-            </span>
-            <span className="font-bold text-cyan-400 shrink-0">{telemetry.proximity}%</span>
-          </div>
-          <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
+        {(() => {
+          const currentDistanceCm = telemetry.distanceCm || null;
+          const isTooClose = currentDistanceCm !== null && currentDistanceCm < 30;
+          const isTransition = currentDistanceCm !== null && currentDistanceCm >= 30 && currentDistanceCm < 35;
+          return (
             <div
-              className={`h-full transition-all duration-75 ${
-                telemetry.proximity >= 45
-                  ? 'bg-rose-500 shadow-[0_0_6px_#f43f5e]'
-                  : telemetry.proximity >= 38
-                  ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]'
-                  : 'bg-cyan-400'
-              }`}
-              style={{ width: `${Math.min(100, telemetry.proximity)}%` }}
-            />
-          </div>
-          <div className="text-[9px] text-slate-400 mt-1 flex justify-between items-center">
-            <span className="text-slate-500 text-[8px] sm:text-[9px]">安全視距 &ge; 40cm</span>
-            <span className={
-              telemetry.proximity >= 45
-                ? 'text-rose-400 font-bold animate-pulse'
-                : telemetry.proximity >= 38
-                ? 'text-amber-400 font-bold'
-                : 'text-slate-400'
-            }>
-              {telemetry.proximity >= 45 ? '🚨 駝背太近 (<35cm)' : telemetry.proximity >= 38 ? '警戒區 (35-40cm)' : '[健康視距 ≥40cm]'}
-            </span>
-          </div>
-        </div>
+              onClick={onTriggerProximity}
+              className="p-2.5 rounded bg-[#070a10] border border-slate-800 hover:border-cyan-500/60 active:scale-[0.98] transition-all cursor-pointer flex flex-col justify-between group"
+              title="【人體工學視距與坐姿監測】人體工學建議視距為 45~60cm。當視距 <30cm (嚴重駝背前傾) 會啟動護眼模糊校準防護。點擊可立即測試"
+            >
+              <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+                <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate group-hover:text-cyan-300">
+                  <span className="material-symbols-outlined text-[15px] text-cyan-400 shrink-0">straighten</span>
+                  <span>SCREEN DISTANCE</span>
+                </span>
+                <span className={`font-mono font-bold shrink-0 ${
+                  !telemetry.isFacePresent || currentDistanceCm === null
+                    ? 'text-slate-500'
+                    : isTooClose
+                    ? 'text-rose-400 animate-pulse'
+                    : isTransition
+                    ? 'text-amber-400'
+                    : 'text-cyan-400'
+                }`}>
+                  {telemetry.isFacePresent && currentDistanceCm !== null ? `${currentDistanceCm} cm` : '-- cm'}
+                </span>
+              </div>
+              <div className="w-full bg-[#030508] h-1.5 rounded-sm overflow-hidden border border-slate-800">
+                <div
+                  className={`h-full transition-all duration-75 ${
+                    isTooClose
+                      ? 'bg-rose-500 shadow-[0_0_6px_#f43f5e]'
+                      : isTransition
+                      ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]'
+                      : 'bg-cyan-400'
+                  }`}
+                  style={{ width: `${Math.min(100, telemetry.proximity)}%` }}
+                />
+              </div>
+              <div className="text-[9px] text-slate-400 mt-1 flex justify-between items-center">
+                <span className="text-slate-500 text-[8px] sm:text-[9px]">標準 &ge; 35cm</span>
+                <span className={
+                  !telemetry.isFacePresent || currentDistanceCm === null
+                    ? 'text-slate-500'
+                    : isTooClose
+                    ? 'text-rose-400 font-bold animate-pulse'
+                    : isTransition
+                    ? 'text-amber-400 font-bold'
+                    : 'text-emerald-400 font-medium'
+                }>
+                  {!telemetry.isFacePresent || currentDistanceCm === null
+                    ? '無人員入鏡'
+                    : isTooClose
+                    ? '🚨 過近 <30cm'
+                    : isTransition
+                    ? '⚠️ 過渡 30-35cm'
+                    : '🟢 自然 ≥35cm'}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* 5. Desk Time */}
         <div
@@ -496,8 +516,8 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
                 <span className="text-slate-500 text-[8px] sm:text-[9px]">上限 {sedentaryLimitMinutes}m</span>
                 <span className={deskProgressPct > 85 ? 'text-rose-400 font-bold' : telemetry.isFacePresent ? 'text-slate-400' : 'text-amber-400'}>
                   {telemetry.isFacePresent
-                    ? `${Math.round(deskProgressPct)}% (${deskTimeStr})`
-                    : `離座暫停中 (${Math.floor(telemetry.consecutiveAwaySeconds)}s/300s)`}
+                    ? `${Math.round(deskProgressPct)}%`
+                    : '離座暫停中'}
                 </span>
               </>
             )}

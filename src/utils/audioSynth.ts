@@ -28,21 +28,22 @@ class SoundSynthEngine {
     if (!ctx) return;
     try {
       const now = ctx.currentTime;
+      // Comedic slide whistle / yawn wah-wah
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(420, now);
-      osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
-      osc.frequency.exponentialRampToValueAtTime(320, now + 0.35);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.linearRampToValueAtTime(180, now + 0.18);
+      osc.frequency.linearRampToValueAtTime(550, now + 0.38);
 
       gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.42);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.4);
+      osc.stop(now + 0.42);
     } catch (e) {
       console.warn('Sound synthesis error:', e);
     }
@@ -145,27 +146,44 @@ class SoundSynthEngine {
   }
 
   /**
-   * Light chime for eye roll / blink exercises
+   * Sparkling magical eye-drop & moisture chime for blink / dry-eye fatigue feedback
    */
   public playBlinkChime() {
     const ctx = this.ensureContext();
     if (!ctx) return;
     try {
       const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
 
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, now);
-      osc.frequency.exponentialRampToValueAtTime(1320, now + 0.1);
+      // 1. Droplet splash sound (pitch drop)
+      const dropOsc = ctx.createOscillator();
+      const dropGain = ctx.createGain();
+      dropOsc.type = 'sine';
+      dropOsc.frequency.setValueAtTime(1200, now);
+      dropOsc.frequency.exponentialRampToValueAtTime(500, now + 0.12);
+      dropGain.gain.setValueAtTime(0.18, now);
+      dropGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      dropOsc.connect(dropGain);
+      dropGain.connect(ctx.destination);
+      dropOsc.start(now);
+      dropOsc.stop(now + 0.15);
 
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      // 2. Sparkling moisture celesta arpeggio (A5, C#6, E6, A6)
+      const freqs = [880, 1108.73, 1318.5, 1760];
+      freqs.forEach((freq, idx) => {
+        const time = now + 0.08 + idx * 0.07;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, time);
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.15);
+        gain.gain.setValueAtTime(0.14, time);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.45);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + 0.45);
+      });
     } catch (e) {
       console.warn('Sound synthesis error:', e);
     }
@@ -288,29 +306,63 @@ class SoundSynthEngine {
   }
 
   /**
-   * Refreshing water glug & bubble sound for yawn wake-up
+   * Stage 1: Trigger / Snapshot sound for hydration alert
    */
-  public playWaterDrink() {
+  public playWaterTrigger() {
+    this.playCameraShutter();
+  }
+
+  /**
+   * Stage 2: Realistic liquid gulping and swallowing glugs during drinking progress
+   */
+  public playWaterGulp() {
     const ctx = this.ensureContext();
     if (!ctx) return;
     try {
-      const glugs = [320, 390, 480, 580, 720];
-      glugs.forEach((freq, idx) => {
-        const start = ctx.currentTime + idx * 0.07;
+      const now = ctx.currentTime;
+      const glugs = [
+        { f1: 320, f2: 160, dur: 0.22, delay: 0 },
+        { f1: 380, f2: 190, dur: 0.25, delay: 0.28 },
+      ];
+      glugs.forEach((g) => {
+        const start = now + g.delay;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, start);
-        osc.frequency.exponentialRampToValueAtTime(freq * 1.3, start + 0.06);
-
-        gain.gain.setValueAtTime(0.25, start);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.06);
-
+        osc.frequency.setValueAtTime(g.f1, start);
+        osc.frequency.exponentialRampToValueAtTime(g.f2, start + g.dur);
+        gain.gain.setValueAtTime(0.35, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + g.dur + 0.05);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(start);
-        osc.stop(start + 0.06);
+        osc.stop(start + g.dur + 0.08);
+      });
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
+   * Stage 3: Refreshing finishing ice-water chime when hydration is completed
+   */
+  public playWaterComplete() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      [523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98].forEach((freq, idx) => {
+        const start = now + idx * 0.08;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0.2, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.3);
       });
     } catch (e) {
       console.warn('Sound synthesis error:', e);
@@ -452,6 +504,153 @@ class SoundSynthEngine {
         osc.start(start);
         osc.stop(start + 0.12);
       }
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
+   * Gloomy square glitch for Frown / Depressed mood
+   */
+  public playFrownPenalty() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      // Sad trombone fail jingle
+      const freqs = [349.23, 329.63, 293.66, 261.63]; // F4, E4, D4, C4
+      freqs.forEach((freq, idx) => {
+        const start = now + idx * 0.13;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, start);
+        if (idx === freqs.length - 1) {
+          osc.frequency.linearRampToValueAtTime(freq * 0.75, start + 0.35);
+        }
+        gain.gain.setValueAtTime(0.18, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + (idx === freqs.length - 1 ? 0.4 : 0.15));
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + (idx === freqs.length - 1 ? 0.4 : 0.15));
+      });
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
+   * Urgent Tactical Warning Alarm Siren for Radar / Proximity Alert (雷達過近警報聲)
+   */
+  public playProximityAlert() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      // Alternating high-urgency alarm cycles (急促雙音警報聲: 嗶嗚嗶嗚)
+      const pulses = [
+        { f: 940, dur: 0.1, delay: 0 },
+        { f: 720, dur: 0.1, delay: 0.11 },
+        { f: 940, dur: 0.1, delay: 0.22 },
+        { f: 720, dur: 0.1, delay: 0.33 },
+        { f: 960, dur: 0.12, delay: 0.44 },
+        { f: 740, dur: 0.12, delay: 0.57 },
+      ];
+
+      pulses.forEach((p) => {
+        const start = now + p.delay;
+
+        // Main alarm tone
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(p.f, start);
+        osc.frequency.linearRampToValueAtTime(p.f * 0.94, start + p.dur);
+
+        gain.gain.setValueAtTime(0.24, start);
+        gain.gain.exponentialRampToValueAtTime(0.005, start + p.dur);
+
+        // Sub-harmonic resonant horn tone (1 octave lower for alarm acoustic presence)
+        const subOsc = ctx.createOscillator();
+        const subGain = ctx.createGain();
+        subOsc.type = 'square';
+        subOsc.frequency.setValueAtTime(p.f * 0.5, start);
+
+        subGain.gain.setValueAtTime(0.08, start);
+        subGain.gain.exponentialRampToValueAtTime(0.001, start + p.dur);
+
+        // Acoustic lowpass filter to produce realistic siren horn acoustics
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(2600, start);
+
+        osc.connect(filter);
+        subOsc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(start);
+        osc.stop(start + p.dur);
+        subOsc.start(start);
+        subOsc.stop(start + p.dur);
+      });
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
+   * Heavy industrial sawtooth buzzer for Sedentary Lock
+   */
+  public playSedentaryAlarm() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      // Mechanical twin-bell alarm clock ringing
+      for (let i = 0; i < 6; i++) {
+        const start = now + i * 0.08;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(i % 2 === 0 ? 880 : 1046.5, start);
+        gain.gain.setValueAtTime(0.16, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.07);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.07);
+      }
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  /**
+   * Urgent triple downward pulse for Overtime warning
+   */
+  public playOvertimeAlarm() {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      // Wailing panic siren
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(500, now);
+      osc.frequency.linearRampToValueAtTime(900, now + 0.15);
+      osc.frequency.linearRampToValueAtTime(500, now + 0.3);
+      osc.frequency.linearRampToValueAtTime(900, now + 0.45);
+
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.5);
     } catch (e) {
       console.warn('Sound synthesis error:', e);
     }

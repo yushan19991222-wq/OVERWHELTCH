@@ -170,10 +170,16 @@ const EXERCISE_POOL: RoutineStage[] = [
   },
 ];
 
-// Helper to randomly pick 3 distinct exercises from the pool
+// 3 fixed theme colors in exact order: 1st Purple, 2nd Yellow, 3rd Green
+const FIXED_STRETCH_COLORS = ['#8b5cf6', '#fbbf24', '#10b981'];
+
 const selectRandomThreeStages = (): RoutineStage[] => {
   const shuffled = [...EXERCISE_POOL].sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, 3);
+  const picked = shuffled.slice(0, 3);
+  return picked.map((stg, idx) => ({
+    ...stg,
+    accentColor: FIXED_STRETCH_COLORS[idx],
+  }));
 };
 
 export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProps> = ({
@@ -198,6 +204,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<string>('');
   const [hasFinished, setHasFinished] = useState<boolean>(false);
+  const [finishCountdown, setFinishCountdown] = useState<number>(3);
   const [breathPhase, setBreathPhase] = useState<'inhale' | 'exhale'>('inhale');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -210,17 +217,26 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
       setTotalSecondsRemaining(30);
       setIsPaused(false);
       setHasFinished(false);
+      setFinishCountdown(3);
       hasTriggeredCompleteRef.current = false;
       soundSynth.playRadarLockBeep(520);
     }
   }, [isOpen]);
 
-  // Automatic flow stage index (0: 0-10s, 1: 10-20s, 2: 20-30s)
-  const autoStageIndex = Math.min(2, Math.floor((30 - totalSecondsRemaining) / 10));
+  // Total elapsed seconds (0 to 30)
+  const elapsedSeconds = Math.min(30, Math.max(0, 30 - totalSecondsRemaining));
+
+  // Automatic flow stage index (0: 0-10s, 1: 10-20s, 2: 20-30s; 10 seconds per stage)
+  const autoStageIndex = hasFinished
+    ? 2
+    : Math.min(2, Math.floor(elapsedSeconds / 10));
   const effectiveStageIndex = autoStageIndex;
   const currentStage = activeStages[effectiveStageIndex] || activeStages[0];
-  const stageElapsed = (30 - totalSecondsRemaining) % 10;
-  const totalProgressPct = ((30 - totalSecondsRemaining) / 30) * 100;
+
+  // Seconds elapsed within the current 10s stage (0 to 9, or 10 if finished)
+  const currentStageElapsed = hasFinished ? 10 : elapsedSeconds % 10;
+  const currentStageRemaining = hasFinished ? 0 : 10 - currentStageElapsed;
+  const totalProgressPct = (elapsedSeconds / 30) * 100;
 
   // Real-time clock in HUD
   useEffect(() => {
@@ -235,44 +251,45 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
 
   // Breathing Guide Cycle (4s Inhale, 4s Exhale)
   useEffect(() => {
-    if (!isOpen || isPaused) return;
+    if (!isOpen || isPaused || hasFinished) return;
     const breathTimer = setInterval(() => {
       setBreathPhase((prev) => (prev === 'inhale' ? 'exhale' : 'inhale'));
     }, 4000);
     return () => clearInterval(breathTimer);
-  }, [isOpen, isPaused]);
+  }, [isOpen, isPaused, hasFinished]);
 
-  // Main countdown timer (30s)
+  // Main countdown timer (30s, exactly 1 second per step, pauses properly)
   useEffect(() => {
     if (!isOpen || isPaused || hasFinished) return;
 
     const interval = setInterval(() => {
       setTotalSecondsRemaining((prev) => {
         if (prev <= 1) {
-          clearInterval(interval);
           return 0;
         }
+        const next = prev - 1;
 
-        // Tick sound on stage transitions or regular interval
+        // Sound cue on stage transitions (remaining 20s = 10s done, remaining 10s = 20s done)
         if (!isMuted) {
-          if (prev % 10 === 0) {
+          if (next === 20 || next === 10) {
             soundSynth.playTargetAcquired();
-          } else if (prev % 2 === 0) {
+          } else if (next % 2 === 0 && next > 0) {
             soundSynth.playRadarLockBeep(640);
           }
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isOpen, isPaused, isMuted, hasFinished]);
+  }, [isOpen, isPaused, hasFinished, isMuted]);
 
-  // Handle completion celebration and exactly-once onComplete callback
+  // Handle completion celebration when 30 seconds run out
   useEffect(() => {
     if (isOpen && totalSecondsRemaining === 0 && !hasFinished && !hasTriggeredCompleteRef.current) {
       hasTriggeredCompleteRef.current = true;
       setHasFinished(true);
+      setFinishCountdown(3);
       soundSynth.playRewardJingle();
 
       // Multi-angle celebratory confetti bursts
@@ -280,7 +297,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         confetti({
           particleCount: 80,
           spread: 100,
-          origin: { y: 0.6 },
+          origin: { y: 0.5 },
           colors: ['#00d8ff', '#10b981', '#fbbf24', '#f43f5e', '#ffffff'],
           zIndex: 999999,
         });
@@ -290,7 +307,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
             particleCount: 50,
             angle: 60,
             spread: 70,
-            origin: { x: 0.1, y: 0.75 },
+            origin: { x: 0.1, y: 0.7 },
             colors: ['#00d8ff', '#10b981', '#fbbf24', '#a855f7'],
             zIndex: 999999,
           });
@@ -301,7 +318,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
             particleCount: 50,
             angle: 120,
             spread: 70,
-            origin: { x: 0.9, y: 0.75 },
+            origin: { x: 0.9, y: 0.7 },
             colors: ['#10b981', '#fbbf24', '#f43f5e', '#ffffff'],
             zIndex: 999999,
           });
@@ -309,30 +326,51 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
       } catch (e) {
         console.error('Confetti trigger error:', e);
       }
-
-      // Stay for 2.8 seconds on celebratory screen before closing smoothly
-      const timer = setTimeout(() => {
-        onCompleteRef.current();
-      }, 2800);
-
-      return () => clearTimeout(timer);
     }
   }, [isOpen, totalSecondsRemaining, hasFinished]);
 
-  // Keyboard shortcut listener (ESC to exit, SPACE to pause/resume)
+  // Ending screen stays for 3 seconds, then automatically closes and returns to home screen
+  useEffect(() => {
+    if (!isOpen || !hasFinished) return;
+
+    // Countdown 3 -> 2 -> 1 -> 0
+    const countdownTimer = setInterval(() => {
+      setFinishCountdown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
+    // Exactly 3 seconds (3000ms) delay before auto-closing to home
+    const autoCloseTimer = setTimeout(() => {
+      onCompleteRef.current();
+    }, 3000);
+
+    return () => {
+      clearInterval(countdownTimer);
+      clearTimeout(autoCloseTimer);
+    };
+  }, [isOpen, hasFinished]);
+
+  // Keyboard shortcut listener (ESC to exit, SPACE to pause/resume or instant return when finished)
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onDismissRef.current();
+        if (hasFinished) {
+          onCompleteRef.current();
+        } else {
+          onDismissRef.current();
+        }
       } else if (e.key === ' ') {
         e.preventDefault();
-        setIsPaused((p) => !p);
+        if (hasFinished) {
+          onCompleteRef.current();
+        } else {
+          setIsPaused((p) => !p);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, hasFinished]);
 
   // Fullscreen toggle
   const toggleFullscreen = () => {
@@ -446,7 +484,18 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
     };
 
     const render = () => {
-      frame++;
+      if (canvas && canvas.parentElement) {
+        const pw = canvas.parentElement.clientWidth;
+        const ph = canvas.parentElement.clientHeight;
+        if (pw > 0 && ph > 0 && (canvas.width !== pw || canvas.height !== ph)) {
+          width = canvas.width = pw;
+          height = canvas.height = ph;
+        }
+      }
+
+      if (!isPaused) {
+        frame++;
+      }
       const time = frame * 0.035;
 
       ctx.clearRect(0, 0, width, height);
@@ -516,57 +565,57 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
           const streamX = centerX + Math.sin(time * 3 + p) * 12;
           ctx.beginPath();
           ctx.arc(streamX, streamY, 2 + Math.sin(p) * 1, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(0, 216, 255, 0.7)';
+          ctx.fillStyle = currentStageColor;
           ctx.shadowBlur = 8;
-          ctx.shadowColor = '#00d8ff';
+          ctx.shadowColor = currentStageColor;
           ctx.fill();
         }
         ctx.restore();
 
-        drawCyberHead(headX, headY, '#00d8ff');
+        drawCyberHead(headX, headY, currentStageColor);
 
         // Spine
         for (let s = 1; s <= 5; s++) {
           const ratio = s / 6;
           const vY = headY + 22 + (hipY - (headY + 22)) * ratio;
-          drawJoint(headX, vY, 3, '#00d8ff', 8);
+          drawJoint(headX, vY, 3, currentStageColor, 8);
           if (s > 1) {
             const prevY = headY + 22 + (hipY - (headY + 22)) * ((s - 1) / 6);
-            drawLimb(headX, prevY, headX, vY, '#00d8ff', 4);
+            drawLimb(headX, prevY, headX, vY, currentStageColor, 4);
           }
         }
 
         // Shoulders & Arms Up
         const shoulderY = headY + 32;
-        drawJoint(centerX - 32, shoulderY, 5, '#00d8ff', 12);
-        drawJoint(centerX + 32, shoulderY, 5, '#00d8ff', 12);
+        drawJoint(centerX - 32, shoulderY, 5, currentStageColor, 12);
+        drawJoint(centerX + 32, shoulderY, 5, currentStageColor, 12);
 
         const leftElbowX = centerX - 24 - reachPulse * 6;
         const leftElbowY = headY - 12;
         const rightElbowX = centerX + 24 + reachPulse * 6;
         const rightElbowY = headY - 12;
 
-        drawLimb(centerX - 32, shoulderY, leftElbowX, leftElbowY, '#00d8ff', 6);
-        drawLimb(leftElbowX, leftElbowY, handX - 6, handY, '#00d8ff', 6);
-        drawJoint(leftElbowX, leftElbowY, 4, '#00d8ff');
+        drawLimb(centerX - 32, shoulderY, leftElbowX, leftElbowY, currentStageColor, 6);
+        drawLimb(leftElbowX, leftElbowY, handX - 6, handY, currentStageColor, 6);
+        drawJoint(leftElbowX, leftElbowY, 4, currentStageColor);
 
-        drawLimb(centerX + 32, shoulderY, rightElbowX, rightElbowY, '#00d8ff', 6);
-        drawLimb(rightElbowX, rightElbowY, handX + 6, handY, '#00d8ff', 6);
-        drawJoint(rightElbowX, rightElbowY, 4, '#00d8ff');
+        drawLimb(centerX + 32, shoulderY, rightElbowX, rightElbowY, currentStageColor, 6);
+        drawLimb(rightElbowX, rightElbowY, handX + 6, handY, currentStageColor, 6);
+        drawJoint(rightElbowX, rightElbowY, 4, currentStageColor);
 
         drawJoint(handX, handY, 7 + Math.abs(reachPulse) * 4, '#ffffff', 25);
 
         // Legs
-        drawJoint(hipX, hipY, 6, '#00d8ff', 14);
-        drawLimb(hipX, hipY, centerX - 38, floorY - 60, '#00d8ff', 6);
-        drawLimb(centerX - 38, floorY - 60, centerX - 48, floorY, '#00d8ff', 6);
-        drawJoint(centerX - 38, floorY - 60, 4.5, '#00d8ff');
-        drawJoint(centerX - 48, floorY, 4, '#00d8ff');
+        drawJoint(hipX, hipY, 6, currentStageColor, 14);
+        drawLimb(hipX, hipY, centerX - 38, floorY - 60, currentStageColor, 6);
+        drawLimb(centerX - 38, floorY - 60, centerX - 48, floorY, currentStageColor, 6);
+        drawJoint(centerX - 38, floorY - 60, 4.5, currentStageColor);
+        drawJoint(centerX - 48, floorY, 4, currentStageColor);
 
-        drawLimb(hipX, hipY, centerX + 38, floorY - 60, '#00d8ff', 6);
-        drawLimb(centerX + 38, floorY - 60, centerX + 48, floorY, '#00d8ff', 6);
-        drawJoint(centerX + 38, floorY - 60, 4.5, '#00d8ff');
-        drawJoint(centerX + 48, floorY, 4, '#00d8ff');
+        drawLimb(hipX, hipY, centerX + 38, floorY - 60, currentStageColor, 6);
+        drawLimb(centerX + 38, floorY - 60, centerX + 48, floorY, currentStageColor, 6);
+        drawJoint(centerX + 38, floorY - 60, 4.5, currentStageColor);
+        drawJoint(centerX + 48, floorY, 4, currentStageColor);
       } else if (stageId === 'torso_twist') {
         // ====================================================================
         // 2. 🧘 左右胸椎大旋轉 (Torso Twist)
@@ -575,20 +624,20 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         const shoulderW = 38 * Math.cos(twistAngle);
         headX = centerX + twistAngle * 10;
 
-        drawCyberHead(headX, headY, '#fbbf24', twistAngle * 5);
+        drawCyberHead(headX, headY, currentStageColor, twistAngle * 5);
 
         // Spine curve
         const spineMidX = centerX + twistAngle * 14;
         const spineMidY = (headY + hipY) * 0.5;
-        drawLimb(headX, headY + 22, spineMidX, spineMidY, '#fbbf24', 5);
-        drawLimb(spineMidX, spineMidY, hipX, hipY, '#fbbf24', 5);
-        drawJoint(spineMidX, spineMidY, 4, '#fbbf24', 10);
+        drawLimb(headX, headY + 22, spineMidX, spineMidY, currentStageColor, 5);
+        drawLimb(spineMidX, spineMidY, hipX, hipY, currentStageColor, 5);
+        drawJoint(spineMidX, spineMidY, 4, currentStageColor, 10);
 
         // Waist halo ring
         ctx.save();
         ctx.beginPath();
         ctx.ellipse(centerX, hipY - 20, 65, 18, twistAngle * 0.35, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+        ctx.strokeStyle = `${currentStageColor}99`;
         ctx.lineWidth = 2;
         ctx.setLineDash([8, 6]);
         ctx.stroke();
@@ -598,27 +647,27 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         const shoulderY = headY + 34;
         const leftShoulderX = centerX - shoulderW;
         const rightShoulderX = centerX + shoulderW;
-        drawJoint(leftShoulderX, shoulderY, 5, '#fbbf24', 12);
-        drawJoint(rightShoulderX, shoulderY, 5, '#fbbf24', 12);
+        drawJoint(leftShoulderX, shoulderY, 5, currentStageColor, 12);
+        drawJoint(rightShoulderX, shoulderY, 5, currentStageColor, 12);
 
         const leftHandX = centerX - Math.cos(twistAngle) * 78;
         const leftHandY = headY + 50 + twistAngle * 22;
         const rightHandX = centerX + Math.cos(twistAngle) * 78;
         const rightHandY = headY + 50 - twistAngle * 22;
 
-        drawLimb(leftShoulderX, shoulderY, (leftShoulderX + leftHandX) * 0.5, headY + 45, '#fbbf24', 6);
-        drawLimb((leftShoulderX + leftHandX) * 0.5, headY + 45, leftHandX, leftHandY, '#fbbf24', 6);
+        drawLimb(leftShoulderX, shoulderY, (leftShoulderX + leftHandX) * 0.5, headY + 45, currentStageColor, 6);
+        drawLimb((leftShoulderX + leftHandX) * 0.5, headY + 45, leftHandX, leftHandY, currentStageColor, 6);
         drawJoint(leftHandX, leftHandY, 5, '#ffffff', 16);
 
-        drawLimb(rightShoulderX, shoulderY, (rightShoulderX + rightHandX) * 0.5, headY + 45, '#fbbf24', 6);
-        drawLimb((rightShoulderX + rightHandX) * 0.5, headY + 45, rightHandX, rightHandY, '#fbbf24', 6);
+        drawLimb(rightShoulderX, shoulderY, (rightShoulderX + rightHandX) * 0.5, headY + 45, currentStageColor, 6);
+        drawLimb((rightShoulderX + rightHandX) * 0.5, headY + 45, rightHandX, rightHandY, currentStageColor, 6);
         drawJoint(rightHandX, rightHandY, 5, '#ffffff', 16);
 
-        drawJoint(hipX, hipY, 6, '#fbbf24', 14);
-        drawLimb(hipX, hipY, centerX - 36, floorY - 58, '#fbbf24', 6);
-        drawLimb(centerX - 36, floorY - 58, centerX - 45, floorY, '#fbbf24', 6);
-        drawLimb(hipX, hipY, centerX + 36, floorY - 58, '#fbbf24', 6);
-        drawLimb(centerX + 36, floorY - 58, centerX + 45, floorY, '#fbbf24', 6);
+        drawJoint(hipX, hipY, 6, currentStageColor, 14);
+        drawLimb(hipX, hipY, centerX - 36, floorY - 58, currentStageColor, 6);
+        drawLimb(centerX - 36, floorY - 58, centerX - 45, floorY, currentStageColor, 6);
+        drawLimb(hipX, hipY, centerX + 36, floorY - 58, currentStageColor, 6);
+        drawLimb(centerX + 36, floorY - 58, centerX + 45, floorY, currentStageColor, 6);
       } else if (stageId === 'calf_pump') {
         // ====================================================================
         // 3. 🦵 顛腳踢腿靜脈幫浦 (Calf Pump)
@@ -629,35 +678,35 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         hipY -= bounce * 16;
         headY -= bounce * 16;
 
-        drawCyberHead(headX, headY, '#10b981');
-        drawLimb(headX, headY + 22, hipX, hipY, '#10b981', 5);
+        drawCyberHead(headX, headY, currentStageColor);
+        drawLimb(headX, headY + 22, hipX, hipY, currentStageColor, 5);
 
         const shoulderY = headY + 30;
-        drawJoint(centerX - 32, shoulderY, 5, '#10b981', 12);
-        drawJoint(centerX + 32, shoulderY, 5, '#10b981', 12);
+        drawJoint(centerX - 32, shoulderY, 5, currentStageColor, 12);
+        drawJoint(centerX + 32, shoulderY, 5, currentStageColor, 12);
 
         // V arms
-        drawLimb(centerX - 32, shoulderY, centerX - 55, headY - 8 - bounce * 10, '#10b981', 6);
-        drawLimb(centerX - 55, headY - 8 - bounce * 10, centerX - 75, headY - 45 - bounce * 16, '#10b981', 6);
+        drawLimb(centerX - 32, shoulderY, centerX - 55, headY - 8 - bounce * 10, currentStageColor, 6);
+        drawLimb(centerX - 55, headY - 8 - bounce * 10, centerX - 75, headY - 45 - bounce * 16, currentStageColor, 6);
         drawJoint(centerX - 75, headY - 45 - bounce * 16, 5.5, '#ffffff', 18);
 
-        drawLimb(centerX + 32, shoulderY, centerX + 55, headY - 8 - bounce * 10, '#10b981', 6);
-        drawLimb(centerX + 55, headY - 8 - bounce * 10, centerX + 75, headY - 45 - bounce * 16, '#10b981', 6);
+        drawLimb(centerX + 32, shoulderY, centerX + 55, headY - 8 - bounce * 10, currentStageColor, 6);
+        drawLimb(centerX + 55, headY - 8 - bounce * 10, centerX + 75, headY - 45 - bounce * 16, currentStageColor, 6);
         drawJoint(centerX + 75, headY - 45 - bounce * 16, 5.5, '#ffffff', 18);
 
-        drawJoint(hipX, hipY, 6, '#10b981', 14);
+        drawJoint(hipX, hipY, 6, currentStageColor, 14);
 
         if (kickCycle > 0) {
-          drawLimb(hipX, hipY, centerX - 26, floorY - 62, '#10b981', 6);
-          drawLimb(centerX - 26, floorY - 62, centerX - 28, floorY - bounce * 14, '#10b981', 6);
-          drawLimb(hipX, hipY, centerX + 36, floorY - 78, '#10b981', 6);
-          drawLimb(centerX + 36, floorY - 78, centerX + 75, floorY - 55 - kickCycle * 32, '#10b981', 6);
+          drawLimb(hipX, hipY, centerX - 26, floorY - 62, currentStageColor, 6);
+          drawLimb(centerX - 26, floorY - 62, centerX - 28, floorY - bounce * 14, currentStageColor, 6);
+          drawLimb(hipX, hipY, centerX + 36, floorY - 78, currentStageColor, 6);
+          drawLimb(centerX + 36, floorY - 78, centerX + 75, floorY - 55 - kickCycle * 32, currentStageColor, 6);
           drawJoint(centerX + 75, floorY - 55 - kickCycle * 32, 5, '#ffffff', 16);
         } else {
-          drawLimb(hipX, hipY, centerX + 26, floorY - 62, '#10b981', 6);
-          drawLimb(centerX + 26, floorY - 62, centerX + 28, floorY - bounce * 14, '#10b981', 6);
-          drawLimb(hipX, hipY, centerX - 36, floorY - 78, '#10b981', 6);
-          drawLimb(centerX - 36, floorY - 78, centerX - 75, floorY - 55 + kickCycle * 32, '#10b981', 6);
+          drawLimb(hipX, hipY, centerX + 26, floorY - 62, currentStageColor, 6);
+          drawLimb(centerX + 26, floorY - 62, centerX + 28, floorY - bounce * 14, currentStageColor, 6);
+          drawLimb(hipX, hipY, centerX - 36, floorY - 78, currentStageColor, 6);
+          drawLimb(centerX - 36, floorY - 78, centerX - 75, floorY - 55 + kickCycle * 32, currentStageColor, 6);
           drawJoint(centerX - 75, floorY - 55 + kickCycle * 32, 5, '#ffffff', 16);
         }
 
@@ -671,9 +720,9 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
           ctx.lineTo(arrowX - 4, arrowY + 8);
           ctx.lineTo(arrowX + 4, arrowY + 8);
           ctx.closePath();
-          ctx.fillStyle = '#10b981';
+          ctx.fillStyle = currentStageColor;
           ctx.shadowBlur = 10;
-          ctx.shadowColor = '#10b981';
+          ctx.shadowColor = currentStageColor;
           ctx.fill();
         }
         ctx.restore();
@@ -685,15 +734,15 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         const shoulderRollY = Math.sin(rollAngle) * 12;
         const shoulderRollX = Math.cos(rollAngle) * 8;
 
-        drawCyberHead(headX, headY, '#f43f5e');
-        drawLimb(headX, headY + 22, hipX, hipY, '#f43f5e', 5);
+        drawCyberHead(headX, headY, currentStageColor);
+        drawLimb(headX, headY + 22, hipX, hipY, currentStageColor, 5);
 
         // Circular Laser Orbits around Shoulders
         ctx.save();
         ctx.beginPath();
         ctx.ellipse(centerX - 36, headY + 34, 18, 14, 0, 0, Math.PI * 2);
         ctx.ellipse(centerX + 36, headY + 34, 18, 14, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(244, 63, 94, 0.4)';
+        ctx.strokeStyle = `${currentStageColor}66`;
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 4]);
         ctx.stroke();
@@ -704,24 +753,24 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         const rightShX = centerX + 36 - shoulderRollX;
         const rightShY = headY + 34 + shoulderRollY;
 
-        drawJoint(leftShX, leftShY, 6, '#f43f5e', 14);
-        drawJoint(rightShX, rightShY, 6, '#f43f5e', 14);
+        drawJoint(leftShX, leftShY, 6, currentStageColor, 14);
+        drawJoint(rightShX, rightShY, 6, currentStageColor, 14);
 
         // Hands resting gently on shoulders/chest
-        drawLimb(leftShX, leftShY, centerX - 50, headY + 55, '#f43f5e', 6);
-        drawLimb(centerX - 50, headY + 55, leftShX + 6, leftShY + 8, '#f43f5e', 6);
+        drawLimb(leftShX, leftShY, centerX - 50, headY + 55, currentStageColor, 6);
+        drawLimb(centerX - 50, headY + 55, leftShX + 6, leftShY + 8, currentStageColor, 6);
         drawJoint(leftShX + 6, leftShY + 8, 4.5, '#ffffff', 14);
 
-        drawLimb(rightShX, rightShY, centerX + 50, headY + 55, '#f43f5e', 6);
-        drawLimb(centerX + 50, headY + 55, rightShX - 6, rightShY + 8, '#f43f5e', 6);
+        drawLimb(rightShX, rightShY, centerX + 50, headY + 55, currentStageColor, 6);
+        drawLimb(centerX + 50, headY + 55, rightShX - 6, rightShY + 8, currentStageColor, 6);
         drawJoint(rightShX - 6, rightShY + 8, 4.5, '#ffffff', 14);
 
         // Legs
-        drawJoint(hipX, hipY, 6, '#f43f5e', 14);
-        drawLimb(hipX, hipY, centerX - 35, floorY - 58, '#f43f5e', 6);
-        drawLimb(centerX - 35, floorY - 58, centerX - 42, floorY, '#f43f5e', 6);
-        drawLimb(hipX, hipY, centerX + 35, floorY - 58, '#f43f5e', 6);
-        drawLimb(centerX + 35, floorY - 58, centerX + 42, floorY, '#f43f5e', 6);
+        drawJoint(hipX, hipY, 6, currentStageColor, 14);
+        drawLimb(hipX, hipY, centerX - 35, floorY - 58, currentStageColor, 6);
+        drawLimb(centerX - 35, floorY - 58, centerX - 42, floorY, currentStageColor, 6);
+        drawLimb(hipX, hipY, centerX + 35, floorY - 58, currentStageColor, 6);
+        drawLimb(centerX + 35, floorY - 58, centerX + 42, floorY, currentStageColor, 6);
       } else if (stageId === 'side_bend') {
         // ====================================================================
         // 5. 🤸 側身彎月側腰舒展 (Side Bend Stretch)
@@ -732,42 +781,42 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         headX = centerX + bendShift * 0.9;
         headY += Math.abs(bendCycle) * 8;
 
-        drawCyberHead(headX, headY, '#8b5cf6', bendCycle * 6);
+        drawCyberHead(headX, headY, currentStageColor, bendCycle * 6);
 
         // Curved Spine
         const midSpineX = centerX + bendShift * 0.5;
         const midSpineY = (headY + hipY) * 0.5;
-        drawLimb(headX, headY + 22, midSpineX, midSpineY, '#8b5cf6', 5);
-        drawLimb(midSpineX, midSpineY, hipX, hipY, '#8b5cf6', 5);
+        drawLimb(headX, headY + 22, midSpineX, midSpineY, currentStageColor, 5);
+        drawLimb(midSpineX, midSpineY, hipX, hipY, currentStageColor, 5);
 
         // Arching Arm overhead
         const shY = headY + 32;
         if (bendCycle >= 0) {
           // Left arm reaches overhead to the right
-          drawLimb(centerX - 32, shY, centerX - 15, headY - 18, '#8b5cf6', 6);
-          drawLimb(centerX - 15, headY - 18, headX + 35, headY - 35, '#8b5cf6', 6);
+          drawLimb(centerX - 32, shY, centerX - 15, headY - 18, currentStageColor, 6);
+          drawLimb(centerX - 15, headY - 18, headX + 35, headY - 35, currentStageColor, 6);
           drawJoint(headX + 35, headY - 35, 6, '#ffffff', 20);
 
           // Right arm slides down thigh
-          drawLimb(centerX + 32, shY, centerX + 42, hipY + 20, '#8b5cf6', 6);
-          drawJoint(centerX + 42, hipY + 20, 4.5, '#8b5cf6', 10);
+          drawLimb(centerX + 32, shY, centerX + 42, hipY + 20, currentStageColor, 6);
+          drawJoint(centerX + 42, hipY + 20, 4.5, currentStageColor, 10);
         } else {
           // Right arm reaches overhead to the left
-          drawLimb(centerX + 32, shY, centerX + 15, headY - 18, '#8b5cf6', 6);
-          drawLimb(centerX + 15, headY - 18, headX - 35, headY - 35, '#8b5cf6', 6);
+          drawLimb(centerX + 32, shY, centerX + 15, headY - 18, currentStageColor, 6);
+          drawLimb(centerX + 15, headY - 18, headX - 35, headY - 35, currentStageColor, 6);
           drawJoint(headX - 35, headY - 35, 6, '#ffffff', 20);
 
           // Left arm slides down thigh
-          drawLimb(centerX - 32, shY, centerX - 42, hipY + 20, '#8b5cf6', 6);
-          drawJoint(centerX - 42, hipY + 20, 4.5, '#8b5cf6', 10);
+          drawLimb(centerX - 32, shY, centerX - 42, hipY + 20, currentStageColor, 6);
+          drawJoint(centerX - 42, hipY + 20, 4.5, currentStageColor, 10);
         }
 
         // Sturdy Legs
-        drawJoint(hipX, hipY, 6, '#8b5cf6', 14);
-        drawLimb(hipX, hipY, centerX - 40, floorY - 58, '#8b5cf6', 6);
-        drawLimb(centerX - 40, floorY - 58, centerX - 50, floorY, '#8b5cf6', 6);
-        drawLimb(hipX, hipY, centerX + 40, floorY - 58, '#8b5cf6', 6);
-        drawLimb(centerX + 40, floorY - 58, centerX + 50, floorY, '#8b5cf6', 6);
+        drawJoint(hipX, hipY, 6, currentStageColor, 14);
+        drawLimb(hipX, hipY, centerX - 40, floorY - 58, currentStageColor, 6);
+        drawLimb(centerX - 40, floorY - 58, centerX - 50, floorY, currentStageColor, 6);
+        drawLimb(hipX, hipY, centerX + 40, floorY - 58, currentStageColor, 6);
+        drawLimb(centerX + 40, floorY - 58, centerX + 50, floorY, currentStageColor, 6);
       } else if (stageId === 'neck_release') {
         // ====================================================================
         // 6. 💆 頸椎多軸全向舒緩 (Neck Release)
@@ -782,34 +831,34 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         ctx.save();
         ctx.beginPath();
         ctx.arc(centerX, headY + 22, 28, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
+        ctx.strokeStyle = `${currentStageColor}66`;
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 6]);
         ctx.stroke();
         ctx.restore();
 
-        drawCyberHead(headX, headY, '#06b6d4', neckTilt * 0.4);
-        drawLimb(headX, headY + 22, hipX, hipY, '#06b6d4', 5);
+        drawCyberHead(headX, headY, currentStageColor, neckTilt * 0.4);
+        drawLimb(headX, headY + 22, hipX, hipY, currentStageColor, 5);
 
         // Hands lightly on hips
         const shY = headY + 34;
-        drawJoint(centerX - 32, shY, 5, '#06b6d4', 12);
-        drawJoint(centerX + 32, shY, 5, '#06b6d4', 12);
+        drawJoint(centerX - 32, shY, 5, currentStageColor, 12);
+        drawJoint(centerX + 32, shY, 5, currentStageColor, 12);
 
-        drawLimb(centerX - 32, shY, centerX - 48, hipY - 10, '#06b6d4', 6);
-        drawLimb(centerX - 48, hipY - 10, centerX - 24, hipY, '#06b6d4', 6);
+        drawLimb(centerX - 32, shY, centerX - 48, hipY - 10, currentStageColor, 6);
+        drawLimb(centerX - 48, hipY - 10, centerX - 24, hipY, currentStageColor, 6);
         drawJoint(centerX - 24, hipY, 4.5, '#ffffff', 12);
 
-        drawLimb(centerX + 32, shY, centerX + 48, hipY - 10, '#06b6d4', 6);
-        drawLimb(centerX + 48, hipY - 10, centerX + 24, hipY, '#06b6d4', 6);
+        drawLimb(centerX + 32, shY, centerX + 48, hipY - 10, currentStageColor, 6);
+        drawLimb(centerX + 48, hipY - 10, centerX + 24, hipY, currentStageColor, 6);
         drawJoint(centerX + 24, hipY, 4.5, '#ffffff', 12);
 
         // Legs
-        drawJoint(hipX, hipY, 6, '#06b6d4', 14);
-        drawLimb(hipX, hipY, centerX - 35, floorY - 58, '#06b6d4', 6);
-        drawLimb(centerX - 35, floorY - 58, centerX - 42, floorY, '#06b6d4', 6);
-        drawLimb(hipX, hipY, centerX + 35, floorY - 58, '#06b6d4', 6);
-        drawLimb(centerX + 35, floorY - 58, centerX + 42, floorY, '#06b6d4', 6);
+        drawJoint(hipX, hipY, 6, currentStageColor, 14);
+        drawLimb(hipX, hipY, centerX - 35, floorY - 58, currentStageColor, 6);
+        drawLimb(centerX - 35, floorY - 58, centerX - 42, floorY, currentStageColor, 6);
+        drawLimb(hipX, hipY, centerX + 35, floorY - 58, currentStageColor, 6);
+        drawLimb(centerX + 35, floorY - 58, centerX + 42, floorY, currentStageColor, 6);
       } else if (stageId === 'standing_squat') {
         // ====================================================================
         // 7. 🏋️ 深蹲脈衝下肢循環 (Standing Squat Pulse)
@@ -820,35 +869,35 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         hipY = floorY - 125 + dropPx;
         headY = hipY - 120;
 
-        drawCyberHead(headX, headY, '#f97316');
-        drawLimb(headX, headY + 22, hipX, hipY, '#f97316', 5);
+        drawCyberHead(headX, headY, currentStageColor);
+        drawLimb(headX, headY + 22, hipX, hipY, currentStageColor, 5);
 
         // Counterbalance Arms reaching forward
         const shY = headY + 32;
-        drawJoint(centerX - 32, shY, 5, '#f97316', 12);
-        drawJoint(centerX + 32, shY, 5, '#f97316', 12);
+        drawJoint(centerX - 32, shY, 5, currentStageColor, 12);
+        drawJoint(centerX + 32, shY, 5, currentStageColor, 12);
 
         const handFwdY = shY + 10 - squatDepth * 8;
-        drawLimb(centerX - 32, shY, centerX - 48, shY + 12, '#f97316', 6);
-        drawLimb(centerX - 48, shY + 12, centerX - 70, handFwdY, '#f97316', 6);
+        drawLimb(centerX - 32, shY, centerX - 48, shY + 12, currentStageColor, 6);
+        drawLimb(centerX - 48, shY + 12, centerX - 70, handFwdY, currentStageColor, 6);
         drawJoint(centerX - 70, handFwdY, 5, '#ffffff', 18);
 
-        drawLimb(centerX + 32, shY, centerX + 48, shY + 12, '#f97316', 6);
-        drawLimb(centerX + 48, shY + 12, centerX + 70, handFwdY, '#f97316', 6);
+        drawLimb(centerX + 32, shY, centerX + 48, shY + 12, currentStageColor, 6);
+        drawLimb(centerX + 48, shY + 12, centerX + 70, handFwdY, currentStageColor, 6);
         drawJoint(centerX + 70, handFwdY, 5, '#ffffff', 18);
 
         // Bent Knees Squatting Out
-        drawJoint(hipX, hipY, 6, '#f97316', 14);
+        drawJoint(hipX, hipY, 6, currentStageColor, 14);
         const kneeSpread = 45 + squatDepth * 18;
         const kneeY = floorY - 55 + dropPx * 0.45;
 
-        drawLimb(hipX, hipY, centerX - kneeSpread, kneeY, '#f97316', 6);
-        drawLimb(centerX - kneeSpread, kneeY, centerX - 55, floorY, '#f97316', 6);
-        drawJoint(centerX - kneeSpread, kneeY, 5, '#f97316');
+        drawLimb(hipX, hipY, centerX - kneeSpread, kneeY, currentStageColor, 6);
+        drawLimb(centerX - kneeSpread, kneeY, centerX - 55, floorY, currentStageColor, 6);
+        drawJoint(centerX - kneeSpread, kneeY, 5, currentStageColor);
 
-        drawLimb(hipX, hipY, centerX + kneeSpread, kneeY, '#f97316', 6);
-        drawLimb(centerX + kneeSpread, kneeY, centerX + 55, floorY, '#f97316', 6);
-        drawJoint(centerX + kneeSpread, kneeY, 5, '#f97316');
+        drawLimb(hipX, hipY, centerX + kneeSpread, kneeY, currentStageColor, 6);
+        drawLimb(centerX + kneeSpread, kneeY, centerX + 55, floorY, currentStageColor, 6);
+        drawJoint(centerX + kneeSpread, kneeY, 5, currentStageColor);
       } else {
         // ====================================================================
         // 8. 👋 手腕八字筋膜放鬆 (Wrist Figure-8 Shake)
@@ -860,20 +909,20 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         const wristRightX = centerX + 45 + Math.sin(figure8Time + Math.PI) * 22;
         const wristRightY = headY + 55 + Math.sin((figure8Time + Math.PI) * 2) * 14;
 
-        drawCyberHead(headX, headY, '#ec4899');
-        drawLimb(headX, headY + 22, hipX, hipY, '#ec4899', 5);
+        drawCyberHead(headX, headY, currentStageColor);
+        drawLimb(headX, headY + 22, hipX, hipY, currentStageColor, 5);
 
         const shY = headY + 32;
-        drawJoint(centerX - 32, shY, 5, '#ec4899', 12);
-        drawJoint(centerX + 32, shY, 5, '#ec4899', 12);
+        drawJoint(centerX - 32, shY, 5, currentStageColor, 12);
+        drawJoint(centerX + 32, shY, 5, currentStageColor, 12);
 
         // Arms driving infinity wrist paths
-        drawLimb(centerX - 32, shY, centerX - 40, headY + 45, '#ec4899', 6);
-        drawLimb(centerX - 40, headY + 45, wristLeftX, wristLeftY, '#ec4899', 6);
+        drawLimb(centerX - 32, shY, centerX - 40, headY + 45, currentStageColor, 6);
+        drawLimb(centerX - 40, headY + 45, wristLeftX, wristLeftY, currentStageColor, 6);
         drawJoint(wristLeftX, wristLeftY, 5.5, '#ffffff', 20);
 
-        drawLimb(centerX + 32, shY, centerX + 40, headY + 45, '#ec4899', 6);
-        drawLimb(centerX + 40, headY + 45, wristRightX, wristRightY, '#ec4899', 6);
+        drawLimb(centerX + 32, shY, centerX + 40, headY + 45, currentStageColor, 6);
+        drawLimb(centerX + 40, headY + 45, wristRightX, wristRightY, currentStageColor, 6);
         drawJoint(wristRightX, wristRightY, 5.5, '#ffffff', 20);
 
         // Infinite Figure-8 Sparkling trails
@@ -884,28 +933,31 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
           const trY = headY + 55 + Math.sin(trailT * 2) * 14;
           ctx.beginPath();
           ctx.arc(trX, trY, 3 - i * 0.4, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(236, 72, 153, ${0.8 - i * 0.12})`;
+          ctx.fillStyle = currentStageColor;
           ctx.fill();
         }
         ctx.restore();
 
         // Legs
-        drawJoint(hipX, hipY, 6, '#ec4899', 14);
-        drawLimb(hipX, hipY, centerX - 35, floorY - 58, '#ec4899', 6);
-        drawLimb(centerX - 35, floorY - 58, centerX - 42, floorY, '#ec4899', 6);
-        drawLimb(hipX, hipY, centerX + 35, floorY - 58, '#ec4899', 6);
-        drawLimb(centerX + 35, floorY - 58, centerX + 42, floorY, '#ec4899', 6);
+        drawJoint(hipX, hipY, 6, currentStageColor, 14);
+        drawLimb(hipX, hipY, centerX - 35, floorY - 58, currentStageColor, 6);
+        drawLimb(centerX - 35, floorY - 58, centerX - 42, floorY, currentStageColor, 6);
+        drawLimb(hipX, hipY, centerX + 35, floorY - 58, currentStageColor, 6);
+        drawLimb(centerX + 35, floorY - 58, centerX + 42, floorY, currentStageColor, 6);
       }
 
-      animFrameRef.current = requestAnimationFrame(render);
+      if (!hasFinished) {
+        animFrameRef.current = requestAnimationFrame(render);
+      }
     };
 
     render();
 
     const handleResize = () => {
       if (canvas && canvas.parentElement) {
-        width = canvas.width = canvas.parentElement.clientWidth;
-        height = canvas.height = canvas.parentElement.clientHeight;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        width = canvas.width = Math.floor(rect.width) || 700;
+        height = canvas.height = Math.floor(rect.height) || 450;
       }
     };
     window.addEventListener('resize', handleResize);
@@ -914,7 +966,7 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       window.removeEventListener('resize', handleResize);
     };
-  }, [isOpen, currentStage]);
+  }, [isOpen, currentStage, isPaused, hasFinished]);
 
   if (!isOpen) return null;
 
@@ -926,37 +978,16 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         backgroundImage: `radial-gradient(ellipse at 50% 30%, ${currentStage.accentColor}18 0%, rgba(5, 7, 13, 0.98) 75%)`,
       }}
     >
-      {/* Tactical HUD Corner Brackets */}
-      <div className="pointer-events-none absolute top-3 left-3 text-slate-500 text-[10px] sm:text-xs z-20 select-none hidden xs:block">
-        ┌─ [OVERWATCH // BIOMECHANICS_COACH]
-      </div>
-      <div className="pointer-events-none absolute top-3 right-3 text-slate-500 text-[10px] sm:text-xs z-20 select-none hidden xs:block">
-        [SPINAL_DECOMPRESSION_ONLINE] ─┐
-      </div>
-      <div className="pointer-events-none absolute bottom-3 left-3 text-slate-500 text-[10px] sm:text-xs z-20 select-none hidden xs:block">
-        └─ [VENOUS_RETURN_OPTIMAL]
-      </div>
-      <div className="pointer-events-none absolute bottom-3 right-3 text-slate-500 text-[10px] sm:text-xs z-20 select-none hidden xs:block">
-        [RECOVERY_STATION] ─┘
-      </div>
-
       {/* Cybernetic Dot Grid and CRT Scanlines */}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:36px_36px] opacity-70 z-0" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.45)_50%)] bg-[length:100%_4px] opacity-70 z-0 pointer-events-none" />
 
-      {/* TOP HEADER STATUS BAR */}
-      <header className="relative z-10 w-full flex items-center justify-between pb-2.5 sm:pb-3 border-b border-white/10 text-xs shrink-0 gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div
-            className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 rounded font-bold tracking-wider truncate text-xs border shadow-lg transition-colors duration-300"
-            style={{
-              backgroundColor: `${currentStage.accentColor}18`,
-              borderColor: `${currentStage.accentColor}60`,
-              color: currentStage.accentColor,
-            }}
-          >
-            <Activity className="w-3.5 h-3.5 animate-pulse shrink-0" />
-            <span className="truncate">&gt; OVERWATCH // 30s 隨機站立動態體操</span>
+      {/* TOP HEADER STATUS BAR - Unified with ScreensaverMemeTakeover & SedentaryLockModal */}
+      <header className="relative z-10 w-full flex items-center justify-between pb-2 sm:pb-2.5 border-b border-white/10 text-xs shrink-0 gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded bg-[#00d8ff]/15 border border-[#00d8ff]/60 text-[#00d8ff] font-bold tracking-wider shadow-[0_0_15px_rgba(0,216,255,0.25)] truncate text-[10px] sm:text-[11px]">
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00d8ff] animate-pulse shadow-[0_0_8px_#00d8ff] shrink-0" />
+            <span className="truncate">&gt; OVERWHELTCH // INTERCEPT</span>
           </div>
         </div>
 
@@ -1028,30 +1059,6 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
               🎯 活化部位: <span className="text-white font-bold">{currentStage.targetMuscles}</span>
             </div>
 
-            {/* Finished Celebration Overlay */}
-            {hasFinished && (
-              <div className="absolute inset-0 bg-[#051a12]/92 backdrop-blur-lg flex flex-col items-center justify-center text-emerald-300 animate-in zoom-in-95 duration-300 z-30 p-6 text-center border-2 border-emerald-400/50 shadow-[0_0_50px_rgba(16,185,129,0.5)]">
-                <div className="relative mb-2">
-                  <Trophy className="w-16 h-16 text-yellow-400 animate-bounce drop-shadow-[0_0_16px_rgba(250,204,21,0.7)]" />
-                  <Sparkles className="w-6 h-6 text-cyan-300 absolute -top-1 -right-2 animate-spin duration-1000" />
-                </div>
-                <div className="text-xl sm:text-2xl font-black tracking-widest font-mono text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-300">
-                  🎉 CONGRATULATIONS!
-                </div>
-                <div className="text-xs sm:text-sm text-emerald-200 font-bold mt-1 font-mono">
-                  &gt; 30s 站立伸展完成 // 椎間盤減壓達到 85%
-                </div>
-                <div className="mt-2.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-300 text-xs font-black tracking-wider flex items-center gap-1.5 shadow-[0_0_12px_rgba(16,185,129,0.4)]">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>健康存摺 +15 BP 回血成功！</span>
-                </div>
-                <div className="mt-4 text-[10px] text-emerald-400/70 font-mono flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>即將自動返回工作畫面...</span>
-                </div>
-              </div>
-            )}
-
             {/* Paused Overlay */}
             {isPaused && !hasFinished && (
               <div className="absolute inset-0 bg-[#090a0f]/90 backdrop-blur-sm flex flex-col items-center justify-center text-amber-400 z-30">
@@ -1068,12 +1075,13 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
             {/* 3-Segment Stepper Progress Bar */}
             <div className="grid grid-cols-3 gap-2 w-full">
               {activeStages.map((stg, idx) => {
-                const isActive = effectiveStageIndex === idx;
-                const isPassed = effectiveStageIndex > idx;
+                const isPassed = hasFinished || elapsedSeconds >= (idx + 1) * 10;
+                const isActive = !hasFinished && elapsedSeconds >= idx * 10 && elapsedSeconds < (idx + 1) * 10;
+                const stageSec = isActive ? elapsedSeconds - idx * 10 : isPassed ? 10 : 0;
                 const segmentProgressPct = isPassed
                   ? 100
                   : isActive
-                  ? (stageElapsed / 10) * 100
+                  ? (stageSec / 10) * 100
                   : 0;
 
                 return (
@@ -1081,34 +1089,24 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
                     {/* Continuous Fill Track */}
                     <div className="w-full h-2 bg-black/60 rounded-full border border-white/10 overflow-hidden p-0.5 relative">
                       <div
-                        className={`h-full rounded-full transition-all duration-300 ${
-                          isPassed
-                            ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]'
-                            : isActive
-                            ? 'bg-gradient-to-r from-cyan-500 to-teal-400 shadow-[0_0_10px_rgba(6,182,212,0.8)]'
-                            : 'bg-transparent'
-                        }`}
-                        style={{ width: `${segmentProgressPct}%` }}
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{
+                          width: `${segmentProgressPct}%`,
+                          backgroundColor: segmentProgressPct > 0 ? stg.accentColor : 'transparent',
+                          boxShadow: segmentProgressPct > 0 ? `0 0 10px ${stg.accentColor}` : 'none',
+                        }}
                       />
                     </div>
 
                     {/* Subtitle / Action Label */}
                     <div className="flex items-center justify-between px-0.5 text-[10px] font-mono">
-                      <span className={`flex items-center gap-1 font-bold truncate ${
-                        isActive
-                          ? 'text-cyan-300 drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]'
-                          : isPassed
-                          ? 'text-emerald-400/90'
-                          : 'text-slate-500'
-                      }`}>
+                      <span className="flex items-center gap-1 font-bold truncate" style={{ color: isActive || isPassed ? stg.accentColor : '#64748b' }}>
                         <span>{stg.icon}</span>
                         <span className="truncate">{stg.name}</span>
                       </span>
 
-                      <span className={`text-[9px] font-bold ${
-                        isActive ? 'text-cyan-400' : isPassed ? 'text-emerald-400' : 'text-slate-600'
-                      }`}>
-                        {isPassed ? '✓' : isActive ? `${Math.round(stageElapsed)}s` : '10s'}
+                      <span className="text-[9px] font-bold" style={{ color: isActive || isPassed ? stg.accentColor : '#475569' }}>
+                        {isPassed ? '✓ 10s' : isActive ? `剩餘 ${10 - stageSec}s` : '10s'}
                       </span>
                     </div>
                   </div>
@@ -1152,14 +1150,14 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
               </div>
 
               <span
-                className="text-[10px] px-2 py-0.5 rounded font-bold border"
+                className="text-[10px] px-2 py-0.5 rounded font-bold border font-mono"
                 style={{
                   backgroundColor: `${currentStage.accentColor}20`,
                   borderColor: `${currentStage.accentColor}60`,
                   color: currentStage.accentColor,
                 }}
               >
-                剩餘 {10 - stageElapsed}s
+                {hasFinished ? '✓ 動作完成 (10s)' : `剩餘 ${currentStageRemaining}s`}
               </span>
             </div>
 
@@ -1219,6 +1217,8 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
                 setTotalSecondsRemaining(30);
                 setIsPaused(false);
                 setHasFinished(false);
+                setFinishCountdown(3);
+                hasTriggeredCompleteRef.current = false;
               }}
               className="px-4 py-2.5 rounded bg-[#10141c] hover:bg-slate-800 border border-white/10 hover:border-cyan-400 text-slate-300 hover:text-white transition flex items-center gap-1.5 text-xs font-bold cursor-pointer"
               title="重置 30 秒計時"
@@ -1230,10 +1230,61 @@ export const StretchStickmanScreensaver: React.FC<StretchStickmanScreensaverProp
         </div>
       </main>
 
+      {/* FULL-VIEWPORT CELEBRATORY ENDING SCREEN */}
+      {hasFinished && (
+        <div className="fixed inset-0 z-50 bg-[#050912]/96 backdrop-blur-2xl flex flex-col items-center justify-center p-4 sm:p-8 text-center animate-in fade-in zoom-in-95 duration-300 font-mono select-none">
+          <div className="relative mb-3">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.5)]">
+              <Trophy className="w-8 h-8 sm:w-10 sm:h-10 text-yellow-400 animate-bounce" />
+            </div>
+            <Sparkles className="w-5 h-5 text-cyan-300 absolute -top-1 -right-1 animate-spin duration-1000" />
+          </div>
+
+          <div className="text-xl sm:text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-300 mb-2">
+            🎉 30 秒站立動態體操完成！
+          </div>
+
+          <div className="text-xs sm:text-sm text-slate-300 font-medium max-w-md mb-4">
+            &gt; 已完成 3 組舒展動作 • 久坐時長已重置
+          </div>
+
+          {/* Reward Badge */}
+          <div className="px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-300 text-xs sm:text-sm font-black tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.35)] mb-6">
+            <Heart className="w-4 h-4 text-rose-400 fill-rose-400 animate-pulse" />
+            <span>健康存摺 +15 BP 回血成功！</span>
+          </div>
+
+          {/* 3-Second Countdown & Auto-Close Bar */}
+          <div className="flex flex-col items-center gap-2 w-full max-w-xs mb-5">
+            <div className="text-[11px] text-emerald-400 font-bold flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>將於 {finishCountdown} 秒後自動關閉...</span>
+            </div>
+
+            {/* Countdown progress bar (3s total) */}
+            <div className="w-full h-1.5 bg-black/60 rounded-full border border-emerald-500/30 overflow-hidden p-0.5">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full transition-all duration-1000 ease-linear"
+                style={{ width: `${Math.max(0, (finishCountdown / 3) * 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Direct Home Return Button */}
+          <button
+            onClick={() => onCompleteRef.current()}
+            className="px-5 py-2 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm tracking-wider shadow-[0_0_20px_rgba(16,185,129,0.4)] transition transform hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer font-mono"
+          >
+            <CheckCircle2 className="w-4 h-4 text-slate-950" />
+            <span>立即返回首頁</span>
+          </button>
+        </div>
+      )}
+
       {/* FOOTER TICKER */}
       <footer className="relative z-10 w-full pt-2.5 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-500 gap-1.5">
         <div className="flex items-center gap-2">
-          <span className="text-cyan-400 font-bold">[OVERWATCH // CALISTHENICS_OS]</span>
+          <span className="text-cyan-400 font-bold">[OVERWHELTCH // CALISTHENICS_OS]</span>
         </div>
         <div className="flex items-center gap-3 font-mono">
           <span className="text-emerald-400">&gt; BIOMECHANICS_ACTIVE</span>
