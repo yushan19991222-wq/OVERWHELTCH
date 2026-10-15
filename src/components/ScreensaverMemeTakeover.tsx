@@ -20,6 +20,7 @@ interface ScreensaverMemeTakeoverProps {
   onStartStretchWorkout?: () => void;
   telemetry?: TelemetryData;
   onEscapeOvertime?: (ranAway: boolean) => void;
+  onClaimSlack?: (earnedPoints: number, awaySeconds: number) => void;
 }
 
 // Book of Answers Wisdom & Quirky Chicken Soup Quotes (解答之書：通用職場金句、搞怪雞湯與解惑靈籤)
@@ -601,7 +602,7 @@ const IntegratedJackpotCabinet: React.FC<IntegratedJackpotCabinetProps> = ({
               onClick={onClaim}
               className="group w-full max-w-sm relative px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm border border-emerald-300/60 shadow-[0_0_15px_rgba(52,211,153,0.35)] transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center gap-2 select-none tracking-wide"
             >
-              <span>領取摸魚獎金 💰</span>
+              <span>領取摸魚獎金 💰 (+{earnedPoints} BP)</span>
             </button>
           </>
         ) : (
@@ -620,6 +621,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
   onDismiss,
   telemetry,
   onEscapeOvertime,
+  onClaimSlack,
 }) => {
   const onDismissRef = useRef(onDismiss);
   onDismissRef.current = onDismiss;
@@ -749,7 +751,7 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
       setYawnElapsedSeconds(0);
       setWaterStep('initial');
       setWaterProgress(0);
-      setAwaySeconds(300);
+      setAwaySeconds(Math.max(300, Math.floor(telemetry?.consecutiveAwaySeconds || 300)));
       setWoodenFishClicks(0);
       setIsCompletingFund(false);
       setIsWaiverChecked(false);
@@ -785,23 +787,24 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
     return () => clearInterval(interval);
   }, [alert?.type, alert?.timestamp]);
 
-  // Stopwatch for Slack/Away mode that increments actual seconds
+  // Stopwatch for Slack/Away mode: dynamically synchronizes with real away duration
   useEffect(() => {
     if (!alert || alert.type !== 'slack') return;
 
-    // Initialize with the current away seconds from telemetry
-    const initialSecs = Math.max(300, Math.floor(telemetry?.consecutiveAwaySeconds || 300));
-    setAwaySeconds(initialSecs);
-
-    const timer = setInterval(() => {
-      const isFacePresent = !!telemetryRef.current?.isFacePresent;
-      if (!isFacePresent) {
-        setAwaySeconds((prev) => prev + 1);
+    const syncAwaySecs = () => {
+      const liveSecs = telemetryRef.current?.consecutiveAwaySeconds;
+      if (liveSecs && liveSecs > 0) {
+        setAwaySeconds(Math.max(300, Math.floor(liveSecs)));
+      } else {
+        const elapsedSinceAlert = Math.floor((Date.now() - (alert.timestamp || Date.now())) / 1000);
+        setAwaySeconds((prev) => Math.max(prev, 300 + elapsedSinceAlert));
       }
-    }, 1000);
+    };
 
+    syncAwaySecs();
+    const timer = setInterval(syncAwaySecs, 1000);
     return () => clearInterval(timer);
-  }, [alert?.type]);
+  }, [alert?.type, alert?.timestamp]);
 
   // High-frequency 100ms real camera closed-eye tracking loop
   useEffect(() => {
@@ -1614,7 +1617,11 @@ export const ScreensaverMemeTakeover: React.FC<ScreensaverMemeTakeoverProps> = (
                           try {
                             soundSynth.playRewardJingle();
                           } catch {}
-                          onDismiss();
+                          if (onClaimSlack) {
+                            onClaimSlack(earnedPoints, awaySeconds);
+                          } else {
+                            onDismiss();
+                          }
                         }}
                       />
                     );

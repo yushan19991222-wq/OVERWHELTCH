@@ -30,9 +30,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [desktopNotificationsEnabled, setDesktopNotificationsEnabled] = useState(
     settings.desktopNotificationsEnabled ?? true
   );
-  const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState(
-    settings.voiceAlertsEnabled ?? true
-  );
   const [showConfirmReset, setShowConfirmReset] = useState(false);
 
   // Sync state whenever modal opens or settings prop changes
@@ -44,7 +41,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setHydrationIntervalMinutes(settings.hydrationIntervalMinutes ?? 60);
       setSoundEnabled(settings.soundEnabled);
       setDesktopNotificationsEnabled(settings.desktopNotificationsEnabled ?? true);
-      setVoiceAlertsEnabled(settings.voiceAlertsEnabled ?? true);
       setShowConfirmReset(false);
     }
   }, [isOpen, settings]);
@@ -99,7 +95,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       hydrationIntervalMinutes: Math.max(5, Number(hydrationIntervalMinutes) || 60),
       soundEnabled,
       desktopNotificationsEnabled,
-      voiceAlertsEnabled,
     });
     onClose();
   };
@@ -226,7 +221,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
             <div>
               <div className="font-bold text-slate-200">WEB_AUDIO_SYNTH: SOUND_FEEDBACK</div>
-              <div className="text-[10px] text-slate-500">哈欠音效、摸魚獎勵、加班倒數警報</div>
+              <div className="text-[10px] text-slate-500">網頁內建音效與語音播報（哈欠、獎勵、警報提示音與口語提示）</div>
             </div>
             <button
               type="button"
@@ -245,7 +240,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
             <div>
               <div className="font-bold text-slate-200">OS_NOTIFICATION: DESKTOP_ALERTS</div>
-              <div className="text-[10px] text-slate-500">切換其他分頁或桌面程式時，跳出常駐阻擋通知</div>
+              <div className="text-[10px] text-slate-500">作業系統桌面通知（即使切換至其他瀏覽器分頁或視窗，也會在桌面跳出置頂通知窗格）</div>
             </div>
             <button
               type="button"
@@ -267,25 +262,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }`}
             >
               {desktopNotificationsEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-            </button>
-          </div>
-
-          {/* Voice Broadcast Toggle */}
-          <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-            <div>
-              <div className="font-bold text-slate-200">AI_VOICE_TTS: SPEECH_BROADCAST</div>
-              <div className="text-[10px] text-slate-500">超時久坐與哈欠抓包時，發出語音播報中斷</div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setVoiceAlertsEnabled(!voiceAlertsEnabled)}
-              className={`p-2 rounded-md border transition-all cursor-pointer ${
-                voiceAlertsEnabled
-                  ? 'bg-cyan-950/70 border-cyan-500/60 text-cyan-300'
-                  : 'bg-slate-900 border-slate-800 text-slate-500'
-              }`}
-            >
-              {voiceAlertsEnabled ? <MessageSquare className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>
           </div>
 

@@ -72,7 +72,6 @@ export const InitialOnboardingModal: React.FC<InitialOnboardingModalProps> = ({
       hydrationIntervalMinutes: defaultSettings?.hydrationIntervalMinutes ?? 60,
       soundEnabled: defaultSettings?.soundEnabled ?? true,
       desktopNotificationsEnabled: defaultSettings?.desktopNotificationsEnabled ?? true,
-      voiceAlertsEnabled: defaultSettings?.voiceAlertsEnabled ?? true,
     };
 
     onComplete(configuredSettings);

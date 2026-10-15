@@ -63,7 +63,6 @@ export interface GuardianSettings {
   hydrationIntervalMinutes?: number;
   soundEnabled: boolean;
   desktopNotificationsEnabled: boolean;
-  voiceAlertsEnabled: boolean;
 }
 
 export interface ActiveHazardAlert {

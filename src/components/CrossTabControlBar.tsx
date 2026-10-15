@@ -23,8 +23,6 @@ import {
 interface CrossTabControlBarProps {
   isPiPActive: boolean;
   onTogglePiP: () => void;
-  voiceAlertsEnabled: boolean;
-  onToggleVoice: (enabled: boolean) => void;
   desktopNotificationsEnabled: boolean;
   onToggleDesktopNotifications: (enabled: boolean) => void;
   isMeetingMode: boolean;
@@ -34,8 +32,6 @@ interface CrossTabControlBarProps {
 export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
   isPiPActive,
   onTogglePiP,
-  voiceAlertsEnabled,
-  onToggleVoice,
   desktopNotificationsEnabled,
   onToggleDesktopNotifications,
   isMeetingMode,
@@ -118,7 +114,7 @@ export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
       )}
 
       {/* Interactive Controls Group */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {/* 1. Always-on-Top Floating PiP Button */}
         <button
           onClick={onTogglePiP}
@@ -200,39 +196,6 @@ export const CrossTabControlBar: React.FC<CrossTabControlBarProps> = ({
                   ? '已授權：跳出系統強阻擋'
                   : '已開啟 (切換分頁發送警報)'
                 : '已關閉 (點擊開啟通知)'}
-            </div>
-          </div>
-        </button>
-
-        {/* 3. AI Voice Alerts TTS Toggle */}
-        <button
-          onClick={() => onToggleVoice(!voiceAlertsEnabled)}
-          className={`p-2 rounded border transition-all text-left flex items-center gap-2.5 group ${
-            voiceAlertsEnabled
-              ? 'bg-cyan-950/70 border-cyan-500/60 text-cyan-200 shadow-[0_0_8px_rgba(56,189,248,0.2)]'
-              : 'bg-[#030508] border-slate-800 hover:border-slate-700 text-slate-300'
-          }`}
-        >
-          <div
-            className={`p-1.5 rounded shrink-0 ${
-              voiceAlertsEnabled
-                ? 'bg-cyan-900/60 text-cyan-300'
-                : 'bg-black text-slate-400 group-hover:text-cyan-400'
-            }`}
-          >
-            {voiceAlertsEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="font-bold flex items-center justify-between text-xs">
-              <span className="truncate">VOICE_SYNTH</span>
-              {voiceAlertsEnabled ? (
-                <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-900/80 text-cyan-300 font-bold">LIVE</span>
-              ) : (
-                <span className="text-[9px] text-slate-600">OFF</span>
-              )}
-            </div>
-            <div className="text-[9px] text-slate-500 truncate">
-              {voiceAlertsEnabled ? '背景語音警報已就緒' : '已關閉語音 (點擊開啟)'}
             </div>
           </div>
         </button>

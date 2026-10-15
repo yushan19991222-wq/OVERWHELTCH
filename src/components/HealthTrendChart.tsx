@@ -331,7 +331,7 @@ export const HealthTrendChart: React.FC<HealthTrendChartProps> = ({
     const deskMins = deskSecs / 60;
     return Math.min(100, Math.max(12, Math.round(
       (deskMins / 10) * 5.5 +
-      (frownVal > 0.04 ? ((frownVal - 0.04) / 0.10) * 30 : 0) +
+      (frownVal > 0.10 ? ((frownVal - 0.10) / 0.15) * 30 : 0) +
       (proxVal > 45 ? ((proxVal - 45) / 25) * 20 : 0) +
       ((statsSummary?.frownsCaught ?? 0) * 3)
     )));

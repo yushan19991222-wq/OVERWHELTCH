@@ -222,6 +222,20 @@ export function computeLocalFaceScore(inputs: FaceEvaluationRawInputs): FaceChar
 }
 
 /**
+ * Filter out any accidental time/duration references from face-score comments
+ * (per user requirement: 表情神采評測不隨時間線性變化，嚴禁出現「才坐下4分鐘就打哈欠」等具體數字時間)
+ */
+export function sanitizeFaceScoreComment(comment: string): string {
+  if (!comment) return '';
+  return comment
+    .replace(/才坐下\s*\d+\s*(分鐘|分|小時)?/g, '剛坐下')
+    .replace(/坐了\s*\d+\s*(分鐘|分|小時)/g, '持續坐著')
+    .replace(/坐下\s*\d+\s*(分鐘|分|小時)/g, '坐下')
+    .replace(/\d+\s*(分鐘|小時)就/g, '一會兒就')
+    .replace(/才\s*\d+\s*(分鐘|分)/g, '剛剛');
+}
+
+/**
  * Attempt to call backend Gemini face score API, falling back to strict local computation
  */
 export async function evaluateFaceScoreWithGemini(
@@ -239,6 +253,7 @@ export async function evaluateFaceScoreWithGemini(
       if (data && data.success && data.score) {
         return {
           ...data,
+          comment: sanitizeFaceScoreComment(data.comment || ''),
           timestamp: Date.now(),
           source: 'gemini_ai',
         };
@@ -248,5 +263,9 @@ export async function evaluateFaceScoreWithGemini(
     console.warn('Gemini face-score API failed, falling back to local strict calculation:', err);
   }
 
-  return computeLocalFaceScore(inputs);
+  const localScore = computeLocalFaceScore(inputs);
+  return {
+    ...localScore,
+    comment: sanitizeFaceScoreComment(localScore.comment),
+  };
 }

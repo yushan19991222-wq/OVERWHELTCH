@@ -206,9 +206,8 @@ The user is sitting in front of the webcam. Biometric Telemetry:
 - Mouth Curvature / Smile Arc: ${(smile * 100).toFixed(0)}%
 - Brow Relaxation: ${(browRelaxation * 100).toFixed(0)}%
 - Eye Openness Arc: ${(eyeOpenness * 100).toFixed(0)}%
-- Yawns Count: ${yawnsCount}
-- Frowns Count: ${frownsCount}
-- Desk Sitting Minutes: ${consecutiveDeskMinutes}m
+- Yawns Caught: ${yawnsCount}
+- Frowns Caught: ${frownsCount}
 - Health Reserve: ${healthScore}/100
 
 STRICT SCORING RULES (NOT physical appearance, but mental vitality, smile arc & eye alertness):
@@ -221,14 +220,14 @@ Generate a fun evaluation in JSON format with:
 1. "score": integer between 15 and 98 according to the strict rules above.
 2. "rank": "SSS" | "SS" | "S" | "A" | "B" | "C" | "D".
 3. "title": a humorous Taiwanese title (max 20 characters).
-4. "comment": a witty 1-2 sentence remark about their current expression/vitality (max 45 characters, in Traditional Chinese).
+4. "comment": a witty 1-2 sentence remark about their current expression/vitality (max 45 characters, in Traditional Chinese). CRITICAL PROHIBITION: 嚴禁提及任何具體的時間、分鐘或小時（絕對不可出現「才坐下X分鐘」、「坐了X分鐘」、「才X分鐘就...」等具體數字時間！因為表情神采評測聚焦在當下眼神活力、嘴角弧度與整體氣色，不隨時間變化）。
 5. "highlightTag": short tag.
 6. "metrics": object with integer percentage values (0-100) reflecting:
    - "radiance": 面色氣色紅潤 (vitality & facial energy, based on health reserve)
    - "sparkle": 眼神聚焦清澈 (eye alertness & clear gaze, lower if drowsy/yawning)
    - "smilePower": 嘴角自然舒展 (smile arc & positive facial aura)
    - "symmetry": 眉心舒展放鬆 (brow relaxation, lower if frowning/stressed)
-   - "charisma": 神態清爽無倦 (anti-fatigue resilience, lower if sitting prolonged time)
+   - "charisma": 神態清爽無倦 (anti-fatigue resilience)
 
 Respond ONLY in valid JSON.`;
 
@@ -246,12 +245,21 @@ Respond ONLY in valid JSON.`;
             const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               const parsed = JSON.parse(jsonMatch[0]);
+              let cleanComment = parsed.comment || '狀態平穩，眼神有光，繼續保持優雅辦公！';
+              // Sanitize any accidental specific duration expressions
+              cleanComment = cleanComment
+                .replace(/才坐下\s*\d+\s*(分鐘|分|小時)?/g, '剛坐下')
+                .replace(/坐了\s*\d+\s*(分鐘|分|小時)/g, '持續坐著')
+                .replace(/坐下\s*\d+\s*(分鐘|分|小時)/g, '坐下')
+                .replace(/\d+\s*(分鐘|小時)就/g, '一會兒就')
+                .replace(/才\s*\d+\s*(分鐘|分)/g, '剛剛');
+
               return res.json({
                 success: true,
                 score: parsed.score || 88,
                 rank: parsed.rank || 'S',
                 title: parsed.title || '高智感元氣職場高光 ✨',
-                comment: parsed.comment || '狀態平穩，眼神有光，繼續保持優雅辦公！',
+                comment: cleanComment,
                 highlightTag: parsed.highlightTag || 'STABLE_WORKER',
                 metrics: parsed.metrics || {
                   radiance: 85,

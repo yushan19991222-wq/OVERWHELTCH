@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { FaceCharismaScore } from '../types';
 import { FiveAxisRadarChart } from './FiveAxisRadarChart';
+import { sanitizeFaceScoreComment } from '../utils/faceScoreEvaluator';
 
 interface FacialScoreCardProps {
   scoreData: FaceCharismaScore | null;
@@ -256,7 +257,7 @@ export const FacialScoreCard: React.FC<FacialScoreCardProps> = ({
 
                 {/* Bottom explanation block: comment (separated by dividing line and subtle dark bg) */}
                 <div className="px-4 py-3 bg-[#020409]/50 border-t border-slate-800/60 text-[11px] sm:text-xs text-slate-300 font-normal leading-relaxed text-left">
-                  {scoreData.comment}
+                  {sanitizeFaceScoreComment(scoreData.comment)}
                 </div>
               </div>
 
@@ -310,7 +311,7 @@ export const FacialScoreCard: React.FC<FacialScoreCardProps> = ({
                 
                 if (score >= 90) {
                   statusLabel = '神采滿格';
-                  adviceText = '目前氣色完美！雙眼有神、神態極具親和活力。建議繼續保持，每 45 分鐘適量補充溫水分，並維持挺拔坐姿以維持水光與專注力。';
+                  adviceText = '目前氣色完美！雙眼有神、神態極具親和活力。建議繼續保持，定時適量補充溫水，並維持挺拔坐姿以維持水光與專注力。';
                 } else if (score >= 80) {
                   statusLabel = '充沛良好';
                   adviceText = '氣色與專注力維持良好。眼部有輕微乾澀兆頭，建議飲水 150ml，並微微向後伸展雙臂放鬆肩頸，讓面部肌肉更放鬆。';
