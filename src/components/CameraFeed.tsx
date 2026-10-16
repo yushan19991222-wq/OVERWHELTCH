@@ -318,7 +318,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
         <div
           onClick={onTriggerFrown}
           className="p-2.5 rounded bg-[#070a10] border border-slate-800 hover:border-cyan-500/60 active:scale-[0.98] transition-all cursor-pointer flex flex-col justify-between group"
-          title="【精神緊繃壓力監測】眉心緊鎖（壓力 ≥ 0.15）持續 1.2 秒啟動開解與存證！點擊可立即手動測試"
+          title="【精神緊繃壓力監測】眉心微蹙/緊鎖（壓力 ≥ 0.15）持續 0.7 秒啟動開解與存證！點擊可立即手動測試"
         >
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
             <span className="flex items-center gap-1.5 text-slate-300 font-bold truncate group-hover:text-cyan-300">
@@ -334,7 +334,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
               className={`h-full transition-all duration-75 ${
                 telemetry.frown >= 0.15 ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]' : 'bg-cyan-400'
               }`}
-              style={{ width: `${Math.min(100, (telemetry.frown / 0.25) * 100)}%` }}
+              style={{ width: `${Math.min(100, (telemetry.frown / 0.30) * 100)}%` }}
             />
           </div>
           <div className="text-[9px] text-slate-400 mt-1 flex justify-between items-center">

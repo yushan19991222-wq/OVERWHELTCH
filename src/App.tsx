@@ -522,9 +522,10 @@ export default function App() {
     }>,
     lastSampleTimestamp: 0,
     latestSmile: 0.5,
-    latestBrowRelaxation: 0.8,
+    latestBrowRelaxation: 0.95,
     latestEyeOpenness: 0.8,
-    latestBrowPressure: 0.2,
+    latestBrowPressure: 0.02,
+    restingBrowBaseline: 0.035,
     latestProximityPct: 40,
     latestDistanceCm: 50,
     latestFaceBounds: null as { minX: number; maxX: number; minY: number; maxY: number } | null,
@@ -1914,97 +1915,72 @@ export default function App() {
                 lipCornerElevation = (avgCenterY - avgCornerY) / faceHeight;
               }
 
-              // 4. Synchronous Frown & Eyebrow Tension Evaluation
-              // Corrugator supercilii contraction (AU4: Brow Lowerer)
+              // 4. Synchronous Frown & Eyebrow Tension Evaluation (FACS AU4 Corrugator Dynamics)
+              // In FACS, brow lowerer (AU4) pulls eyebrows downward and medially.
               const browDownL =
                 blendshapes.find((b) => b.categoryName === 'browDownLeft')?.score || 0;
               const browDownR =
                 blendshapes.find((b) => b.categoryName === 'browDownRight')?.score || 0;
-              const browInnerUpL =
+              const browInnerUpVal =
                 blendshapes.find((b) => b.categoryName === 'browInnerUp')?.score || 0;
-              const browInnerUpR =
-                blendshapes.find((b) => b.categoryName === 'browInnerUp')?.score || 0;
-              const browInnerUpVal = (browInnerUpL + browInnerUpR) / 2;
 
-              // Biological Noise Gate for browDown:
-              // Resting relaxed human faces typically hover around 0.01 ~ 0.035 in FaceMesh.
-              // Subtract 0.03 deadband so a neutral relaxed face cleanly reads 0.00 ~ 0.02.
-              const activeBrowDownL = Math.max(0, browDownL - 0.03);
-              const activeBrowDownR = Math.max(0, browDownR - 0.03);
-              const activeBrowAvg = (activeBrowDownL + activeBrowDownR) / 2;
-              const activeBrowMax = Math.max(activeBrowDownL, activeBrowDownR);
+              // Combined active corrugator muscular tension (accounting for natural facial asymmetry)
+              const browDownAvg = (browDownL + browDownR) / 2;
+              const browDownMax = Math.max(browDownL, browDownR);
+              // Weight the more active brow higher (70/30) to capture unilateral furrowing or natural asymmetry
+              const rawBrowMuscular = browDownMax * 0.70 + browDownAvg * 0.30;
 
-              // Geometric Inner Eyebrow Compression (#107 vs #336 normalized to eye span #33 vs #263)
-              // Normal relaxed human ratio is ~0.28 to 0.35.
-              // Contraction happens when ratio squeezes below 0.27 AND active brow muscular tension is present.
-              const rightInnerBrow = landmarks[107] || landmarks[66];
-              const leftInnerBrow = landmarks[336] || landmarks[296];
-              const rightEyeCorner = landmarks[33];
-              const leftEyeCorner = landmarks[263];
+              // Adaptive Individual Neutral Resting Baseline:
+              // Different humans have slightly different natural brow ridges (0.01 ~ 0.05 when completely relaxed).
+              // When the user is calm (not frowning, not smiling, not yawning), we gently calibrate to their natural neutral.
+              if (rawBrowMuscular < 0.12 && smileVal < 0.20 && jawVal < 0.25) {
+                const currentBaseline = detectionRef.current.restingBrowBaseline ?? 0.035;
+                const adaptRate = Math.min(0.06, delta * 0.3);
+                detectionRef.current.restingBrowBaseline = Math.max(
+                  0.01,
+                  Math.min(0.05, currentBaseline * (1 - adaptRate) + rawBrowMuscular * adaptRate)
+                );
+              }
+              const baseline = detectionRef.current.restingBrowBaseline ?? 0.035;
 
-              let geomFurrow = 0;
-              if (
-                rightInnerBrow &&
-                leftInnerBrow &&
-                rightEyeCorner &&
-                leftEyeCorner &&
-                eyeLookDownVal < 0.50
-              ) {
-                const eyeSpan = Math.max(0.01, Math.hypot(leftEyeCorner.x - rightEyeCorner.x, leftEyeCorner.y - rightEyeCorner.y));
-                const browSpan = Math.hypot(leftInnerBrow.x - rightInnerBrow.x, leftInnerBrow.y - rightInnerBrow.y);
-                const ratio = browSpan / eyeSpan;
-                if (ratio < 0.27 && (activeBrowMax > 0.02 || activeBrowAvg > 0.01)) {
-                  geomFurrow = Math.min(0.12, (0.27 - ratio) * 2.2);
-                }
+              // Net muscular contraction above the user's natural resting baseline
+              const netBrowRise = Math.max(0, rawBrowMuscular - baseline);
+
+              // Tuned Human Ergonomic Scaling:
+              // - Completely relaxed / flat face (netBrowRise = 0): reads 0.00 ~ 0.03 (Comfortably below 0.15 threshold)
+              // - Natural everyday frown (netBrowRise = 0.08 ~ 0.15): reads 0.16 ~ 0.28 (Exceeds 0.15 smoothly without needing forced/strained grimacing)
+              // - Strong / intense scowl (netBrowRise > 0.22): reads 0.35 ~ 0.75
+              let calculatedFrown = netBrowRise * 1.85;
+
+              // Micro-stress hints (nose sneer / mouth frown / lip press) reinforce genuine stress when brow is engaged
+              if (netBrowRise > 0.025) {
+                const microStress = Math.min(0.06, Math.max(noseSneerVal * 0.12, mouthFrownVal * 0.12, mouthPressVal * 0.08));
+                calculatedFrown += microStress;
               }
 
-              // Active brow signal:
-              // Natural, comfortable brow furrowing easily reaches 0.16~0.25 (passing 0.15 threshold)
-              // without requiring exaggerated, unnatural facial contortions!
-              const rawBrowSignal =
-                (activeBrowMax * 0.70 + activeBrowAvg * 0.30) * 1.45 +
-                geomFurrow;
-
-              // Micro-stress hints (nose sneer / mouth frown / lip press) provide slight boost if brow is engaged
-              const microStressBoost = activeBrowMax > 0.04
-                ? Math.max(noseSneerVal * 0.10, mouthFrownVal * 0.10, mouthPressVal * 0.06)
-                : 0;
-
-              let baseBrowScore = rawBrowSignal + microStressBoost;
-
-              // If user is distinctly raising inner eyebrows (surprise, relief, high arch), suppress frown
-              if (browInnerUpVal > 0.22) {
-                baseBrowScore *= Math.max(0, 1 - (browInnerUpVal - 0.22) * 2.5);
+              // Antagonist dampeners:
+              // 1. Raising inner eyebrows (surprise / relief / quizzical arch)
+              if (browInnerUpVal > 0.25) {
+                calculatedFrown *= Math.max(0, 1 - (browInnerUpVal - 0.25) * 2.2);
+              }
+              // 2. Genuine smiling or laughter (crinkles upper face pleasantly, not stress)
+              if (smileVal > 0.22 || lipCornerElevation > 0.03) {
+                const smileDamp = Math.max((smileVal - 0.22) * 3.0, (lipCornerElevation - 0.03) * 12);
+                calculatedFrown *= Math.max(0, 1 - Math.min(1, smileDamp));
+              }
+              // 3. Wide jaw open / yawning
+              if (jawVal > 0.38) {
+                calculatedFrown *= Math.max(0, 1 - (jawVal - 0.38) * 3.0);
+              }
+              // 4. Extreme head turn
+              if (isLookingSideways && yawDev > 0.45) {
+                calculatedFrown *= 0.6;
               }
 
-              // Inhibit looking down false positives ONLY when user is looking down heavily at lap or phone
-              if (isHeadOrGazeDown && (eyeLookDownVal > 0.55 || pitchDownDev > 0.22)) {
-                const gazeSuppression = Math.max(0, (eyeLookDownVal - 0.55) * 2.0);
-                const pitchSuppression = Math.max(0, (pitchDownDev - 0.22) * 4.0);
-                const totalDownSuppression = Math.min(0.80, gazeSuppression + pitchSuppression);
-                baseBrowScore *= (1 - totalDownSuppression);
-              }
-
-              // Inhibit smile/laughter false positives
-              if (smileVal > 0.22 || lipCornerElevation > 0.04) {
-                const smileDamp = Math.max((smileVal - 0.22) * 3.5, (lipCornerElevation - 0.04) * 15);
-                baseBrowScore *= Math.max(0, 1 - Math.min(1, smileDamp));
-              }
-
-              // Inhibit extreme jaw opening / yawn / speech
-              if (jawVal > 0.28) {
-                baseBrowScore *= Math.max(0, 1 - (jawVal - 0.28) * 3.0);
-              }
-
-              // Side-angle mild dampener
-              if (isLookingSideways && yawDev > 0.35) {
-                baseBrowScore *= Math.max(0.3, 1 - (yawDev - 0.35) * 2.5);
-              }
-
-              const rawBrowPressure = Math.max(0, baseBrowScore);
+              const rawBrowPressure = Math.max(0, Math.min(1.0, calculatedFrown));
               const prevBrow = detectionRef.current.latestBrowPressure ?? rawBrowPressure;
-              // Responsive EMA: 0.70 new + 0.30 prev gives rapid responsive feedback
-              const browPressure = Number((prevBrow * 0.30 + rawBrowPressure * 0.70).toFixed(2));
+              // Responsive EMA for fast visual readout with zero stutter
+              const browPressure = Number((prevBrow * 0.25 + rawBrowPressure * 0.75).toFixed(2));
               detectionRef.current.latestBrowPressure = browPressure;
               const frownVal = browPressure;
 
@@ -2202,19 +2178,19 @@ export default function App() {
               }
 
               // Frown Trigger Check:
-              // Natural confused or stressed frown: frownVal >= 0.15, sustained for 1.2s
-              // (300ms grace window for facial landmark micro-jitter).
-              // Must NOT be yawning, jaw open, blinking/closing eyes, or smiling!
+              // Natural human frown: frownVal >= 0.15, sustained for 0.7s
+              // (500ms grace window for facial landmark micro-jitter).
+              // Must NOT be yawning, wide jaw, smiling, or looking completely away!
+              // Note: Normal desk monitor viewing angle (pitchDownDev <= 0.35) and natural squinting (blinkAvg < 0.82) are permitted!
               const isFrowningNow =
                 frownVal >= 0.15 &&
                 !isLookingSideways &&
-                eyeLookDownVal < 0.55 &&
-                pitchDownDev <= 0.22 &&
+                pitchDownDev <= 0.35 &&
                 !isYawningNow &&
                 !isEyesClosedNow &&
-                blinkAvg < 0.55 &&
-                jawVal < 0.28 &&
-                smileVal < 0.22;
+                blinkAvg < 0.82 &&
+                jawVal < 0.38 &&
+                smileVal < 0.25;
               let currentFrownElapsedSecs = 0;
               if (isFrowningNow) {
                 detectionRef.current.lastFrownFrameTime = performance.now();
@@ -2226,18 +2202,18 @@ export default function App() {
                 currentFrownElapsedSecs = elapsedFrown;
                 if (
                   isTrackingActive &&
-                  elapsedFrown >= 1.2 &&
+                  elapsedFrown >= 0.7 &&
                   !detectionRef.current.hasTriggeredThisFrown &&
                   detectionRef.current.frownCooldown <= 0 &&
                   !activeHazardRef.current
                 ) {
                   handleFrownPenalty();
                   detectionRef.current.hasTriggeredThisFrown = true;
-                  detectionRef.current.frownCooldown = 20; // 20s buffer to prevent alert fatigue
+                  detectionRef.current.frownCooldown = 5; // 5s buffer so it doesn't spam alerts, but resets promptly
                 }
               } else {
-                // 300ms grace buffer for landmark flicker: don't instantly reset progress if face flickers for 1 frame
-                if (performance.now() - (detectionRef.current.lastFrownFrameTime || 0) > 300) {
+                // 500ms grace buffer for landmark flicker: don't instantly reset progress if face flickers for 1-2 frames
+                if (performance.now() - (detectionRef.current.lastFrownFrameTime || 0) > 500) {
                   detectionRef.current.frownStartTime = null;
                   detectionRef.current.hasTriggeredThisFrown = false;
                 }
